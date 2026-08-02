@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n="sponsor.pageTitle">MyZone - 赞助</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-container">
+      <div class="nav-logo">
+        <a href="index.html"><h1>MyZone</h1></a>
+      </div>
+      <div class="nav-links">
+        <a href="index.html#features" data-i18n="nav.features">功能</a>
+        <a href="index.html#about" data-i18n="nav.about">关于</a>
+        <a href="sponsor.html" data-i18n="nav.sponsor">赞助</a>
+      </div>
+      <div class="nav-settings">
+        <select id="langSelect" class="lang-select">
+          <option value="zh" data-i18n="lang.zh">中文</option>
+          <option value="en" data-i18n="lang.en">English</option>
+        </select>
+        <button id="themeToggle" class="theme-toggle" data-i18n-title="common.toggleTheme">
+          <svg id="themeIconSun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+          <svg id="themeIconMoon" class="hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+        </button>
+      </div>
+      <div class="nav-auth">
+        <button id="loginBtn" class="btn btn-secondary" data-i18n="nav.login">登录</button>
+        <button id="signupBtn" class="btn btn-primary" data-i18n="nav.signup">注册</button>
+        <div id="userBtn" class="user-btn hidden">
+          <span id="userBtnAvatar">U</span>
+          <div id="userMenu" class="user-menu hidden">
+            <div class="user-info">
+              <div class="user-info-avatar" id="userAvatar">U</div>
+              <div class="user-info-text">
+                <h4 id="userName">用户</h4>
+                <p id="userEmail">user@example.com</p>
+              </div>
+            </div>
+            <div class="user-menu-divider"></div>
+            <a href="dashboard.html" class="user-menu-item" data-i18n="nav.dashboard">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2 2z"></path>
+                <polyline points="9 22 9 12 15 12 15 22"></polyline>
+              </svg>
+              <span>个人中心</span>
+            </a>
+            <a href="admin.html" id="adminLink" class="user-menu-item hidden" data-i18n="nav.admin">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                <circle cx="12" cy="8" r="3"></circle>
+              </svg>
+              <span>管理后台</span>
+            </a>
+            <div class="user-menu-divider"></div>
+            <button id="logoutBtn" class="user-menu-item danger" data-i18n="nav.logout">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                <polyline points="16 17 21 12 16 7"></polyline>
+                <line x1="21" y1="12" x2="9" y2="12"></line>
+              </svg>
+              <span>退出登录</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <main>
+    <section class="hero sponsor-hero">
+      <div class="hero-content">
+        <h2 data-i18n="sponsor.title">支持 MyZone 发展</h2>
+        <p data-i18n="sponsor.subtitle">赞助即表示您对项目的支持，感谢您的慷慨。</p>
+        <div class="hero-actions">
+          <a href="https://www.ifdian.net/a/Chaohuan" class="btn btn-primary" target="_blank" rel="noopener noreferrer" data-i18n="sponsor.supportBtn">前往赞助</a>
+          <a href="index.html" class="btn btn-secondary" data-i18n="nav.about">返回首页</a>
+        </div>
+      </div>
+    </section>
+
+    <section id="pro-plan" class="sponsor-plan">
+      <div class="sponsor-card">
+        <div class="sponsor-card-header">
+          <h3 data-i18n="sponsor.proPlan">PRO 版</h3>
+          <p class="sponsor-price" data-i18n="sponsor.priceMonthly">¥5/月</p>
+          <p class="sponsor-yearly" data-i18n="sponsor.priceYearly">¥54/年（省10%）</p>
+        </div>
+        <ul class="sponsor-features">
+          <li data-i18n="sponsor.feature">云空间创建数量不受限</li>
+          <li data-i18n="sponsor.supportNote">赞助即表示您对项目的支持，感谢您的慷慨！</li>
+        </ul>
+        <a class="btn btn-primary pro-sponsor-btn" href="https://www.ifdian.net/a/Chaohuan" target="_blank" rel="noopener noreferrer" data-i18n="sponsor.supportBtn">前往赞助</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p data-i18n="footer.copyright">© 2026 MyZone. All rights reserved.</p>
+  </footer>
+
+  <div id="loginModal" class="modal hidden">
+    <div id="loginBackdrop" class="modal-backdrop"></div>
+    <div class="modal-content">
+      <button id="closeModal" class="close-btn">&times;</button>
+      <h2 id="modalTitle" data-i18n="auth.login">登录</h2>
+      <div class="modal-tabs">
+        <button id="tabLogin" class="tab active" data-i18n="auth.login">登录</button>
+        <button id="tabSignup" class="tab" data-i18n="auth.signup">注册</button>
+      </div>
+      <form id="authForm">
+        <div class="form-group" id="usernameGroup">
+          <label data-i18n="auth.username">用户名</label>
+          <input type="text" id="authUsername" name="username" data-i18n-placeholder="auth.placeholder.username" placeholder="请输入用户名">
+        </div>
+        <div class="form-group">
+          <label data-i18n="auth.email">邮箱</label>
+          <input type="email" id="authEmail" name="email" data-i18n-placeholder="auth.placeholder.email" placeholder="请输入邮箱" required>
+        </div>
+        <div class="form-group">
+          <label data-i18n="auth.password">密码</label>
+          <input type="password" id="authPassword" name="password" data-i18n-placeholder="auth.placeholder.password" placeholder="请输入密码" required>
+        </div>
+        <div class="form-group" id="confirmPasswordGroup">
+          <label data-i18n="auth.confirmPassword">确认密码</label>
+          <input type="password" id="authConfirmPassword" name="confirmPassword" data-i18n-placeholder="auth.placeholder.confirmPassword" placeholder="请再次输入密码">
+        </div>
+        <div id="authError" class="error-message hidden"></div>
+        <button type="submit" id="authSubmit" class="btn btn-primary" data-i18n="auth.login">登录</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="js/lib/supabase.min.js"></script>
+  <script src="js/supabase-client.js"></script>
+  <script src="js/i18n.js"></script>
+  <script src="js/auth.js"></script>
+</body>
+</html>

@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MyZone - 个人中心</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="dashboard-body">
+  <nav class="navbar">
+    <div class="nav-container">
+      <div class="nav-logo">
+        <a href="index.html"><h1>MyZone</h1></a>
+      </div>
+      <div class="nav-settings">
+        <select id="langSelect" class="lang-select">
+          <option value="zh" data-i18n="lang.zh">中文</option>
+          <option value="en" data-i18n="lang.en">English</option>
+        </select>
+        <button id="themeToggle" class="theme-toggle" title="切换主题">
+          <svg id="themeIconSun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+          <svg id="themeIconMoon" class="hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+        </button>
+      </div>
+      <div class="nav-auth">
+        <div id="userBtn" class="user-btn">
+          <span id="userBtnAvatar">U</span>
+          <div id="userMenu" class="user-menu hidden">
+            <div class="user-info">
+              <div class="user-info-avatar" id="userAvatar">U</div>
+              <div class="user-info-text">
+                <h4 id="userName">用户</h4>
+                <p id="userEmail">user@example.com</p>
+              </div>
+            </div>
+            <div class="user-menu-divider"></div>
+            <a href="dashboard.html" class="user-menu-item" data-i18n="nav.dashboard">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                <polyline points="9 22 9 12 15 12 15 22"></polyline>
+              </svg>
+              <span>个人中心</span>
+            </a>
+            <a href="admin.html" id="adminLink" class="user-menu-item hidden" data-i18n="nav.admin">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                <circle cx="12" cy="8" r="3"></circle>
+              </svg>
+              <span>管理后台</span>
+            </a>
+            <div class="user-menu-divider"></div>
+            <button id="logoutBtn" class="user-menu-item danger" data-i18n="nav.logout">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                <polyline points="16 17 21 12 16 7"></polyline>
+                <line x1="21" y1="12" x2="9" y2="12"></line>
+              </svg>
+              <span>退出登录</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <div class="dashboard-container">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h3 data-i18n="nav.dashboard">个人中心</h3>
+      </div>
+      <div class="sidebar-menu">
+        <button class="sidebar-item active" data-page="profile" data-i18n="profile.title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+            <circle cx="12" cy="7" r="4"></circle>
+          </svg>
+          <span>个人资料</span>
+        </button>
+        <button class="sidebar-item" data-page="devices" data-i18n="devices.title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+            <line x1="8" y1="21" x2="16" y2="21"></line>
+            <line x1="12" y1="17" x2="12" y2="21"></line>
+          </svg>
+          <span>设备管理</span>
+        </button>
+        <button class="sidebar-item" data-page="cloud" data-i18n="cloud.title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+          </svg>
+          <span>云空间</span>
+        </button>
+      </div>
+    </aside>
+
+    <main class="dashboard-content">
+      <div id="profilePage" class="subpage">
+        <h2 data-i18n="profile.title">个人资料</h2>
+        <div class="profile-section">
+          <div class="profile-header">
+            <div class="profile-avatar">
+              <span id="profileAvatar">U</span>
+            </div>
+            <div class="profile-status" id="proStatus">
+              <span class="status-label" data-i18n="profile.normalStatus">普通用户</span>
+            </div>
+          </div>
+          <form class="profile-form">
+            <div class="form-group">
+              <label data-i18n="auth.username">用户名</label>
+              <input type="text" id="profileUsername" name="username" data-i18n-placeholder="profile.placeholder.username" placeholder="请输入用户名">
+            </div>
+            <div class="form-group">
+              <label data-i18n="auth.email">邮箱</label>
+              <input type="email" id="profileEmail" name="email" data-i18n-placeholder="profile.placeholder.email" placeholder="请输入邮箱" readonly>
+            </div>
+            <div class="form-group">
+              <label data-i18n="profile.avatarUrl">头像 URL</label>
+              <input type="url" id="profileAvatarUrl" name="avatarUrl" data-i18n-placeholder="profile.placeholder.avatarUrl" placeholder="请输入头像 URL">
+            </div>
+            <div class="form-group">
+              <label data-i18n="profile.bio">个人简介</label>
+              <textarea id="profileBio" name="bio" data-i18n-placeholder="profile.placeholder.bio" placeholder="请输入个人简介"></textarea>
+            </div>
+            <button type="button" id="saveProfileBtn" class="btn btn-primary" data-i18n="profile.save">保存</button>
+          </form>
+        </div>
+
+        <div class="profile-section activation-section">
+          <h3 data-i18n="activation.title">激活码</h3>
+          <div id="activationStatus">
+            <div id="activationResult" class="hidden"></div>
+            <div class="activation-input">
+              <input type="text" id="activationCode" name="activationCode" data-i18n-placeholder="activation.placeholder" placeholder="请输入激活码" maxlength="64">
+              <button type="button" id="redeemCodeBtn" class="btn btn-primary" data-i18n="activation.redeem">激活</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="devicesPage" class="subpage hidden">
+        <div class="page-header">
+          <h2 data-i18n="devices.title">设备管理</h2>
+        </div>
+        <div id="devicesList" class="cards-container"></div>
+      </div>
+
+      <div id="cloudPage" class="subpage hidden">
+        <div class="page-header">
+          <h2 data-i18n="cloud.title">云空间</h2>
+          <button id="addCloudBtn" class="btn btn-primary" data-i18n="cloud.addSpace">添加云空间</button>
+        </div>
+        <div class="cloud-sync-section">
+          <div id="cloudSpacesList" class="cloud-spaces-list"></div>
+          <div id="cloudSpacesEmpty" class="cloud-spaces-empty hidden">
+            <p data-i18n="cloud.empty">暂无云空间，请添加</p>
+          </div>
+        </div>
+        
+        <div id="cloudSyncSelectedInfo" style="display: none;">
+          <div class="selected-space-header">
+            <h4 id="cloudSyncSelectedName"></h4>
+            <span id="cloudSyncSelectedProvider" class="provider-tag"></span>
+          </div>
+          <div class="cloud-sync-actions">
+            <button id="cloudSyncEditSpaceBtn" class="btn btn-secondary" data-i18n="cloud.editConfig">修改配置</button>
+            <button id="cloudSyncDeleteSpaceBtn" class="btn btn-danger" data-i18n="cloud.deleteSpace">删除云空间</button>
+          </div>
+        </div>
+        <div id="cloudSyncNoSpaceSelected">
+          <p data-i18n="cloud.selectFirst">请先选择一个云空间</p>
+        </div>
+        <p class="cloud-sync-hint" data-i18n="cloud.supportHint">支持坚果云、Nextcloud、Synology 等 WebDAV 服务</p>
+      </div>
+    </main>
+  </div>
+
+  <div id="addDeviceModal" class="modal hidden">
+    <div id="deviceBackdrop" class="modal-backdrop"></div>
+    <div class="modal-content">
+      <button id="closeDeviceModal" class="close-btn">&times;</button>
+      <h2 data-i18n="devices.addDevice">添加设备</h2>
+      <form id="addDeviceForm">
+        <div class="form-group">
+          <label data-i18n="devices.deviceName">设备名称</label>
+          <input type="text" id="deviceName" name="deviceName" data-i18n-placeholder="devices.deviceName" placeholder="请输入设备名称" required>
+        </div>
+        <div class="form-group">
+          <label data-i18n="devices.deviceId">设备 ID</label>
+          <input type="text" id="deviceId" name="deviceId" data-i18n-placeholder="devices.deviceId" placeholder="请输入设备 ID">
+        </div>
+        <div class="form-group">
+          <label data-i18n="devices.os">操作系统</label>
+          <select id="deviceOs" name="deviceOs">
+            <option value="windows">Windows</option>
+            <option value="macos">macOS</option>
+            <option value="linux">Linux</option>
+            <option value="android">Android</option>
+            <option value="ios">iOS</option>
+          </select>
+        </div>
+        <div id="deviceError" class="error-message hidden"></div>
+        <button type="submit" class="btn btn-primary" data-i18n="devices.addDevice">添加</button>
+      </form>
+    </div>
+  </div>
+
+  <div id="cloudSpaceConfigModal" class="modal hidden">
+    <div id="cloudSpaceConfigOverlay" class="modal-backdrop"></div>
+    <div class="modal-content">
+      <button id="closeCloudSpaceConfigModal" class="close-btn">&times;</button>
+      <h2 id="cloudSpaceConfigTitle" data-i18n="cloud.addSpace">添加云空间</h2>
+      <input type="hidden" id="cloudSpaceConfigId">
+      <form id="cloudSpaceConfigForm">
+        <div class="form-group">
+          <label data-i18n="cloud.name">云空间名称</label>
+          <input type="text" id="cloudSpaceConfigName" data-i18n-placeholder="cloud.name" placeholder="输入云空间名称" required>
+        </div>
+        <div class="form-group">
+          <label data-i18n="cloud.url">WebDAV 服务器地址</label>
+          <div class="url-select-wrapper">
+            <select id="cloudSpaceConfigUrlPreset" data-i18n-placeholder="cloud.preset">
+              <option value="" data-i18n="cloud.preset">选择预设...</option>
+              <option value="https://dav.jianguoyun.com/dav/">坚果云</option>
+              <option value="https://nextcloud.com/remote.php/dav/files/">Nextcloud</option>
+              <option value="https://owncloud.com/remote.php/dav/files/">OwnCloud</option>
+              <option value="https://drive.hubic.com/remote.php/dav/files/">Hubic</option>
+              <option value="https://webdav.yandex.ru/">Yandex Disk</option>
+            </select>
+            <input type="text" id="cloudSpaceConfigUrl" placeholder="https://dav.jianguoyun.com/dav/" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label data-i18n="cloud.username">用户名 / 邮箱（可选）</label>
+          <input type="text" id="cloudSpaceConfigUsername" placeholder="your@email.com">
+        </div>
+        <div class="form-group">
+          <label data-i18n="cloud.password">密码</label>
+          <input type="password" id="cloudSpaceConfigPassword" data-i18n-placeholder="cloud.password" placeholder="密码" required>
+        </div>
+        <p class="cloud-sync-hint" data-i18n="cloud.jianguoyunHint">坚果云用户：密码请使用第三方应用密码（在坚果云账号设置中生成）</p>
+        <div id="cloudSpaceConfigError" class="error-message hidden"></div>
+        <div class="modal-footer">
+          <button type="button" id="cancelCloudSpaceConfigBtn" class="btn btn-secondary" data-i18n="cloud.cancel">取消</button>
+          <button type="submit" class="btn btn-primary" data-i18n="cloud.saveConfig">保存配置</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="js/lib/supabase.min.js"></script>
+  <script src="js/supabase-client.js"></script>
+  <script src="js/i18n.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/dashboard.js"></script>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      loadDashboard();
+
+      document.querySelectorAll('.sidebar-item').forEach(item => {
+        item.addEventListener('click', () => {
+          document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
+          item.classList.add('active');
+          
+          document.querySelectorAll('.subpage').forEach(page => page.classList.add('hidden'));
+          document.getElementById(item.dataset.page + 'Page').classList.remove('hidden');
+        });
+      });
+    });
+  </script>
+</body>
+</html>

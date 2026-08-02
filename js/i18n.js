@@ -1,0 +1,782 @@
+const translations = {
+  zh: {
+    app: {
+      name: 'MyZone',
+      tagline: '你的个人数据中心'
+    },
+    nav: {
+      features: '功能',
+      about: '关于',
+      sponsor: '赞助',
+      login: '登录',
+      signup: '注册',
+      dashboard: '个人中心',
+      admin: '管理后台',
+      logout: '退出登录'
+    },
+    hero: {
+      title: '你的个人空间',
+      subtitle: '桌面个人隐私空间，支持加密文件与内置浏览器。',
+      getStarted: '立即开始',
+      learnMore: '了解更多'
+    },
+    sponsor: {
+      pageTitle: 'MyZone - 赞助',
+      title: '支持 MyZone 发展',
+      subtitle: '赞助即表示您对项目的支持，感谢您的慷慨。',
+      proPlan: 'PRO 版',
+      priceMonthly: '¥5/月',
+      priceYearly: '¥54/年（省10%）',
+      feature: '云空间创建数量不受限',
+      supportBtn: '前往赞助',
+      supportNote: '赞助即表示您对项目的支持，感谢您的慷慨！'
+    },
+    features: {
+      title: '核心功能',
+      security: '隐私浏览器',
+      securityDesc: '内置安全浏览器，支持多标签与隔离存储。',
+      sync: '加密文件系统',
+      syncDesc: '本地加密存储，文件内容仅在你的个人空间解密。',
+      cloud: '扩展支持',
+      cloudDesc: '支持安装、启用和管理扩展。',
+      speed: '安全保护',
+      speedDesc: '密码锁屏与托盘隐藏，帮助你保护隐私空间。'
+    },
+    about: {
+      title: '关于 MyZone',
+      content: '桌面个人隐私空间，支持加密文件与内置浏览器。'
+    },
+    auth: {
+      login: '登录',
+      signup: '注册',
+      username: '用户名',
+      email: '邮箱',
+      password: '密码',
+      confirmPassword: '确认密码',
+      passwordMismatch: '两次输入的密码不一致',
+      usernameTooShort: '用户名至少需要3个字符',
+      signupFailed: '注册失败',
+      placeholder: {
+        username: '请输入用户名',
+        email: '请输入邮箱',
+        password: '请输入密码',
+        confirmPassword: '请再次输入密码'
+      }
+    },
+    profile: {
+      title: '个人资料',
+      editProfile: '编辑个人资料',
+      proStatus: 'PRO 用户',
+      normalStatus: '普通用户',
+      statusExpires: '到期：',
+      save: '保存',
+      avatarUrl: '头像 URL',
+      bio: '个人简介',
+      placeholder: {
+        username: '请输入用户名',
+        email: '请输入邮箱',
+        avatarUrl: '请输入头像 URL',
+        bio: '请输入个人简介'
+      }
+    },
+    activation: {
+      title: '激活码',
+      placeholder: '请输入激活码',
+      redeem: '激活',
+      processing: '激活中...',
+      success: '激活成功',
+      error: {
+        empty: '请输入激活码',
+        failed: '激活失败'
+      }
+    },
+    devices: {
+      title: '设备管理',
+      empty: '暂无设备',
+      emptyHint: '设备将在您登录 MyZone 应用时自动添加',
+      addDevice: '添加设备',
+      deviceName: '设备名称',
+      deviceId: '设备 ID',
+      os: '操作系统',
+      unknownOS: '未知系统',
+      loadFailed: '加载设备失败，请重试',
+      deleteConfirm: '确定要删除这个设备吗？',
+      deleteSuccess: '删除成功',
+      deleteFailed: '删除失败'
+    },
+    cloud: {
+      title: '云空间',
+      addSpace: '添加云空间',
+      upgrade: '升级 PRO 解锁更多云空间',
+      empty: '暂无云空间，请添加',
+      selectFirst: '请先选择一个云空间',
+      name: '云空间名称',
+      url: 'WebDAV 服务器地址',
+      username: '用户名 / 邮箱（可选）',
+      password: '密码',
+      preset: '选择预设...',
+      saveConfig: '保存配置',
+      cancel: '取消',
+      editConfig: '修改配置',
+      deleteSpace: '删除云空间',
+      deleteConfirm: '确定要删除云空间 "{name}" 吗？',
+      locked: '已锁定',
+      lockedHint: '非 PRO 用户只能使用一个云空间，请升级 PRO 解锁更多',
+      lastSync: '上次同步: ',
+      jianguoyunHint: '坚果云用户：密码请使用第三方应用密码（在坚果云账号设置中生成）',
+      supportHint: '支持坚果云、Nextcloud、Synology 等 WebDAV 服务',
+      limitError: '非 PRO 用户只能创建一个云空间',
+      loadFailed: '加载云空间失败，请重试',
+      checkLimitFailed: '检查云空间限制失败',
+      providers: {
+        jianguoyun: '坚果云',
+        aliyun: '阿里云',
+        tencent: '腾讯云',
+        baidu: '百度云'
+      }
+    },
+    admin: {
+      pageTitle: 'MyZone - 管理后台',
+      title: '管理后台',
+      toggleTheme: '切换主题',
+      permanentPlaceholder: '0=永久',
+      permanentHint: '0 表示永久有效',
+      users: '用户管理',
+      codes: '激活码管理',
+      userDetail: '查看详情',
+      generateCodes: '批量生成激活码',
+      batchDelete: '批量删除',
+      codeCount: '生成数量',
+      codeDays: 'PRO 时长（天）',
+      codeExpireDays: '激活有效期（天）',
+      codeMaxUses: '可用数量',
+      generate: '生成',
+      deleteConfirm: '确定要删除吗？',
+      deleteSuccess: '删除成功',
+      deleteFailed: '删除失败',
+      makeAdmin: '设为管理员',
+      removeAdmin: '移除管理员',
+      makeAdminConfirm: '确定要将该用户设为管理员吗？',
+      removeAdminConfirm: '确定要移除该用户的管理员权限吗？',
+      deleteCode: '删除',
+      activate: '激活',
+      used: '已使用',
+      unused: '未使用',
+      disabled: '已禁用',
+      permanent: '永久',
+      days: '天',
+      generateSuccess: '激活码生成成功',
+      batchDeleteConfirm: '确定要删除选中的 {count} 个激活码吗？',
+      batchDeleteSuccess: '成功删除 {count} 个激活码',
+      noPermission: '您没有管理员权限',
+      backToDashboard: '返回个人中心',
+      extensions: '扩展管理',
+      addExtension: '添加扩展',
+      editExtension: '编辑扩展',
+      viewDetail: '详情',
+      edit: '编辑',
+      publish: '发布',
+      unpublish: '取消发布',
+      delete: '删除',
+      noExtensions: '暂无扩展',
+      versionNumber: '版本号',
+      changelog: '更新日志',
+      fileSize: '文件大小',
+      minAppVersion: '最低版本',
+      minAppVersionCode: '最低绝对版本',
+      versionMinAppPlaceholder: '如 0.12.1',
+      versionMinAppCodePlaceholder: '如 20',
+      manifestPreview: 'Manifest 预览（只读）',
+      manifestParsing: '正在解析 manifest.json...',
+      manifestParsed: '已解析 manifest',
+      manifestNotFound: '未在 ZIP 中找到 manifest.json',
+      manifestParseFailed: '解析 manifest 失败',
+      manifestRaw: '原始 Manifest',
+      manifestLocalized: '本地化字段（按当前后台语言解析）',
+      availableLanguages: '可用语言',
+      languages: '语言',
+      isLatest: '最新',
+      createdAt: '创建时间',
+      noVersions: '暂无版本',
+      basicInfo: '基本信息',
+      name: '名称',
+      slug: '标识',
+      author: '作者',
+      downloadCount: '下载数',
+      website: '网站',
+      tags: '标签',
+      description: '描述',
+      nameEn: '名称（En）',
+      descriptionEn: '描述（En）',
+      versions: '版本列表',
+      addVersion: '添加版本',
+      extSlug: '扩展标识（英文）',
+      extName: '扩展名称',
+      extDesc: '扩展描述',
+      extAuthor: '作者',
+      extIcon: '图标URL',
+      extWebsite: '官方网站',
+      extTags: '标签（逗号分隔）',
+      extNameEn: '扩展名称（English）',
+      extDescEn: '扩展描述（English）',
+      versionChangelog: '更新日志',
+      versionFile: '扩展文件（ZIP压缩包）',
+      upload: '上传并创建',
+      extensionDetail: '扩展详情',
+      identifier: '标识',
+      published: '已发布',
+      unpublished: '未发布',
+      noDescription: '无描述',
+      latestVersion: '最新版本',
+      noVersion: '无版本',
+      downloads: '下载',
+      authorLabel: '作者',
+      unknown: '未知',
+      selectZip: '请选择ZIP文件',
+      uploadFailed: '文件上传失败',
+      uploading: '上传中...',
+      stagePreparing: '准备中...',
+      stageReadingFile: '正在读取文件...',
+      stageChecksum: '正在计算校验和...',
+      stageUploading: '正在上传文件...',
+      stageCreatingVersion: '正在创建版本记录...',
+      stageCreatingExtension: '正在创建扩展...',
+      stageDone: '完成',
+      quickCreateExtension: '快捷创建',
+      quickCreateHint: '上传扩展 ZIP 包，系统将自动解析 manifest 并创建扩展及首个版本。',
+      quickCreateSubmit: '创建扩展并上传',
+      createFailed: '创建扩展失败',
+      confirmDeleteVersion: '确定要删除此版本吗？',
+      extSlugPlaceholder: '例如：my-extension',
+      extNamePlaceholder: '扩展显示名称',
+      extDescPlaceholder: '扩展功能描述',
+      extAuthorPlaceholder: '作者名称',
+      extTagsPlaceholder: '例如：工具,效率,浏览器',
+      extNameEnPlaceholder: '扩展英文名称',
+      extDescEnPlaceholder: '扩展英文描述',
+      versionNumberPlaceholder: '例如：1.0.0',
+      versionChangelogPlaceholder: '版本更新内容',
+      versionMinAppPlaceholder: '例如：1.0.0',
+      save: '保存',
+      manifestUpdateTitle: '根据 Manifest 更新扩展信息',
+      manifestUpdateHint: '检测到 ZIP 中的 manifest 包含以下扩展信息，确认后将自动更新：',
+      manifestUpdateNoFields: '未在 manifest 中检测到可更新的扩展信息',
+      manifestUpdateSuccess: '扩展信息已自动更新',
+      manifestUpdateFailed: '更新扩展信息失败',
+      manifestUpdateSkip: '跳过',
+      manifestUpdateConfirm: '确认更新'
+    },
+    codes: {
+      empty: '暂无激活码',
+      proCode: 'PRO 激活码',
+      expireAt: '激活有效期至',
+      duration: 'PRO 时长',
+      usage: '使用次数',
+      redeemedBy: '已激活用户'
+    },
+    users: {
+      empty: '暂无用户',
+      detail: {
+        basicInfo: '基本信息',
+        username: '用户名',
+        email: '邮箱',
+        createdAt: '注册时间',
+        isAdmin: '管理员',
+        yes: '是',
+        no: '否',
+        devices: '设备列表',
+        cloudSpaces: '云空间',
+        noDevices: '暂无设备',
+        noSpaces: '暂无云空间',
+        deviceName: '设备名称',
+        os: '操作系统',
+        created: '创建时间',
+        name: '名称',
+        provider: '提供商',
+        syncStatus: '同步状态',
+        enabled: '已启用',
+        disabled: '未启用',
+        redeemedBy: '已激活用户'
+      }
+    },
+    theme: {
+      light: '浅色',
+      dark: '深色',
+      system: '跟随系统'
+    },
+    lang: {
+      zh: '中文',
+      en: 'English'
+    },
+    footer: {
+      copyright: '© 2026 MyZone. All rights reserved.'
+    },
+    resetPassword: {
+      pageTitle: '重置密码 - MyZone',
+      title: '重置密码',
+      subtitle: '请输入您的新密码',
+      newPassword: '新密码',
+      confirmPassword: '确认新密码',
+      passwordHint: '至少 6 个字符',
+      submit: '重置密码',
+      successTitle: '密码已重置',
+      successDesc: '您的密码已成功重置，请使用新密码登录。',
+      errorTitle: '重置失败',
+      invalidLink: '重置链接无效或已过期。',
+      backToLogin: '返回登录',
+      placeholder: {
+        password: '请输入新密码',
+        confirmPassword: '请再次输入新密码'
+      }
+    },
+    common: {
+      cancel: '取消',
+      confirm: '确认',
+      close: '关闭',
+      toggleTheme: '切换主题',
+      user: '用户',
+      loading: '加载中...',
+      saving: '保存中...',
+      error: '出错了，请重试',
+      success: '操作成功',
+      saveSuccess: '保存成功！',
+      saveFailed: '保存失败：',
+      save: '保存',
+      delete: '删除',
+      deleteFailed: '删除失败',
+      refresh: '刷新',
+      actions: '操作',
+      loginFirst: '请先登录',
+      networkError: '网络连接失败，请检查网络设置'
+    }
+  },
+  en: {
+    app: {
+      name: 'MyZone',
+      tagline: 'Your Personal Space'
+    },
+    nav: {
+      features: 'Features',
+      about: 'About',
+      sponsor: 'Sponsor',
+      login: 'Login',
+      signup: 'Sign Up',
+      dashboard: 'Dashboard',
+      admin: 'Admin',
+      logout: 'Logout'
+    },
+    hero: {
+      title: 'Your Personal Space',
+      subtitle: 'Desktop personal privacy space supporting encrypted files and a built-in browser.',
+      getStarted: 'Get Started',
+      learnMore: 'Learn More'
+    },
+    sponsor: {
+      pageTitle: 'MyZone - Sponsor',
+      title: 'Support MyZone',
+      subtitle: 'Sponsoring helps the project grow and improve.',
+      proPlan: 'PRO Plan',
+      priceMonthly: '¥5 / month',
+      priceYearly: '¥54 / year (save 10%)',
+      feature: 'Unlimited cloud spaces',
+      supportBtn: 'Support Now',
+      supportNote: 'Your sponsorship is greatly appreciated.'
+    },
+    features: {
+      title: 'Core Features',
+      security: 'Privacy Browser',
+      securityDesc: 'Built-in secure browser with multi-tab and isolated storage.',
+      sync: 'Encrypted File System',
+      syncDesc: 'Local encrypted storage where files are only decrypted in your personal space.',
+      cloud: 'Extension Support',
+      cloudDesc: 'Supports installing, enabling, and managing extensions.',
+      speed: 'Security Protection',
+      speedDesc: 'Password lock and tray hide features help you protect your privacy space.'
+    },
+    about: {
+      title: 'About MyZone',
+      content: 'Desktop personal privacy space supporting encrypted files and a built-in browser.'
+    },
+    auth: {
+      login: 'Login',
+      signup: 'Sign Up',
+      username: 'Username',
+      email: 'Email',
+      password: 'Password',
+      confirmPassword: 'Confirm Password',
+      passwordMismatch: 'Passwords do not match',
+      usernameTooShort: 'Username must be at least 3 characters',
+      signupFailed: 'Sign up failed',
+      placeholder: {
+        username: 'Enter username',
+        email: 'Enter email',
+        password: 'Enter password',
+        confirmPassword: 'Enter password again'
+      }
+    },
+    profile: {
+      title: 'Profile',
+      editProfile: 'Edit Profile',
+      proStatus: 'PRO User',
+      normalStatus: 'Normal User',
+      statusExpires: 'Expires: ',
+      save: 'Save',
+      avatarUrl: 'Avatar URL',
+      bio: 'Bio',
+      placeholder: {
+        username: 'Enter username',
+        email: 'Enter email',
+        avatarUrl: 'Enter avatar URL',
+        bio: 'Enter bio'
+      }
+    },
+    activation: {
+      title: 'Activation Code',
+      placeholder: 'Enter activation code',
+      redeem: 'Activate',
+      processing: 'Activating...',
+      success: 'Activation successful',
+      error: {
+        empty: 'Please enter activation code',
+        failed: 'Activation failed'
+      }
+    },
+    devices: {
+      title: 'Device Management',
+      empty: 'No devices',
+      emptyHint: 'Devices will be added automatically when you log in to MyZone app',
+      addDevice: 'Add Device',
+      deviceName: 'Device Name',
+      deviceId: 'Device ID',
+      os: 'Operating System',
+      unknownOS: 'Unknown OS',
+      loadFailed: 'Failed to load devices, please retry',
+      deleteConfirm: 'Are you sure you want to delete this device?',
+      deleteSuccess: 'Deleted successfully',
+      deleteFailed: 'Delete failed'
+    },
+    cloud: {
+      title: 'Cloud Space',
+      addSpace: 'Add Cloud Space',
+      upgrade: 'Upgrade PRO for more cloud spaces',
+      empty: 'No cloud spaces, please add one',
+      selectFirst: 'Please select a cloud space first',
+      name: 'Cloud Space Name',
+      url: 'WebDAV Server URL',
+      username: 'Username / Email (optional)',
+      password: 'Password',
+      preset: 'Select preset...',
+      saveConfig: 'Save Config',
+      cancel: 'Cancel',
+      editConfig: 'Edit Config',
+      deleteSpace: 'Delete Cloud Space',
+      deleteConfirm: 'Are you sure you want to delete cloud space "{name}"?',
+      locked: 'Locked',
+      lockedHint: 'Non-PRO users can only use one cloud space. Upgrade to PRO to unlock more.',
+      lastSync: 'Last sync: ',
+      jianguoyunHint: 'Jianguoyun users: Use third-party app password (generated in Jianguoyun account settings)',
+      supportHint: 'Supports Jianguoyun, Nextcloud, Synology and other WebDAV services',
+      limitError: 'Non-PRO users can only create one cloud space',
+      loadFailed: 'Failed to load cloud spaces, please retry',
+      checkLimitFailed: 'Failed to check cloud space limit',
+      providers: {
+        jianguoyun: 'Jianguoyun',
+        aliyun: 'Alibaba Cloud',
+        tencent: 'Tencent Cloud',
+        baidu: 'Baidu Cloud'
+      }
+    },
+    admin: {
+      pageTitle: 'MyZone - Admin',
+      title: 'Admin Panel',
+      toggleTheme: 'Toggle theme',
+      permanentPlaceholder: '0=permanent',
+      permanentHint: '0 means permanent',
+      users: 'User Management',
+      codes: 'Code Management',
+      userDetail: 'View Details',
+      generateCodes: 'Generate Codes',
+      batchDelete: 'Batch Delete',
+      codeCount: 'Count',
+      codeDays: 'PRO Duration (days)',
+      codeExpireDays: 'Expiration (days)',
+      codeMaxUses: 'Max Uses',
+      generate: 'Generate',
+      deleteConfirm: 'Are you sure?',
+      deleteSuccess: 'Deleted successfully',
+      deleteFailed: 'Delete failed',
+      makeAdmin: 'Make Admin',
+      removeAdmin: 'Remove Admin',
+      makeAdminConfirm: 'Are you sure you want to make this user an admin?',
+      removeAdminConfirm: 'Are you sure you want to remove this user\'s admin privileges?',
+      deleteCode: 'Delete',
+      activate: 'Activate',
+      used: 'Used',
+      unused: 'Unused',
+      disabled: 'Disabled',
+      permanent: 'Permanent',
+      days: 'days',
+      generateSuccess: 'Codes generated successfully',
+      batchDeleteConfirm: 'Are you sure you want to delete {count} selected codes?',
+      batchDeleteSuccess: 'Successfully deleted {count} codes',
+      noPermission: 'You do not have admin permissions',
+      backToDashboard: 'Back to Dashboard',
+      extensions: 'Extension Management',
+      addExtension: 'Add Extension',
+      editExtension: 'Edit Extension',
+      viewDetail: 'Details',
+      edit: 'Edit',
+      publish: 'Publish',
+      unpublish: 'Unpublish',
+      delete: 'Delete',
+      noExtensions: 'No extensions',
+      versionNumber: 'Version',
+      changelog: 'Changelog',
+      fileSize: 'File Size',
+      minAppVersion: 'Min Version',
+      minAppVersionCode: 'Min Absolute Version',
+      versionMinAppPlaceholder: 'e.g. 0.12.1',
+      versionMinAppCodePlaceholder: 'e.g. 20',
+      manifestPreview: 'Manifest Preview (read-only)',
+      manifestParsing: 'Parsing manifest.json...',
+      manifestParsed: 'Manifest parsed',
+      manifestNotFound: 'manifest.json not found in ZIP',
+      manifestParseFailed: 'Failed to parse manifest',
+      manifestRaw: 'Raw Manifest',
+      manifestLocalized: 'Localized fields (resolved by current admin language)',
+      availableLanguages: 'Available languages',
+      languages: 'languages',
+      isLatest: 'Latest',
+      createdAt: 'Created At',
+      noVersions: 'No versions',
+      basicInfo: 'Basic Info',
+      name: 'Name',
+      slug: 'Slug',
+      author: 'Author',
+      downloadCount: 'Downloads',
+      website: 'Website',
+      tags: 'Tags',
+      description: 'Description',
+      nameEn: 'Name (En)',
+      descriptionEn: 'Description (En)',
+      versions: 'Versions',
+      addVersion: 'Add Version',
+      extSlug: 'Extension Slug',
+      extName: 'Extension Name',
+      extDesc: 'Extension Description',
+      extAuthor: 'Author',
+      extIcon: 'Icon URL',
+      extWebsite: 'Website',
+      extTags: 'Tags (comma separated)',
+      extNameEn: 'Extension Name (English)',
+      extDescEn: 'Extension Description (English)',
+      versionChangelog: 'Changelog',
+      versionFile: 'Extension File (ZIP)',
+      upload: 'Upload & Create',
+      extensionDetail: 'Extension Details',
+      identifier: 'Slug',
+      published: 'Published',
+      unpublished: 'Unpublished',
+      noDescription: 'No description',
+      latestVersion: 'Latest Version',
+      noVersion: 'No version',
+      downloads: 'Downloads',
+      authorLabel: 'Author',
+      unknown: 'Unknown',
+      selectZip: 'Please select a ZIP file',
+      uploadFailed: 'File upload failed',
+      uploading: 'Uploading...',
+      stagePreparing: 'Preparing...',
+      stageReadingFile: 'Reading file...',
+      stageChecksum: 'Calculating checksum...',
+      stageUploading: 'Uploading file...',
+      stageCreatingVersion: 'Creating version record...',
+      stageCreatingExtension: 'Creating extension...',
+      stageDone: 'Done',
+      quickCreateExtension: 'Quick Create',
+      quickCreateHint: 'Upload an extension ZIP package. The system will auto-parse the manifest and create the extension with its first version.',
+      quickCreateSubmit: 'Create Extension & Upload',
+      createFailed: 'Failed to create extension',
+      confirmDeleteVersion: 'Are you sure you want to delete this version?',
+      extSlugPlaceholder: 'e.g., my-extension',
+      extNamePlaceholder: 'Extension display name',
+      extDescPlaceholder: 'Extension description',
+      extAuthorPlaceholder: 'Author name',
+      extTagsPlaceholder: 'e.g., tools,efficiency,browser',
+      extNameEnPlaceholder: 'English extension name',
+      extDescEnPlaceholder: 'English extension description',
+      versionNumberPlaceholder: 'e.g., 1.0.0',
+      versionChangelogPlaceholder: 'Version changelog',
+      versionMinAppPlaceholder: 'e.g., 1.0.0',
+      save: 'Save',
+      manifestUpdateTitle: 'Update extension info from manifest',
+      manifestUpdateHint: 'The manifest in the ZIP contains the following extension info. Confirm to auto-update:',
+      manifestUpdateNoFields: 'No extension info found in manifest',
+      manifestUpdateSuccess: 'Extension info updated',
+      manifestUpdateFailed: 'Failed to update extension info',
+      manifestUpdateSkip: 'Skip',
+      manifestUpdateConfirm: 'Confirm Update'
+    },
+    codes: {
+      empty: 'No activation codes',
+      proCode: 'PRO Code',
+      expireAt: 'Expires at',
+      duration: 'PRO Duration',
+      usage: 'Usage',
+      redeemedBy: 'Redeemed By'
+    },
+    users: {
+      empty: 'No users',
+      detail: {
+        basicInfo: 'Basic Info',
+        username: 'Username',
+        email: 'Email',
+        createdAt: 'Created At',
+        isAdmin: 'Admin',
+        yes: 'Yes',
+        no: 'No',
+        devices: 'Devices',
+        cloudSpaces: 'Cloud Spaces',
+        noDevices: 'No devices',
+        noSpaces: 'No cloud spaces',
+        deviceName: 'Device Name',
+        os: 'OS',
+        created: 'Created',
+        name: 'Name',
+        provider: 'Provider',
+        syncStatus: 'Sync Status',
+        enabled: 'Enabled',
+        disabled: 'Disabled',
+        redeemedBy: 'Redeemed By'
+      }
+    },
+    theme: {
+      light: 'Light',
+      dark: 'Dark',
+      system: 'System'
+    },
+    lang: {
+      zh: '中文',
+      en: 'English'
+    },
+    footer: {
+      copyright: '© 2026 MyZone. All rights reserved.'
+    },
+    resetPassword: {
+      pageTitle: 'Reset Password - MyZone',
+      title: 'Reset Password',
+      subtitle: 'Please enter your new password',
+      newPassword: 'New Password',
+      confirmPassword: 'Confirm New Password',
+      passwordHint: 'At least 6 characters',
+      submit: 'Reset Password',
+      successTitle: 'Password Reset',
+      successDesc: 'Your password has been successfully reset. Please log in with your new password.',
+      errorTitle: 'Reset Failed',
+      invalidLink: 'The reset link is invalid or has expired.',
+      backToLogin: 'Back to Login',
+      placeholder: {
+        password: 'Enter new password',
+        confirmPassword: 'Enter new password again'
+      }
+    },
+    common: {
+      cancel: 'Cancel',
+      confirm: 'Confirm',
+      close: 'Close',
+      toggleTheme: 'Toggle theme',
+      user: 'User',
+      loading: 'Loading...',
+      saving: 'Saving...',
+      error: 'Something went wrong, please retry',
+      success: 'Operation successful',
+      saveSuccess: 'Saved successfully!',
+      saveFailed: 'Save failed: ',
+      save: 'Save',
+      delete: 'Delete',
+      deleteFailed: 'Delete failed',
+      refresh: 'Refresh',
+      actions: 'Actions',
+      loginFirst: 'Please login first',
+      networkError: 'Network connection failed, please check your network settings'
+    }
+  }
+};
+
+let currentLang = 'zh';
+
+function initI18n() {
+  const savedLang = localStorage.getItem('myzone-lang');
+  if (savedLang && translations[savedLang]) {
+    currentLang = savedLang;
+  } else {
+    const browserLang = navigator.language.split('-')[0];
+    if (translations[browserLang]) {
+      currentLang = browserLang;
+    }
+  }
+  applyTranslations();
+}
+
+function setLang(lang) {
+  if (translations[lang]) {
+    currentLang = lang;
+    localStorage.setItem('myzone-lang', lang);
+    applyTranslations();
+    document.dispatchEvent(new CustomEvent('languageChanged', { detail: { lang } }));
+  }
+}
+
+function t(key) {
+  const keys = key.split('.');
+  let result = translations[currentLang];
+  for (const k of keys) {
+    if (result && result[k] !== undefined) {
+      result = result[k];
+    } else {
+      return key;
+    }
+  }
+  return result;
+}
+
+function applyTranslations() {
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    const text = t(key);
+    if (text) {
+      el.textContent = text;
+    }
+  });
+
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    const key = el.getAttribute('data-i18n-placeholder');
+    const text = t(key);
+    if (text) {
+      el.placeholder = text;
+    }
+  });
+
+  document.querySelectorAll('[data-i18n-value]').forEach(el => {
+    const key = el.getAttribute('data-i18n-value');
+    const text = t(key);
+    if (text) {
+      el.value = text;
+    }
+  });
+
+  document.querySelectorAll('[data-i18n-title]').forEach(el => {
+    const key = el.getAttribute('data-i18n-title');
+    const text = t(key);
+    if (text) {
+      el.title = text;
+    }
+  });
+}
+
+window.i18n = {
+  init: initI18n,
+  setLang: setLang,
+  t: t,
+  currentLang: () => currentLang
+};
