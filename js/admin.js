@@ -528,9 +528,14 @@ document.addEventListener('DOMContentLoaded', () => {
         loadCodes();
       } else if (item.dataset.page === 'extensions') {
         loadExtensions();
+      } else if (item.dataset.page === 'crashReports') {
+        loadCrashReports();
       }
     });
   });
+
+  const refreshCrashReportsBtn = document.getElementById('refreshCrashReportsBtn');
+  if (refreshCrashReportsBtn) refreshCrashReportsBtn.addEventListener('click', loadCrashReports);
 
   loadAdminPage();
 });
@@ -546,6 +551,8 @@ document.addEventListener('languageChanged', () => {
     loadCodes();
   } else if (page === 'extensions') {
     loadExtensions();
+  } else if (page === 'crashReports') {
+    loadCrashReports();
   }
 });
 
@@ -2036,5 +2043,227 @@ document.addEventListener('click', (e) => {
     if (addVersionModal && !addVersionModal.classList.contains('hidden')) closeAddVersionModal();
     if (manifestUpdateModal && !manifestUpdateModal.classList.contains('hidden')) closeManifestUpdateModal();
     if (quickCreateModal && !quickCreateModal.classList.contains('hidden')) closeQuickCreateModal();
+    const crashReportModal = document.getElementById('crashReportModal');
+    if (crashReportModal && !crashReportModal.classList.contains('hidden')) closeCrashReportModal();
   }
 });
+
+// ========== 崩溃报告管理功能 ==========
+
+let currentCrashReportId = null;
+
+function crashLocale() {
+  return i18n.currentLang() === 'zh' ? 'zh-CN' : 'en-US';
+}
+
+function formatCrashTime(value) {
+  if (!value) return '-';
+  try {
+    return new Date(value).toLocaleString(crashLocale());
+  } catch (e) {
+    return String(value);
+  }
+}
+
+function crashTypeLabel(type) {
+  switch (type) {
+    case 'main_process': return i18n.t('admin.crashTypeMain') || '主进程崩溃';
+    case 'renderer': return i18n.t('admin.crashTypeRenderer') || '渲染进程错误';
+    case 'render_process_gone': return i18n.t('admin.crashTypeGone') || '渲染进程崩溃';
+    case 'unhandled_rejection': return i18n.t('admin.crashTypeRejection') || '异步异常';
+    case 'warning': return i18n.t('admin.crashTypeWarning') || '警告';
+    default: return i18n.t('admin.crashTypeUnknown') || '未知类型';
+  }
+}
+
+function crashStatusLabel(status) {
+  switch (status) {
+    case 'reviewed': return i18n.t('admin.crashStatusReviewed') || '已查看';
+    case 'resolved': return i18n.t('admin.crashStatusResolved') || '已解决';
+    default: return i18n.t('admin.crashStatusPending') || '待处理';
+  }
+}
+
+function crashStatusColor(status) {
+  switch (status) {
+    case 'reviewed': return '#f59e0b';
+    case 'resolved': return '#22c55e';
+    default: return '#ef4444';
+  }
+}
+
+async function loadCrashReports() {
+  const list = document.getElementById('crashReportsList');
+  if (!list) return;
+  showLoading(list);
+
+  try {
+    const { data: reports, error } = await appSupabase.client.rpc('admin_list_crash_reports');
+
+    if (error) {
+      console.error('Load crash reports error:', error);
+      showErrorState(list, i18n.t('common.error'));
+      return;
+    }
+
+    if (!reports || reports.length === 0) {
+      list.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+              <line x1="12" y1="9" x2="12" y2="13"></line>
+              <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
+          </div>
+          <p>${i18n.t('admin.noCrashReports') || '暂无崩溃报告'}</p>
+        </div>
+      `;
+      return;
+    }
+
+    list.innerHTML = reports.map(r => {
+      const reporter = r.username || r.email || (i18n.t('admin.crashReporterAnonymous') || '匿名用户');
+      const msg = (r.message || '').replace(/\s+/g, ' ').trim();
+      const shortMsg = msg.length > 90 ? msg.substring(0, 90) + '…' : msg;
+      return `
+      <div class="code-card">
+        <div class="code-info">
+          <div class="code-code">${escapeHtml(shortMsg) || (i18n.t('admin.crashMessage') || '错误信息')}</div>
+          <div class="code-details">
+            <p>${crashTypeLabel(r.error_type)} · <span style="color:${crashStatusColor(r.status)}">● ${crashStatusLabel(r.status)}</span></p>
+            <p>${i18n.t('admin.crashAppVersion') || '应用版本'}: ${escapeHtml(r.app_version || '-')} · ${i18n.t('admin.crashPlatform') || '平台'}: ${escapeHtml(r.platform || '-')}</p>
+            <p>${i18n.t('admin.crashReporter') || '上报用户'}: ${escapeHtml(reporter)} · ${i18n.t('admin.crashTime') || '上报时间'}: ${formatCrashTime(r.reported_at)}</p>
+          </div>
+        </div>
+        <div class="code-actions">
+          <button class="action-btn" onclick="viewCrashReport('${r.report_id}')">${i18n.t('admin.viewDetail') || '详情'}</button>
+          <button class="action-btn delete" onclick="deleteCrashReport('${r.report_id}')">${i18n.t('admin.delete') || '删除'}</button>
+        </div>
+      </div>
+    `;
+    }).join('');
+  } catch (error) {
+    console.error('Load crash reports error:', error);
+    showErrorState(list, error.message || i18n.t('common.networkError'));
+  }
+}
+
+async function viewCrashReport(reportId) {
+  try {
+    const { data, error } = await appSupabase.client.rpc('admin_get_crash_report', { p_report_id: reportId });
+
+    if (error || !data || data.error) {
+      alert(i18n.t('common.error'));
+      return;
+    }
+
+    currentCrashReportId = reportId;
+    const d = data;
+    const reporter = d.username || d.email || (i18n.t('admin.crashReporterAnonymous') || '匿名用户');
+
+    const content = document.getElementById('crashReportDetailContent');
+    content.innerHTML = `
+      <div class="detail-section">
+        <h3>${i18n.t('admin.crashMessage') || '错误信息'}</h3>
+        <p style="white-space: pre-wrap; word-break: break-all;">${escapeHtml(d.message || '-')}</p>
+      </div>
+
+      <div class="detail-section">
+        <h3>${i18n.t('admin.crashStack') || '调用堆栈'}</h3>
+        <pre style="white-space: pre-wrap; word-break: break-all; background: var(--surface-light); padding: 12px; border-radius: 8px; font-size: 12px; margin: 0; max-height: 240px; overflow: auto;">${escapeHtml(d.stack || (i18n.t('admin.crashStackEmpty') || '无堆栈信息'))}</pre>
+      </div>
+
+      <div class="detail-section">
+        <h3>${i18n.t('admin.crashLog') || '应用日志'}</h3>
+        <pre style="white-space: pre-wrap; word-break: break-all; background: var(--surface-light); padding: 12px; border-radius: 8px; font-size: 12px; margin: 0; max-height: 260px; overflow: auto;">${escapeHtml(d.log_content || (i18n.t('admin.crashLogEmpty') || '无日志内容'))}</pre>
+      </div>
+
+      <div class="detail-section">
+        <h3>${i18n.t('admin.basicInfo') || '基本信息'}</h3>
+        <div class="detail-grid">
+          <div><span class="detail-label">${i18n.t('admin.crashStatus') || '状态'}</span><p style="color:${crashStatusColor(d.status)}">${crashStatusLabel(d.status)}</p></div>
+          <div><span class="detail-label">${i18n.t('admin.crashAppVersion') || '应用版本'}</span><p>${escapeHtml(d.app_version || '-')}</p></div>
+          <div><span class="detail-label">${i18n.t('admin.crashPlatform') || '平台'}</span><p>${escapeHtml(d.platform || '-')}</p></div>
+          <div><span class="detail-label">${i18n.t('admin.crashOsInfo') || '系统信息'}</span><p>${escapeHtml(d.os_info || '-')}</p></div>
+          <div><span class="detail-label">${i18n.t('admin.crashReporter') || '上报用户'}</span><p>${escapeHtml(reporter)}</p></div>
+          <div><span class="detail-label">${i18n.t('admin.crashDevice') || '设备'}</span><p>${escapeHtml(d.device_id || '-')}</p></div>
+          <div><span class="detail-label">${i18n.t('admin.crashTime') || '上报时间'}</span><p>${formatCrashTime(d.reported_at)}</p></div>
+        </div>
+      </div>
+
+      <div class="detail-section">
+        <h3>${i18n.t('admin.crashNote') || '处理备注'}</h3>
+        <textarea id="crashAdminNote" rows="3" style="width: 100%; box-sizing: border-box;" placeholder="${escapeHtml(i18n.t('admin.crashNotePlaceholder') || '填写处理备注...')}">${escapeHtml(d.admin_note || '')}</textarea>
+      </div>
+
+      <div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end;">
+        <button class="btn btn-secondary" onclick="updateCrashReport('reviewed')">${i18n.t('admin.crashMarkReviewed') || '标记已查看'}</button>
+        <button class="btn btn-secondary" onclick="updateCrashReport('resolved')">${i18n.t('admin.crashMarkResolved') || '标记已解决'}</button>
+        <button class="btn btn-secondary" onclick="updateCrashReport('pending')">${i18n.t('admin.crashResetPending') || '重置为待处理'}</button>
+        <button class="btn btn-danger" onclick="deleteCrashReport('${reportId}', true)">${i18n.t('admin.crashDelete') || '删除报告'}</button>
+      </div>
+    `;
+
+    const modal = document.getElementById('crashReportModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('active');
+  } catch (error) {
+    console.error('View crash report error:', error);
+    alert(i18n.t('common.error'));
+  }
+}
+
+function closeCrashReportModal() {
+  const modal = document.getElementById('crashReportModal');
+  modal.classList.remove('active');
+  currentCrashReportId = null;
+  setTimeout(() => modal.classList.add('hidden'), 200);
+}
+
+async function updateCrashReport(status) {
+  if (!currentCrashReportId) return;
+
+  const noteEl = document.getElementById('crashAdminNote');
+  const note = noteEl ? noteEl.value.trim() : '';
+
+  try {
+    const { data, error } = await appSupabase.client.rpc('admin_update_crash_report', {
+      p_report_id: currentCrashReportId,
+      p_status: status,
+      p_admin_note: note || null
+    });
+
+    if (error || (data && data.success === false)) {
+      alert(i18n.t('admin.crashUpdateFailed') || '更新失败');
+      return;
+    }
+
+    alert(i18n.t('admin.crashUpdated') || '已更新');
+    closeCrashReportModal();
+    loadCrashReports();
+  } catch (error) {
+    console.error('Update crash report error:', error);
+    alert(i18n.t('admin.crashUpdateFailed') || '更新失败');
+  }
+}
+
+async function deleteCrashReport(reportId, fromDetail) {
+  if (!confirm(i18n.t('admin.crashDeleteConfirm') || '确定要删除这条崩溃报告吗？')) return;
+
+  try {
+    const { data, error } = await appSupabase.client.rpc('admin_delete_crash_report', { p_report_id: reportId });
+
+    if (error || (data && data.success === false)) {
+      alert(i18n.t('admin.crashDeleteFailed') || '删除失败');
+      return;
+    }
+
+    alert(i18n.t('admin.crashDeleteSuccess') || '删除成功');
+    if (fromDetail) closeCrashReportModal();
+    loadCrashReports();
+  } catch (error) {
+    console.error('Delete crash report error:', error);
+    alert(i18n.t('admin.crashDeleteFailed') || '删除失败');
+  }
+}

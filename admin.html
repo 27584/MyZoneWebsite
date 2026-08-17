@@ -108,6 +108,14 @@
           </svg>
           <span data-i18n="admin.extensions">扩展管理</span>
         </button>
+        <button class="sidebar-item" data-page="crashReports" data-i18n="admin.crashReports">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+            <line x1="12" y1="9" x2="12" y2="13"></line>
+            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+          </svg>
+          <span data-i18n="admin.crashReports">崩溃报告</span>
+        </button>
       </div>
     </aside>
 
@@ -139,6 +147,16 @@
           </div>
         </div>
         <div id="extensionsList" class="cards-container"></div>
+      </div>
+
+      <div id="crashReportsPage" class="subpage hidden">
+        <div class="page-header">
+          <h2 data-i18n="admin.crashReports">崩溃报告</h2>
+          <div style="display: flex; gap: 10px;">
+            <button id="refreshCrashReportsBtn" class="btn btn-secondary" data-i18n="admin.refresh">刷新</button>
+          </div>
+        </div>
+        <div id="crashReportsList" class="cards-container"></div>
       </div>
     </main>
   </div>
@@ -409,6 +427,15 @@
         <div id="codesError" class="error-message hidden"></div>
         <button type="submit" class="btn btn-primary" data-i18n="admin.generate">生成</button>
       </form>
+    </div>
+  </div>
+
+  <div id="crashReportModal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content large">
+      <button class="close-btn" onclick="closeCrashReportModal()">&times;</button>
+      <h2 data-i18n="admin.crashReportDetail">崩溃报告详情</h2>
+      <div id="crashReportDetailContent"></div>
     </div>
   </div>
 

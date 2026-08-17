@@ -42,13 +42,23 @@ const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_your-key-here';
 
 ## 部署到 GitHub Pages
 
+### 自动部署（推荐）
+
+项目已配置 GitHub Actions 工作流，会自动将 `website/` 目录部署到 GitHub Pages：
+
+1. 将仓库推送到 GitHub
+2. 在仓库 **Settings -> Pages -> Build and deployment -> Source** 选择 **"GitHub Actions"**
+3. 推送 `main` 分支，或手动触发 **Deploy Website to Pages** 工作流即可部署
+
+工作流文件：[`.github/workflows/deploy-pages.yml`](file:///d:/Projects/AI%20Projects/MyZone/.github/workflows/deploy-pages.yml)
+
+### 手动部署
+
 1. 将 `website` 目录的内容推送到 GitHub 仓库
 2. 在仓库的 Settings -> Pages 中：
-   - Source 选择 `main` 分支
-   - 如果你使用的是子目录，选择 `/ (root)` 或 `/website`（根据你的仓库结构）
+   - Source 选择 `Deploy from a branch`
+   - Branch 选择 `main`，目录选择 `/website`
    - 点击 Save
-
-GitHub Pages 会自动部署网站。由于我们已经添加了 `.nojekyll` 文件，所有文件都会被正确服务。
 
 ## 技术栈
 
