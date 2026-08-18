@@ -116,6 +116,13 @@
           </svg>
           <span data-i18n="admin.crashReports">崩溃报告</span>
         </button>
+        <button class="sidebar-item" data-page="cloudData" data-i18n="admin.cloudData">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 21a4 4 0 1 0 0-8 4 4 0 0 0-4 4c0 1.1.9 2 2 2s2-.9 2-2c0-3-2-5-3.5-6"></path>
+            <path d="M4 21V9a2 2 0 0 1 2-2h10l5 5v9"></path>
+          </svg>
+          <span data-i18n="admin.cloudData">扩展云数据</span>
+        </button>
       </div>
     </aside>
 
@@ -158,7 +165,56 @@
         </div>
         <div id="crashReportsList" class="cards-container"></div>
       </div>
+
+      <div id="cloudDataPage" class="subpage hidden">
+        <div class="page-header">
+          <h2 data-i18n="admin.cloudDataPageTitle">扩展云数据</h2>
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <select id="cloudDataExtensionSelect" class="form-select" style="min-width: 200px;">
+              <option value="" data-i18n="admin.cloudDataSelectExtension">选择扩展</option>
+            </select>
+            <button id="cloudDataAddBtn" class="btn btn-primary" data-i18n="admin.cloudDataAdd">新建数据</button>
+          </div>
+        </div>
+        <div id="cloudDataList" class="cards-container"></div>
+      </div>
     </main>
+  </div>
+
+  <div id="cloudDataModal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <button class="close-btn" onclick="closeCloudDataModal()">&times;</button>
+      <h2 id="cloudDataModalTitle">扩展云数据</h2>
+      <form id="cloudDataForm">
+        <input type="hidden" id="cloudDataRowId">
+        <div class="form-group">
+          <label data-i18n="admin.cloudDataScopeLabel">数据范围</label>
+          <select id="cloudDataScope" class="form-select">
+            <option value="global" data-i18n="admin.cloudDataScopeGlobal">全局数据</option>
+            <option value="user" data-i18n="admin.cloudDataScopeUser">用户数据</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label data-i18n="admin.cloudDataKeyLabel">键名</label>
+          <input type="text" id="cloudDataKey" required data-i18n-placeholder="admin.cloudDataKeyPlaceholder">
+        </div>
+        <div class="form-group" id="cloudDataOwnerGroup">
+          <label data-i18n="admin.cloudDataOwnerLabel">归属用户（仅"用户数据"需要）</label>
+          <input type="text" id="cloudDataOwner" data-i18n-placeholder="admin.cloudDataOwnerPlaceholder">
+          <small class="form-hint" data-i18n="admin.cloudDataOwnerHint">"用户数据"请填写要归属的用户ID；"全局数据"此项自动忽略</small>
+        </div>
+        <div class="form-group">
+          <label data-i18n="admin.cloudDataValueLabel">值（JSON）</label>
+          <textarea id="cloudDataValue" rows="4" required data-i18n-placeholder="admin.cloudDataValuePlaceholder"></textarea>
+        </div>
+        <div id="cloudDataError" class="error-message hidden"></div>
+        <div style="display: flex; justify-content: flex-end; gap: 10px;">
+          <button type="button" class="btn btn-secondary" onclick="closeCloudDataModal()" data-i18n="admin.cloudDataCancel">取消</button>
+          <button type="submit" class="btn btn-primary" data-i18n="admin.cloudDataSave">保存</button>
+        </div>
+      </form>
+    </div>
   </div>
 
   <div id="userDetailModal" class="modal hidden">

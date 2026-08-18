@@ -439,6 +439,249 @@ function closeAddCodesModal() {
   codesError.classList.add('hidden');
 }
 
+// ========== 扩展云数据管理 ==========
+
+let cloudExtensionsCache = null;
+
+async function loadCloudCloudDataExtensions() {
+  if (cloudExtensionsCache) return cloudExtensionsCache;
+  const { data: extensions, error } = await appSupabase.client.rpc('admin_list_extensions');
+  if (error) return [];
+  cloudExtensionsCache = extensions || [];
+  return cloudExtensionsCache;
+}
+
+async function loadCloudDataPage() {
+  const select = document.getElementById('cloudDataExtensionSelect');
+  const list = document.getElementById('cloudDataList');
+
+  if (select.options.length <= 1) {
+    const extensions = await loadCloudCloudDataExtensions();
+    select.innerHTML = '<option value="" data-i18n="admin.cloudDataSelectExtension">选择扩展</option>' +
+      extensions.map(ext => `<option value="${escapeHtml(ext.slug)}">${escapeHtml(ext.name || ext.slug)}</option>`).join('');
+  }
+
+  if (!select.value) {
+    list.innerHTML = ` 
+      <div class="empty-state">
+        <div class="empty-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="2" x2="12" y2="6"></line>
+            <line x1="12" y1="18" x2="12" y2="22"></line>
+            <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line>
+            <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line>
+            <line x1="2" y1="12" x2="6" y2="12"></line>
+            <line x1="18" y1="12" x2="22" y2="12"></line>
+            <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line>
+            <line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line>
+          </svg>
+        </div>
+        <p>${i18n.t('admin.cloudDataSelectExtension') || '请先选择一个扩展'}</p>
+      </div>
+    `;
+    return;
+  }
+
+  fetchCloudData();
+}
+
+function buildCloudDataError(error) {
+  const parts = [error.code && error.code !== '0' ? error.code : null, error.message];
+  if (error.details) parts.push('详情: ' + error.details);
+  if (error.hint) parts.push('Hint: ' + error.hint);
+  return parts.filter(Boolean).map(escapeHtml).join('<br>');
+}
+
+async function fetchCloudData() {
+  const select = document.getElementById('cloudDataExtensionSelect');
+  const list = document.getElementById('cloudDataList');
+  const slug = select.value;
+  if (!slug) return;
+
+  showLoading(list);
+
+  try {
+    const { data: rows, error } = await appSupabase.client.rpc('admin_list_extension_cloud_data', { p_slug: slug });
+
+    if (error) {
+      console.error('Load cloud data error:', error);
+      showErrorState(list, buildCloudDataError(error));
+      return;
+    }
+
+    if (!rows || rows.length === 0) {
+      list.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20 7h-9"></path>
+              <path d="M14 17H5"></path>
+              <circle cx="17" cy="17" r="3"></circle>
+              <circle cx="7" cy="7" r="3"></circle>
+            </svg>
+          </div>
+          <p>${i18n.t('admin.cloudDataEmpty')}</p>
+        </div>
+      `;
+      return;
+    }
+
+    list.innerHTML = rows.map(row => {
+      const scopeBadge = row.scope === 'global'
+        ? '<span class="cloud-data-badge global">' + (i18n.t('admin.cloudDataScopeGlobal')) + '</span>'
+        : '<span class="cloud-data-badge user">' + (i18n.t('admin.cloudDataScopeUser')) + '</span>';
+
+      const ownerText = row.scope === 'global'
+        ? (i18n.t('admin.cloudDataAllUsers'))
+        : (row.user_email || row.data_user_id || (i18n.t('admin.unknown') || '未知'));
+
+      const valStr = typeof row.value === 'string' ? row.value : JSON.stringify(row.value);
+
+      return `
+      <div class="code-card">
+        <div class="code-info">
+          <div class="code-code">${scopeBadge} <span style="font-family:monospace;">${escapeHtml(row.key_name)}</span></div>
+          <div class="code-details">
+            <p>${i18n.t('admin.cloudDataOwner')}: ${escapeHtml(ownerText)}</p>
+            <p style="font-family:monospace; font-size:12px; color:var(--text-secondary); white-space:pre-wrap; word-break:break-all;">${escapeHtml(valStr)}</p>
+            <p>${i18n.t('admin.cloudDataUpdatedAt')}: ${row.updated_at ? new Date(row.updated_at).toLocaleString(i18n.currentLang() === 'zh' ? 'zh-CN' : 'en-US') : ''}</p>
+          </div>
+        </div>
+        <div class="code-actions">
+          <button class="action-btn edit" onclick="openCloudDataModal('${row.row_id}')">${i18n.t('admin.cloudDataEdit')}</button>
+          <button class="action-btn delete" onclick="deleteCloudData('${row.row_id}')">${i18n.t('admin.cloudDataDelete')}</button>
+        </div>
+      </div>
+    `;
+    }).join('');
+  } catch (error) {
+    console.error('Load cloud data error:', error);
+    showErrorState(list, buildCloudDataError(error));
+  }
+}
+
+function toggleCloudDataOwnerGroup() {
+  const scope = document.getElementById('cloudDataScope').value;
+  const ownerGroup = document.getElementById('cloudDataOwnerGroup');
+  if (ownerGroup) ownerGroup.style.display = scope === 'user' ? '' : 'none';
+}
+
+async function openCloudDataModal(rowId) {
+  const form = document.getElementById('cloudDataForm');
+  form.reset();
+  document.getElementById('cloudDataRowId').value = '';
+  document.getElementById('cloudDataError').classList.add('hidden');
+  document.getElementById('cloudDataModalTitle').textContent = i18n.t('admin.cloudDataAdd');
+  document.getElementById('cloudDataScope').value = 'global';
+  toggleCloudDataOwnerGroup();
+
+  if (rowId) {
+    const slug = document.getElementById('cloudDataExtensionSelect').value;
+    const { data: rows, error } = await appSupabase.client.rpc('admin_list_extension_cloud_data', { p_slug: slug });
+    const row = (rows || []).find(r => r.row_id === rowId);
+    if (!error && row) {
+      document.getElementById('cloudDataModalTitle').textContent = i18n.t('admin.cloudDataEdit');
+      document.getElementById('cloudDataRowId').value = row.row_id;
+      document.getElementById('cloudDataScope').value = row.scope;
+      document.getElementById('cloudDataKey').value = row.key_name;
+      const valStr = typeof row.value === 'string' ? row.value : JSON.stringify(row.value);
+      document.getElementById('cloudDataValue').value = valStr;
+      document.getElementById('cloudDataOwner').value = row.data_user_id || '';
+      toggleCloudDataOwnerGroup();
+    }
+  }
+
+  const modal = document.getElementById('cloudDataModal');
+  modal.classList.remove('hidden');
+  modal.classList.add('active');
+}
+
+function closeCloudDataModal() {
+  const modal = document.getElementById('cloudDataModal');
+  modal.classList.remove('active');
+  setTimeout(() => modal.classList.add('hidden'), 200);
+}
+
+async function saveCloudData(e) {
+  e.preventDefault();
+  const slug = document.getElementById('cloudDataExtensionSelect').value;
+  if (!slug) return;
+
+  const errorEl = document.getElementById('cloudDataError');
+  errorEl.classList.add('hidden');
+
+  const scope = document.getElementById('cloudDataScope').value;
+  const key = document.getElementById('cloudDataKey').value.trim();
+  const owner = document.getElementById('cloudDataOwner').value.trim();
+  const rawValue = document.getElementById('cloudDataValue').value;
+
+  if (!key) {
+    errorEl.textContent = i18n.t('admin.cloudDataMissingKey');
+    errorEl.classList.remove('hidden');
+    return;
+  }
+
+  let parsedValue;
+  try {
+    parsedValue = JSON.parse(rawValue);
+  } catch (err) {
+    errorEl.textContent = i18n.t('admin.cloudDataInvalidJson');
+    errorEl.classList.remove('hidden');
+    return;
+  }
+
+  if (scope === 'user' && !owner) {
+    errorEl.textContent = i18n.t('admin.cloudDataMissingOwner');
+    errorEl.classList.remove('hidden');
+    return;
+  }
+
+  try {
+    const { error } = await appSupabase.client.rpc('admin_upsert_extension_cloud_data', {
+      p_extension_slug: slug,
+      p_scope: scope,
+      p_key: key,
+      p_value: parsedValue,
+      p_user_id: scope === 'user' ? owner : null
+    });
+
+    if (error) {
+      console.error('Save cloud data error:', error);
+      errorEl.textContent = error.message || i18n.t('admin.cloudDataSaveFailed');
+      errorEl.classList.remove('hidden');
+      return;
+    }
+
+    closeCloudDataModal();
+    fetchCloudData();
+    alert(i18n.t('admin.cloudDataSaveSuccess'));
+  } catch (error) {
+    console.error('Save cloud data error:', error);
+    errorEl.textContent = error.message || i18n.t('admin.cloudDataSaveFailed');
+    errorEl.classList.remove('hidden');
+  }
+}
+
+async function deleteCloudData(rowId) {
+  if (!confirm(i18n.t('admin.cloudDataDeleteConfirm'))) return;
+
+  try {
+    const { error } = await appSupabase.client.rpc('admin_delete_extension_cloud_data', { p_row_id: rowId });
+
+    if (error) {
+      console.error('Delete cloud data error:', error);
+      alert(i18n.t('admin.cloudDataDeleteFailed'));
+      return;
+    }
+
+    fetchCloudData();
+    alert(i18n.t('admin.cloudDataDeleteSuccess'));
+  } catch (error) {
+    console.error('Delete cloud data error:', error);
+  }
+}
+
 async function loadAdminPage() {
   const isAdmin = await checkAdmin();
   if (!isAdmin) {
@@ -530,12 +773,33 @@ document.addEventListener('DOMContentLoaded', () => {
         loadExtensions();
       } else if (item.dataset.page === 'crashReports') {
         loadCrashReports();
+      } else if (item.dataset.page === 'cloudData') {
+        loadCloudDataPage();
       }
     });
   });
 
   const refreshCrashReportsBtn = document.getElementById('refreshCrashReportsBtn');
   if (refreshCrashReportsBtn) refreshCrashReportsBtn.addEventListener('click', loadCrashReports);
+
+  // 扩展云数据：扩展下拉切换时加载对应数据
+  const cloudDataExtSelect = document.getElementById('cloudDataExtensionSelect');
+  if (cloudDataExtSelect) cloudDataExtSelect.addEventListener('change', () => {
+    if (!cloudDataExtSelect.value) {
+      document.getElementById('cloudDataList').innerHTML = '';
+      return;
+    }
+    fetchCloudData();
+  });
+
+  const cloudDataAddBtn = document.getElementById('cloudDataAddBtn');
+  if (cloudDataAddBtn) cloudDataAddBtn.addEventListener('click', openCloudDataModal);
+
+  const cloudDataForm = document.getElementById('cloudDataForm');
+  if (cloudDataForm) cloudDataForm.addEventListener('submit', saveCloudData);
+
+  const cloudDataScope = document.getElementById('cloudDataScope');
+  if (cloudDataScope) cloudDataScope.addEventListener('change', toggleCloudDataOwnerGroup);
 
   loadAdminPage();
 });
@@ -553,6 +817,8 @@ document.addEventListener('languageChanged', () => {
     loadExtensions();
   } else if (page === 'crashReports') {
     loadCrashReports();
+  } else if (page === 'cloudData') {
+    loadCloudDataPage();
   }
 });
 

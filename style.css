@@ -1719,6 +1719,62 @@ body.dashboard-body {
   padding-top: 16px;
 }
 
+/* 扩展云数据管理页 */
+#cloudDataExtensionSelect {
+  padding: 10px 12px;
+  background-color: var(--surface-light);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: 14px;
+  outline: none;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+#cloudDataExtensionSelect:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px var(--primary-light);
+}
+
+.form-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.cloud-data-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.cloud-data-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  background-color: var(--primary-light);
+  color: var(--primary-color);
+}
+
+.cloud-data-badge.global {
+  background-color: var(--primary-light);
+  color: var(--primary-color);
+}
+
+.cloud-data-badge.user {
+  background-color: var(--info-light, rgba(33, 150, 243, 0.12));
+  color: var(--info-color, #2196f3);
+}
+
+.cloud-data-owner {
+  font-family: monospace;
+  font-size: 12px;
+  color: var(--text-muted);
+  word-break: break-all;
+}
+
 @media (max-width: 768px) {
   .nav-links {
     display: none;
