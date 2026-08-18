@@ -1280,6 +1280,19 @@ body.dashboard-body {
   gap: 8px;
 }
 
+.pro-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  background: #d4a017;
+  color: #1a1405;
+  letter-spacing: 0.3px;
+  font-family: inherit;
+}
+
 .ext-card-icon {
   width: 24px;
   height: 24px;

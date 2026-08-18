@@ -216,6 +216,12 @@
           <label data-i18n="admin.extTags">标签（用逗号分隔）</label>
           <input type="text" id="editExtTags" data-i18n-placeholder="admin.extTagsPlaceholder">
         </div>
+        <div class="form-group">
+          <label class="checkbox-label" style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+            <input type="checkbox" id="editExtRequiresPro">
+            <span data-i18n="admin.extRequiresPro">PRO 专属（仅 PRO 用户可订阅/安装/更新）</span>
+          </label>
+        </div>
         <div id="editExtensionError" class="error-message hidden"></div>
         <button type="submit" class="btn btn-primary" id="saveExtensionBtn" data-i18n="admin.save">保存</button>
       </form>

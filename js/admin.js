@@ -604,7 +604,7 @@ async function loadExtensions() {
       return `
       <div class="code-card">
         <div class="code-info">
-          <div class="code-code">${iconHtml}${escapeHtml(ext.name)}${ext.name_en ? ' / ' + escapeHtml(ext.name_en) : ''}</div>
+          <div class="code-code">${iconHtml}${escapeHtml(ext.name)}${ext.name_en ? ' / ' + escapeHtml(ext.name_en) : ''}${ext.requires_pro ? '<span class="pro-badge">PRO</span>' : ''}</div>
           <div class="code-details">
             <p>${i18n.t('admin.identifier') || '标识'}: ${escapeHtml(ext.slug)} ${ext.is_published ? '<span style="color:#22c55e">● ' + (i18n.t('admin.published') || '已发布') + '</span>' : '<span style="color:#a1a1aa">● ' + (i18n.t('admin.unpublished') || '未发布') + '</span>'}</p>
             <p>${escapeHtml(ext.description || i18n.t('admin.noDescription') || '无描述')}</p>
@@ -678,6 +678,7 @@ async function editExtension(extId) {
       document.getElementById('editExtIcon').value = data.icon_url || '';
       document.getElementById('editExtWebsite').value = data.website || '';
       document.getElementById('editExtTags').value = (data.tags || []).join(', ');
+      document.getElementById('editExtRequiresPro').checked = !!data.requires_pro;
       document.getElementById('editExtensionError').classList.add('hidden');
       
       // 更新图标预览
@@ -719,6 +720,7 @@ async function saveExtension(e) {
   const website = document.getElementById('editExtWebsite').value.trim();
   const tagsStr = document.getElementById('editExtTags').value.trim();
   const tags = tagsStr ? tagsStr.split(',').map(t => t.trim()).filter(t => t) : [];
+  const requiresPro = document.getElementById('editExtRequiresPro').checked;
   
   const errorEl = document.getElementById('editExtensionError');
   errorEl.classList.add('hidden');
@@ -736,7 +738,8 @@ async function saveExtension(e) {
         p_author: author,
         p_icon_url: iconUrl,
         p_website: website,
-        p_tags: tags
+        p_tags: tags,
+        p_requires_pro: requiresPro
       });
     } else {
       result = await appSupabase.client.rpc('admin_create_extension', {
@@ -748,7 +751,8 @@ async function saveExtension(e) {
         p_author: author,
         p_icon_url: iconUrl,
         p_website: website,
-        p_tags: tags
+        p_tags: tags,
+        p_requires_pro: requiresPro
       });
     }
 
