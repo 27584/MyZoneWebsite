@@ -301,7 +301,16 @@ const translations = {
       crashUpdated: '已更新',
       crashUpdateFailed: '更新失败',
       crashDeleteSuccess: '删除成功',
-      crashDeleteFailed: '删除失败'
+      crashDeleteFailed: '删除失败',
+      crashFullLogFile: '完整日志文件',
+      crashLoadFullLog: '加载完整日志',
+      crashLoadingFullLog: '正在加载完整日志…',
+      crashLoadFullLogDone: '已显示完整日志',
+      crashLoadFullLogFailed: '加载失败，重试',
+      crashOpenFullLog: '在新标签打开',
+      crashChars: '字符',
+      crashFullLogEmpty: '无完整日志文件',
+      crashViewFullLogFailed: '获取日志文件失败'
     },
     codes: {
       empty: '暂无激活码',
@@ -689,7 +698,16 @@ const translations = {
       crashUpdated: 'Updated',
       crashUpdateFailed: 'Update failed',
       crashDeleteSuccess: 'Deleted successfully',
-      crashDeleteFailed: 'Delete failed'
+      crashDeleteFailed: 'Delete failed',
+      crashFullLogFile: 'Full Log File',
+      crashLoadFullLog: 'Load Full Log',
+      crashLoadingFullLog: 'Loading full log…',
+      crashLoadFullLogDone: 'Full log loaded',
+      crashLoadFullLogFailed: 'Load failed, retry',
+      crashOpenFullLog: 'Open in new tab',
+      crashChars: 'chars',
+      crashFullLogEmpty: 'No full log file',
+      crashViewFullLogFailed: 'Failed to get log file'
     },
     codes: {
       empty: 'No activation codes',

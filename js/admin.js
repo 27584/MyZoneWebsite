@@ -2051,6 +2051,7 @@ document.addEventListener('click', (e) => {
 // ========== 崩溃报告管理功能 ==========
 
 let currentCrashReportId = null;
+let currentCrashLogFilePath = null;
 
 function crashLocale() {
   return i18n.currentLang() === 'zh' ? 'zh-CN' : 'en-US';
@@ -2160,6 +2161,7 @@ async function viewCrashReport(reportId) {
 
     currentCrashReportId = reportId;
     const d = data;
+    currentCrashLogFilePath = d.log_file_path || null;
     const reporter = d.username || d.email || (i18n.t('admin.crashReporterAnonymous') || '匿名用户');
 
     const content = document.getElementById('crashReportDetailContent');
@@ -2176,7 +2178,13 @@ async function viewCrashReport(reportId) {
 
       <div class="detail-section">
         <h3>${i18n.t('admin.crashLog') || '应用日志'}</h3>
-        <pre style="white-space: pre-wrap; word-break: break-all; background: var(--surface-light); padding: 12px; border-radius: 8px; font-size: 12px; margin: 0; max-height: 260px; overflow: auto;">${escapeHtml(d.log_content || (i18n.t('admin.crashLogEmpty') || '无日志内容'))}</pre>
+        <pre id="crashLogContent" style="white-space: pre-wrap; word-break: break-all; background: var(--surface-light); padding: 12px; border-radius: 8px; font-size: 12px; margin: 0; max-height: 260px; overflow: auto;">${escapeHtml(d.log_content || (i18n.t('admin.crashLogEmpty') || '无日志内容'))}</pre>
+        ${d.log_file_path ? `
+        <p style="margin: 8px 0 0;">
+          <button class="btn btn-secondary" onclick="loadFullCrashLog(this)">${i18n.t('admin.crashLoadFullLog') || '加载完整日志'}</button>
+          <button class="btn btn-secondary" onclick="openFullCrashLog()">${i18n.t('admin.crashOpenFullLog') || '在新标签打开'}</button>
+        </p>` : `
+        <p style="margin: 8px 0 0;">${i18n.t('admin.crashFullLogEmpty') || '无完整日志文件'}</p>`}
       </div>
 
       <div class="detail-section">
@@ -2218,7 +2226,68 @@ function closeCrashReportModal() {
   const modal = document.getElementById('crashReportModal');
   modal.classList.remove('active');
   currentCrashReportId = null;
+  currentCrashLogFilePath = null;
   setTimeout(() => modal.classList.add('hidden'), 200);
+}
+
+// 生成完整日志文件的签名 URL
+async function getCrashLogSignedUrl() {
+  if (!currentCrashLogFilePath) return null;
+  const fileName = currentCrashLogFilePath.split('/').pop();
+  const { data: signed, error } = await appSupabase.client.storage
+    .from('crash-logs')
+    .createSignedUrl(fileName, 3600);
+  if (error || !signed || !signed.signedUrl) return null;
+  return signed.signedUrl;
+}
+
+// 在详情弹窗内加载并显示完整日志内容（实际 log 文件是完整的）
+async function loadFullCrashLog(btn) {
+  const pre = document.getElementById('crashLogContent');
+  if (!pre) return;
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = i18n.t('admin.crashLoadingFullLog') || '正在加载完整日志…';
+  }
+  try {
+    const url = await getCrashLogSignedUrl();
+    if (!url) throw new Error('no signed url');
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error('http ' + resp.status);
+    const text = await resp.text();
+    pre.textContent = text;
+    if (btn) {
+      btn.textContent = `${i18n.t('admin.crashLoadFullLogDone') || '已显示完整日志'}（${text.length.toLocaleString(crashLocale())} ${i18n.t('admin.crashChars') || '字符'}）`;
+    }
+  } catch (e) {
+    console.error('Load full crash log error:', e);
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = i18n.t('admin.crashLoadFullLogFailed') || '加载失败，重试';
+    }
+  }
+}
+
+// 在新标签页打开完整日志文件（强制 UTF-8 编码显示中文）
+async function openFullCrashLog() {
+  try {
+    const url = await getCrashLogSignedUrl();
+    if (!url) {
+      alert(i18n.t('admin.crashViewFullLogFailed') || '获取日志文件失败');
+      return;
+    }
+    // 读取内容后以 UTF-8 Blob 重新打开，避免浏览器按本地编码乱码
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error('http ' + resp.status);
+    const text = await resp.text();
+    const blob = new Blob([text], { type: 'text/plain; charset=utf-8' });
+    const objUrl = URL.createObjectURL(blob);
+    window.open(objUrl, '_blank');
+    setTimeout(() => URL.revokeObjectURL(objUrl), 60000);
+  } catch (e) {
+    console.error('Open full crash log error:', e);
+    alert(i18n.t('admin.crashViewFullLogFailed') || '获取日志文件失败');
+  }
 }
 
 async function updateCrashReport(status) {
