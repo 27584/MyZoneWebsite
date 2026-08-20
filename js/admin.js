@@ -775,9 +775,14 @@ document.addEventListener('DOMContentLoaded', () => {
         loadCrashReports();
       } else if (item.dataset.page === 'cloudData') {
         loadCloudDataPage();
+      } else if (item.dataset.page === 'appVersions') {
+        loadAppVersions();
       }
     });
   });
+
+  const refreshAppVersionsBtn = document.getElementById('refreshAppVersionsBtn');
+  if (refreshAppVersionsBtn) refreshAppVersionsBtn.addEventListener('click', loadAppVersions);
 
   const refreshCrashReportsBtn = document.getElementById('refreshCrashReportsBtn');
   if (refreshCrashReportsBtn) refreshCrashReportsBtn.addEventListener('click', loadCrashReports);
@@ -819,6 +824,8 @@ document.addEventListener('languageChanged', () => {
     loadCrashReports();
   } else if (page === 'cloudData') {
     loadCloudDataPage();
+  } else if (page === 'appVersions') {
+    loadAppVersions();
   }
 });
 
@@ -2315,6 +2322,8 @@ document.addEventListener('click', (e) => {
     if (quickCreateModal && !quickCreateModal.classList.contains('hidden')) closeQuickCreateModal();
     const crashReportModal = document.getElementById('crashReportModal');
     if (crashReportModal && !crashReportModal.classList.contains('hidden')) closeCrashReportModal();
+    const appVersionDetailModal = document.getElementById('appVersionDetailModal');
+    if (appVersionDetailModal && !appVersionDetailModal.classList.contains('hidden')) closeAppVersionDetailModal();
   }
 });
 
@@ -2604,5 +2613,473 @@ async function deleteCrashReport(reportId, fromDetail) {
   } catch (error) {
     console.error('Delete crash report error:', error);
     alert(i18n.t('admin.crashDeleteFailed') || '删除失败');
+  }
+}
+
+// ========== 应用（MyZone）版本管理 ==========
+// 应用版本元数据在 Supabase Storage bucket "updates"：
+//   updates/latest.json                当前最新版本
+//   updates/{version}/manifest.json    某版本的清单（含 files 映射 + RSA 签名）
+//   updates/{version}/meta.json        维护备注（非签名，仅管理用，客户端不读取）
+//   files/{prefix2}/{hash}             文件对象（全局去重）；大文件分片 files/{prefix2}/{hash}/part-N
+const APP_VERSION_BUCKET = 'updates';
+
+let currentAppVersion = null;   // 当前查看详情的版本号
+let currentAppManifest = null;
+let appVersionManifestsCache = new Map();
+let appVersionOrder = [];       // 升序版本号列表，用于计算相对上一版本的增量/变更
+
+function appVersionPublicUrl(storagePath) {
+  return `${appSupabase.client.supabaseUrl}/storage/v1/object/public/${APP_VERSION_BUCKET}/${storagePath}`;
+}
+
+async function fetchAppVersionJson(storagePath) {
+  const resp = await fetch(appVersionPublicUrl(storagePath));
+  if (!resp.ok) throw new Error('http ' + resp.status);
+  return resp.json();
+}
+
+function formatBytes(bytes) {
+  if (bytes == null) return '-';
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  if (bytes < 1024 * 1024 * 1024) return (bytes / 1024 / 1024).toFixed(2) + ' MB';
+  return (bytes / 1024 / 1024 / 1024).toFixed(2) + ' GB';
+}
+
+// 内容稳定标识：优先混淆前源码哈希（源码未变则跨构建稳定，忽略混淆随机性），否则用文件哈希
+function stableFileKey(info) {
+  return info ? (info.sourceHash || info.hash) : undefined;
+}
+
+// 对照上一版本清单，计算当前版本的增量体积与变更文件状态。
+// status: added=新增 / modified=修改 / unchanged=不变 / deleted=删除
+function computeAppVersionDelta(currentFiles, prevFiles) {
+  const changed = [];
+  const statusByPath = {};
+  let deltaSize = 0;
+  for (const [relPath, info] of Object.entries(currentFiles || {})) {
+    const prev = prevFiles ? prevFiles[relPath] : null;
+    if (!prev) {
+      statusByPath[relPath] = 'added';
+      changed.push({ relPath, size: info.size || 0, deleted: false, status: 'added' });
+      deltaSize += (info.size || 0);
+    } else if (stableFileKey(prev) !== stableFileKey(info)) {
+      statusByPath[relPath] = 'modified';
+      changed.push({ relPath, size: info.size || 0, deleted: false, status: 'modified' });
+      deltaSize += (info.size || 0);
+    } else {
+      statusByPath[relPath] = 'unchanged';
+    }
+  }
+  if (prevFiles) {
+    for (const relPath of Object.keys(prevFiles)) {
+      if (!currentFiles || !currentFiles[relPath]) {
+        statusByPath[relPath] = 'deleted';
+        changed.push({ relPath, size: 0, deleted: true, status: 'deleted' });
+      }
+    }
+  }
+  return { changed, deltaSize, count: changed.length, statusByPath };
+}
+
+async function loadAppVersions() {
+  const listEl = document.getElementById('appVersionsList');
+  if (!listEl) return;
+  showLoading(listEl);
+
+  try {
+    let latest = null;
+    try { latest = await fetchAppVersionJson('updates/latest.json'); } catch (e) { latest = null; }
+
+    const { data: items, error } = await appSupabase.client.storage
+      .from(APP_VERSION_BUCKET)
+      .list('updates', { limit: 1000 });
+    if (error) throw error;
+
+    // 版本目录名遵循 semver（如 1.2.3）；latest.json / files 等非版本项会被正则排除
+    // 不依赖 storage 返回的 id===null 文件夹标记（不同 supabase-js 版本行为不一致）
+    const dirs = (items || []).filter(it => it && it.name && /^\d+(\.\d+){1,}[0-9A-Za-z.\-]*$/.test(it.name));
+
+    // 并行拉取所有版本的 manifest，避免逐个串行导致加载缓慢
+    const manifests = await Promise.all(
+      dirs.map(async dir => {
+        try { return await fetchAppVersionJson(`updates/${dir.name}/manifest.json`); }
+        catch (e) { return null; }
+      })
+    );
+
+    const versions = [];
+    dirs.forEach((dir, i) => {
+      const manifest = manifests[i];
+      const fileEntries = manifest && manifest.files ? manifest.files : {};
+      versions.push({
+        version: dir.name,
+        manifest,
+        fileCount: Object.keys(fileEntries).length,
+        totalSize: Object.values(fileEntries).reduce((s, f) => s + (f.size || 0), 0),
+        createdAt: manifest ? manifest.createdAt : null,
+        versionCode: manifest ? manifest.versionCode : null,
+        isLatest: latest && String(latest.version) === String(dir.name)
+      });
+      appVersionManifestsCache.set(dir.name, manifest);
+    });
+
+    versions.sort((a, b) => {
+      if (a.versionCode != null && b.versionCode != null) return a.versionCode - b.versionCode;
+      return String(a.version).localeCompare(String(b.version), undefined, { numeric: true });
+    });
+    appVersionOrder = versions.map(v => v.version);
+
+    // 计算每个版本相对上一版本的增量与变更文件
+    versions.forEach((v, i) => {
+      const prevFiles = i > 0 && versions[i - 1].manifest ? (versions[i - 1].manifest.files || {}) : null;
+      v.delta = prevFiles ? computeAppVersionDelta(v.manifest.files || {}, prevFiles) : null;
+    });
+
+    // 文件对象在存储中按 hash 全局去重（files/{prefix}/{hash}），跨版本重复文件只计一次
+    const uniqueFiles = new Set();
+    versions.forEach(v => {
+      for (const info of Object.values(v.manifest && v.manifest.files || {})) {
+        if (info && info.hash) uniqueFiles.add(info.hash);
+      }
+    });
+    const totalFiles = uniqueFiles.size;
+    const t = (k, fb) => (i18n && i18n.t ? (i18n.t('admin.' + k) || fb) : fb);
+
+    if (versions.length === 0) {
+      listEl.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+          </div>
+          <p>${t('appVersionsEmpty', '暂无已发布版本')}</p>
+        </div>`;
+      return;
+    }
+
+    const latestBadge = (v) => v.isLatest
+      ? `<span style="color:#22c55e;font-size:12px;font-weight:500;">${t('appLatest', '最新')}</span>`
+      : '';
+
+    listEl.innerHTML = `
+      <p style="color:var(--text-muted);font-size:13px;margin:0 0 12px;">
+        ${t('appVersionsSummary', '共 {n} 个版本，{f} 个文件').replace('{n}', versions.length).replace('{f}', totalFiles)}
+      </p>
+      <div class="app-versions-list">
+        ${versions.map(v => `
+          <div class="app-version-card">
+            <div class="app-version-head">
+              <span class="app-version-name">${escapeHtml(v.version)}</span>
+              ${latestBadge(v)}
+            </div>
+            <div class="app-version-meta">
+              <span>${t('appVersionCode', '绝对版本')}: ${v.versionCode != null ? escapeHtml(String(v.versionCode)) : '-'}</span>
+              <span>${t('appFilesCount', '文件数')}: ${v.fileCount}</span>
+              <span>${t('appTotalSize', '完整体积')}: ${formatBytes(v.totalSize)}</span>
+              ${v.delta ? `<span>${t('appDeltaSize', '相对上一版本增量')}: ${formatBytes(v.delta.deltaSize)} · ${v.delta.count} ${t('appChangedFiles', '个文件')}</span>` : ''}
+              <span>${t('appPublishTime', '发布时间')}: ${v.createdAt ? new Date(v.createdAt).toLocaleString() : '-'}</span>
+            </div>
+            <div style="display:flex;justify-content:flex-end;margin-top:10px;">
+              <button class="btn btn-primary btn-sm" onclick='viewAppVersionDetail(${JSON.stringify(v.version)})'>${t('appViewDetail', '查看文件与缺失')}</button>
+            </div>
+          </div>
+        `).join('')}
+      </div>`;
+  } catch (err) {
+    console.error('Load app versions error:', err);
+    showErrorState(listEl, i18n.t('common.error'));
+  }
+}
+
+async function viewAppVersionDetail(version) {
+  currentAppVersion = version;
+  const content = document.getElementById('appVersionDetailContent');
+  const title = document.getElementById('appVersionDetailTitle');
+  if (title) title.textContent = `${i18n.t('admin.appVersionDetail') || '应用版本详情'}: ${version}`;
+  showLoading(content);
+  document.getElementById('appVersionDetailModal').classList.remove('hidden');
+  document.getElementById('appVersionDetailModal').classList.add('active');
+
+  const t = (k, fb) => (i18n.t('admin.' + k) || fb);
+
+  try {
+    let manifest = appVersionManifestsCache.get(version);
+    if (!manifest) manifest = await fetchAppVersionJson(`updates/${version}/manifest.json`);
+    currentAppManifest = manifest;
+
+    const fileEntries = manifest.files || {};
+    const files = Object.entries(fileEntries);
+    const totalSize = files.reduce((s, [, f]) => s + (f.size || 0), 0);
+
+    // 相对上一版本的增量与变更文件
+    const idx = appVersionOrder.indexOf(version);
+    const prevVersion = idx > 0 ? appVersionOrder[idx - 1] : null;
+    let delta = null;
+    let prevFiles = {};
+    if (prevVersion) {
+      const pm = appVersionManifestsCache.get(prevVersion);
+      prevFiles = (pm && pm.files) || {};
+      delta = computeAppVersionDelta(fileEntries, prevFiles);
+      delta.prevVersion = prevVersion;
+    }
+
+    // 缺失检测
+    const { missing } = await detectAppVersionMissing(fileEntries);
+    const missingKeys = new Set(missing.map(m => m.relPath));
+
+    // 维护备注（meta.json，非签名）
+    let notes = '';
+    try { const meta = await fetchAppVersionJson(`updates/${version}/meta.json`); notes = meta.notes || ''; } catch (e) { notes = ''; }
+
+    const missingSummary = missing.length === 0
+      ? `<span style="color:#22c55e;font-weight:500;">${t('appNoMissing', '无缺失文件')}</span>`
+      : `<span style="color:#d84a3f;font-weight:500;">${t('appMissingCount', '缺失 {n} 个文件').replace('{n}', missing.length)}</span>`;
+
+    const tree = buildAppVersionStatusTree(fileEntries, (delta && delta.statusByPath) || {}, prevFiles);
+    const treeHtml = renderAppVersionTree(tree, missingKeys, t);
+
+    // 变更文件列表 HTML
+    const deltaHtml = delta && delta.count
+      ? `<div class="app-delta-box">
+          <div class="app-delta-head">
+            <span>${t('appDeltaTitle', '相对上一版本 {v} 的变更').replace('{v}', escapeHtml(delta.prevVersion))}</span>
+            <span class="app-delta-size">${t('appDeltaSize', '增量')}: ${formatBytes(delta.deltaSize)} · ${delta.count} ${t('appChangedFiles', '个文件')}</span>
+          </div>
+          <ul class="app-delta-list">
+            ${delta.changed.map(c => {
+              const badge = c.deleted
+                ? `<span class="app-badge deleted">${t('appDeleted', '删除')}</span>`
+                : (missingKeys.has(c.relPath)
+                    ? `<span class="app-badge missing">${t('appMissing', '缺失')}</span>`
+                    : `<span class="app-badge ${c.size ? 'modified' : 'added'}">${c.size ? t('appModified', '修改') : t('appAdded', '新增')}</span>`);
+              return `<li>${badge}<span class="app-delta-path">${escapeHtml(c.relPath)}</span><span class="app-delta-size">${c.deleted ? '-' : formatBytes(c.size)}</span></li>`;
+            }).join('')}
+          </ul>
+        </div>`
+      : '<div class="empty-state" style="padding:16px;"><p style="color:var(--text-muted);">' + t('appDeltaNone', '无变更文件（首版本或内容无变化）') + '</p></div>';
+
+    content.innerHTML = `
+      <div class="detail-section">
+        <div class="detail-grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));">
+          <div><span class="detail-label">${t('versionNumber', '版本号')}</span><span>${escapeHtml(version)}</span></div>
+          <div><span class="detail-label">${t('appVersionCode', '绝对版本')}</span><span>${manifest.versionCode != null ? escapeHtml(String(manifest.versionCode)) : '-'}</span></div>
+          <div><span class="detail-label">${t('appCreatedAt', '创建时间')}</span><span>${manifest.createdAt ? new Date(manifest.createdAt).toLocaleString() : '-'}</span></div>
+          <div><span class="detail-label">${t('appFilesCount', '文件数')}</span><span>${files.length}</span></div>
+          <div><span class="detail-label">${t('appTotalSize', '完整体积')}</span><span>${formatBytes(totalSize)}</span></div>
+          ${delta ? `<div><span class="detail-label">${t('appDeltaSize', '相对上一版本增量')}</span><span>${formatBytes(delta.deltaSize)}</span></div>` : ''}
+          <div><span class="detail-label">${t('appIntegrity', '完整性')}</span><span>${missingSummary}</span></div>
+        </div>
+        ${missing.length > 0 ? `
+        <div class="app-missing-box">
+          <strong>${t('appMissingTitle', '缺失文件')}</strong>
+          <ul class="app-missing-list">
+            ${missing.map(m => `<li>${escapeHtml(m.relPath)} <span>${escapeHtml(m.reason)}</span></li>`).join('')}
+          </ul>
+        </div>` : ''}
+      </div>
+
+      <div class="detail-section">
+        <h3>${t('appChangesTitle', '相对上一版本的变更')}</h3>
+        ${deltaHtml}
+      </div>
+
+      <div class="detail-section">
+        <h3>${t('appFilesTree', '文件结构')} (${files.length})</h3>
+        <div class="app-file-tree">
+          ${treeHtml}
+        </div>
+      </div>
+
+      <div class="detail-section">
+        <h3>${t('appNote', '维护备注')}</h3>
+        <textarea id="appVersionNote" rows="3" placeholder="${t('appNotePlaceholder', '仅管理用，不进入签名 manifest，客户端不会读取该字段')}" style="width:100%;box-sizing:border-box;">${escapeHtml(notes)}</textarea>
+        <div style="display:flex;justify-content:flex-end;margin-top:8px;">
+          <button class="btn btn-primary btn-sm" onclick="saveAppVersionNote()">${t('appNoteSave', '保存备注')}</button>
+        </div>
+      </div>
+    `;
+  } catch (err) {
+    console.error('View app version detail error:', err);
+    content.innerHTML = `<div class="empty-state"><p>${t('appDetailFailed', '加载版本详情失败')}</p></div>`;
+  }
+}
+
+function closeAppVersionDetailModal() {
+  const modal = document.getElementById('appVersionDetailModal');
+  modal.classList.remove('active');
+  currentAppVersion = null;
+  currentAppManifest = null;
+  setTimeout(() => modal.classList.add('hidden'), 200);
+}
+
+// 缺失检测：对照 manifest 中每个 hash，检查 files/{prefix}/{hash}（分片文件再检查 part-N）是否存在
+async function detectAppVersionMissing(fileEntries) {
+  const entries = Object.entries(fileEntries);
+  const missing = [];
+  if (entries.length === 0) return { missing, total: 0 };
+
+  // 按前缀分组，普通文件与分片文件分别记录
+  const grouped = {};
+  for (const [relPath, info] of entries) {
+    const hash = info.hash;
+    if (!hash) { missing.push({ relPath, reason: '缺少 hash' }); continue; }
+    const prefix = hash.substring(0, 2);
+    grouped[prefix] = grouped[prefix] || { normal: new Set(), chunked: new Map() };
+    if (info.chunks && info.chunks.length) {
+      grouped[prefix].chunked.set(hash, info.chunks.length);
+    } else {
+      grouped[prefix].normal.add(hash);
+    }
+  }
+
+  const presentNormal = new Set();              // "prefix/hash"
+  const presentPartsByDir = new Map();          // "prefix/hash" -> Set(part names)
+
+  // 收集所有 list 目标，一次性并发出请求，避免逐个串行等待
+  const ops = [];
+  for (const prefix of Object.keys(grouped)) {
+    if (grouped[prefix].normal.size) ops.push({ kind: 'normal', key: prefix, path: `files/${prefix}` });
+    for (const hash of grouped[prefix].chunked.keys()) {
+      ops.push({ kind: 'chunk', key: `${prefix}/${hash}`, path: `files/${prefix}/${hash}` });
+    }
+  }
+
+  const results = await Promise.all(
+    ops.map(async op => {
+      const { data, error } = await appSupabase.client.storage.from(APP_VERSION_BUCKET).list(op.path, { limit: 1000 });
+      return { op, names: (!error && data) ? data.filter(d => d.name).map(d => d.name) : [] };
+    })
+  );
+
+  for (const r of results) {
+    if (r.op.kind === 'normal') {
+      for (const n of r.names) presentNormal.add(r.op.key + '/' + n);
+    } else {
+      presentPartsByDir.set(r.op.key, new Set(r.names));
+    }
+  }
+
+  for (const [relPath, info] of entries) {
+    const hash = info.hash;
+    if (!hash) continue;
+    const key = hash.substring(0, 2) + '/' + hash;
+    if (info.chunks && info.chunks.length) {
+      const parts = presentPartsByDir.get(key);
+      const wanted = Array.from({ length: info.chunks.length }, (_, i) => 'part-' + i);
+      const missingParts = wanted.filter(p => !parts || !parts.has(p));
+      if (missingParts.length) {
+        missing.push({ relPath, reason: `${i18n.t('admin.appChunk') || '分片'}: ${missingParts.join(', ')}` });
+      }
+    } else if (!presentNormal.has(key)) {
+      missing.push({ relPath, reason: i18n.t('admin.appMissingFile') || '文件对象不存在' });
+    }
+  }
+
+  return { missing, total: entries.length };
+}
+
+// 将「当前文件 + 相对上一版本的状态」构建为带颜色的目录树。
+// statusByPath 覆盖当前文件与已删除文件；每个节点持有 status，目录色由子级聚合。
+function buildAppVersionStatusTree(fileEntries, statusByPath, prevFiles) {
+  const paths = new Set([...Object.keys(fileEntries), ...Object.keys(statusByPath)]);
+  const root = { name: '', dir: true, children: {} };
+  for (const relPath of paths) {
+    const status = statusByPath[relPath] || 'unchanged';
+    const info = fileEntries[relPath] || (prevFiles ? prevFiles[relPath] : null);
+    const parts = relPath.split('/');
+    let node = root;
+    parts.forEach((p, idx) => {
+      const isFile = idx === parts.length - 1;
+      if (isFile) {
+        node.children['f:' + p] = { name: p, file: true, path: relPath, status, size: info ? info.size : 0 };
+      } else {
+        const key = 'd:' + p;
+        if (!node.children[key]) node.children[key] = { name: p, dir: true, children: {} };
+        node = node.children[key];
+      }
+    });
+  }
+  aggregateDirStatus(root);
+  return root;
+}
+
+// 目录色 = 所有后代文件状态一致则取该状态，否则 modified(橙色)
+function aggregateDirStatus(node) {
+  const statuses = Object.values(node.children).map(child => {
+    if (!child.file) aggregateDirStatus(child);
+    return child.status;
+  });
+  node.status = statuses.length === 0
+    ? 'unchanged'
+    : (statuses.every(s => s === statuses[0]) ? statuses[0] : 'modified');
+  return node.status;
+}
+
+function renderAppVersionTree(node, missingKeys, t) {
+  const children = Object.values(node.children);
+  if (!children.length) return '<span class="app-tree-empty">-</span>';
+  children.sort((a, b) => (a.dir === b.dir ? a.name.localeCompare(b.name) : (a.dir ? -1 : 1)));
+
+  const renderChildren = (items) => items.map(child => {
+    if (child.dir) {
+      return `
+        <li class="app-tree-dir status-${child.status || 'unchanged'}">
+          <span class="app-tree-toggle" onclick="toggleAppVersionDir(this)"></span>
+          <span class="app-tree-name">${escapeHtml(child.name)}/</span>
+          <ul class="app-tree-children hidden">${renderChildren(Object.values(child.children))}</ul>
+        </li>`;
+    }
+    const isMissing = missingKeys.has(child.path);
+    return `
+      <li class="app-tree-file status-${child.status || 'unchanged'}">
+        <span class="app-tree-caret"></span>
+        <span class="app-tree-name">${escapeHtml(child.name)}</span>
+        <span class="app-tree-info">${isMissing ? (t('appMissing', '缺失')) : (child.status === 'deleted' ? '' : formatBytes(child.size))}</span>
+      </li>`;
+  }).join('');
+
+  return `<ul class="app-tree-root">${renderChildren(children)}</ul>`;
+}
+
+function toggleAppVersionDir(btn) {
+  const li = btn.closest('li');
+  const child = li && li.querySelector(':scope > .app-tree-children');
+  if (child) child.classList.toggle('hidden');
+  btn.classList.toggle('open');
+}
+
+// 保存维护备注到 updates/{version}/meta.json（非签名，不影响更新签名校验）
+async function saveAppVersionNote() {
+  if (!currentAppVersion) return;
+  const el = document.getElementById('appVersionNote');
+  const notes = el ? el.value : '';
+
+  try {
+    const sessionData = await appSupabase.client.auth.getSession();
+    const accessToken = sessionData?.session?.access_token;
+    if (!accessToken) {
+      alert(i18n.t('common.loginFirst'));
+      return;
+    }
+
+    const url = `${appSupabase.client.supabaseUrl}/storage/v1/object/${APP_VERSION_BUCKET}/updates/${currentAppVersion}/meta.json`;
+    const body = JSON.stringify({ notes });
+    await new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', url, true);
+      xhr.setRequestHeader('Authorization', `Bearer ${accessToken}`);
+      xhr.setRequestHeader('apikey', appSupabase.client.supabaseKey);
+      xhr.setRequestHeader('Content-Type', 'application/json');
+      xhr.setRequestHeader('x-upsert', 'true');
+      xhr.onload = () => (xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(`HTTP ${xhr.status}: ${xhr.responseText || ''}`)));
+      xhr.onerror = () => reject(new Error('network'));
+      xhr.send(body);
+    });
+
+    alert(i18n.t('admin.appNoteSaveSuccess') || '备注已保存');
+  } catch (err) {
+    console.error('Save app version note error:', err);
+    alert(i18n.t('admin.appNoteSaveFailed') || '备注保存失败：' + err.message);
   }
 }

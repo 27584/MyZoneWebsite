@@ -123,6 +123,22 @@
           </svg>
           <span data-i18n="admin.cloudData">扩展云数据</span>
         </button>
+        <button class="sidebar-item" data-page="appVersions" data-i18n="admin.appVersions">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="5" r="2"></circle>
+            <circle cx="12" cy="12" r="2"></circle>
+            <circle cx="12" cy="19" r="2"></circle>
+            <line x1="12" y1="7" x2="12" y2="10"></line>
+            <line x1="12" y1="14" x2="12" y2="17"></line>
+            <line x1="6" y1="5" x2="10" y2="5"></line>
+            <line x1="14" y1="5" x2="18" y2="5"></line>
+            <line x1="6" y1="12" x2="10" y2="12"></line>
+            <line x1="14" y1="12" x2="18" y2="12"></line>
+            <line x1="6" y1="19" x2="10" y2="19"></line>
+            <line x1="14" y1="19" x2="18" y2="19"></line>
+          </svg>
+          <span data-i18n="admin.appVersions">应用版本</span>
+        </button>
       </div>
     </aside>
 
@@ -177,6 +193,17 @@
           </div>
         </div>
         <div id="cloudDataList" class="cards-container"></div>
+      </div>
+
+      <div id="appVersionsPage" class="subpage hidden">
+        <div class="page-header">
+          <h2 data-i18n="admin.appVersions">应用版本</h2>
+          <div style="display: flex; gap: 10px;">
+            <button id="refreshAppVersionsBtn" class="btn btn-secondary" data-i18n="admin.refresh">刷新</button>
+          </div>
+        </div>
+        <p class="appversions-hint" data-i18n="admin.appVersionsHint">以下版本与文件均来自更新服务存储（updates bucket），仅供参考核对；带签名校验。</p>
+        <div id="appVersionsList" class="cards-container"></div>
       </div>
     </main>
   </div>
@@ -498,6 +525,15 @@
       <button class="close-btn" onclick="closeCrashReportModal()">&times;</button>
       <h2 data-i18n="admin.crashReportDetail">崩溃报告详情</h2>
       <div id="crashReportDetailContent"></div>
+    </div>
+  </div>
+
+  <div id="appVersionDetailModal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content large">
+      <button class="close-btn" onclick="closeAppVersionDetailModal()">&times;</button>
+      <h2 id="appVersionDetailTitle" data-i18n="admin.appVersionDetail">应用版本详情</h2>
+      <div id="appVersionDetailContent"></div>
     </div>
   </div>
 

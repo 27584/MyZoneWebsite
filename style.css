@@ -1575,6 +1575,291 @@ body.dashboard-body {
   line-height: 1.6;
 }
 
+/* ========== 应用版本管理 ========== */
+.appversions-hint {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 0 0 16px;
+  line-height: 1.6;
+}
+
+.app-versions-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.app-version-card {
+  background-color: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.app-version-card:hover {
+  border-color: var(--primary-color);
+  box-shadow: var(--shadow-md);
+}
+
+.app-version-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.app-version-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.app-version-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* 文件树 */
+.app-file-tree {
+  max-height: 420px;
+  overflow-y: auto;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 8px;
+  background-color: var(--surface-color);
+  font-size: 13px;
+}
+
+.app-tree-root,
+.app-tree-root ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.app-tree-root li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 3px 4px;
+  border-radius: var(--radius-sm);
+  line-height: 1.5;
+}
+
+.app-tree-root ul.app-tree-children {
+  flex: 1 1 100%;
+}
+
+.app-tree-root ul {
+  margin-left: 16px;
+  border-left: 1px solid var(--border-light);
+  padding-left: 8px;
+}
+
+.app-tree-toggle {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  cursor: pointer;
+  position: relative;
+  opacity: 0.7;
+}
+
+.app-tree-toggle::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 6px;
+  width: 0;
+  height: 0;
+  border-left: 5px solid var(--text-secondary);
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  transition: transform var(--transition-fast);
+}
+
+.app-tree-toggle.open::before {
+  transform: rotate(90deg);
+}
+
+.app-tree-caret {
+  width: 16px;
+  flex: 0 0 16px;
+}
+
+.app-tree-name {
+  color: var(--text-primary);
+  word-break: break-all;
+}
+
+.app-tree-file .app-tree-name {
+  color: var(--text-secondary);
+}
+
+.app-tree-info {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.app-tree-file.app-missing .app-tree-name {
+  color: var(--error-color);
+}
+
+.app-tree-file.app-missing .app-tree-info {
+  color: var(--error-color);
+  font-weight: 500;
+}
+
+/* 变更状态配色：不变=白(默认)/修改=橙/新增=绿/删除=红+删除线；目录色由子级聚合而来 */
+.app-tree-dir.status-modified .app-tree-name,
+.app-tree-file.status-modified .app-tree-name {
+  color: var(--warning-color);
+}
+
+.app-tree-dir.status-added .app-tree-name,
+.app-tree-file.status-added .app-tree-name {
+  color: var(--success-color);
+}
+
+.app-tree-dir.status-deleted .app-tree-name,
+.app-tree-file.status-deleted .app-tree-name {
+  color: var(--error-color);
+}
+
+.app-tree-file.status-deleted .app-tree-name {
+  text-decoration: line-through;
+}
+
+.app-tree-file.status-unchanged .app-tree-name {
+  color: var(--text-secondary);
+}
+
+.app-tree-empty {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* 缺失文件列表 */
+.app-missing-box {
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid var(--error-color);
+  border-radius: var(--radius-md);
+  background-color: var(--error-light);
+}
+
+.app-missing-box strong {
+  color: var(--error-color);
+}
+
+.app-missing-list {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  max-height: 180px;
+  overflow-y: auto;
+  font-size: 13px;
+}
+
+.app-missing-list li span {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-left: 6px;
+}
+
+/* 相对上一版本的变更列表 */
+.app-delta-box {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 10px;
+  background-color: var(--surface-color);
+}
+
+.app-delta-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  padding: 2px 2px 8px;
+  border-bottom: 1px solid var(--border-light);
+  margin-bottom: 6px;
+}
+
+.app-delta-size {
+  color: var(--text-muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.app-delta-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.app-delta-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 2px;
+  font-size: 13px;
+  border-radius: var(--radius-sm);
+  line-height: 1.5;
+}
+
+.app-delta-list li:hover {
+  background-color: var(--surface-hover);
+}
+
+.app-delta-path {
+  color: var(--text-primary);
+  flex: 1;
+  word-break: break-all;
+}
+
+.app-delta-list .app-delta-size {
+  text-align: right;
+}
+
+.app-badge {
+  flex: 0 0 auto;
+  font-size: 11px;
+  line-height: 1;
+  padding: 3px 6px;
+  border-radius: var(--radius-full);
+  font-weight: 500;
+}
+
+.app-badge.modified {
+  background: var(--warning-light);
+  color: var(--warning-color);
+}
+
+.app-badge.added {
+  background: var(--success-light);
+  color: var(--success-color);
+}
+
+.app-badge.deleted {
+  background: var(--error-light);
+  color: var(--error-color);
+}
+
+.app-badge.missing {
+  background: var(--error-light);
+  color: var(--error-color);
+}
+
 .detail-table {
   width: 100%;
   border-collapse: collapse;
