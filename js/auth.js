@@ -143,7 +143,7 @@ async function handleLogout() {
     loginBtn?.classList.remove('hidden');
     signupBtn?.classList.remove('hidden');
     userBtn?.classList.add('hidden');
-    window.location.href = '/';
+    window.location.href = '/MyZoneWebsite';
   } catch (error) {
     console.error('Logout error:', error);
   }

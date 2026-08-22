@@ -2634,7 +2634,10 @@ function appVersionPublicUrl(storagePath) {
 }
 
 async function fetchAppVersionJson(storagePath) {
-  const resp = await fetch(appVersionPublicUrl(storagePath));
+  // latest.json 是易变指针文件，公共对象 URL 会被 Supabase CDN 长期缓存，
+  // 不加时间戳绕过缓存时，刚上传的新版本号不会立刻反映到页面
+  const bust = /(^|\/)latest\.json$/.test(storagePath) ? `?t=${Date.now()}` : '';
+  const resp = await fetch(appVersionPublicUrl(storagePath) + bust);
   if (!resp.ok) throw new Error('http ' + resp.status);
   return resp.json();
 }
