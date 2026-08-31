@@ -3734,6 +3734,43 @@ const AI_MODEL_REF_RATES_USD = {
   'gemini': [1.25, 10.00],
 };
 
+// 参考上下文窗口（tokens，仅作参考）：与定价表同 key，选中模型后自动填入「最大上下文」，可手动调整。
+// 取自各厂商公开的上下文窗口上限；未收录/无法命中时保持为空，不强行猜测。
+const AI_MODEL_REF_CONTEXT = {
+  // ---- OpenAI ----
+  'gpt-5.6': 400000, 'gpt-5.5': 400000, 'gpt-5.4-mini': 400000, 'gpt-5.4-nano': 400000, 'gpt-5.4': 400000,
+  'gpt-4o-mini': 128000, 'gpt-4o': 128000,
+  'gpt-4.1-nano': 1000000, 'gpt-4.1-mini': 1000000, 'gpt-4.1': 1000000,
+  'gpt-4-turbo': 128000, 'gpt-4': 32768,
+  'o4-mini': 200000, 'o3': 200000, 'o1': 200000,
+  // ---- Anthropic ----
+  'claude-opus': 200000, 'claude-sonnet': 200000, 'claude-3-5-haiku': 200000, 'claude-3-7-sonnet': 200000, 'claude-haiku': 200000,
+  // ---- Google Gemini ----
+  'gemini-2.5-pro': 1000000, 'gemini-2.5-flash': 1000000, 'gemini-2-flash': 1000000, 'gemini-1.5-pro': 2000000, 'gemini-1.5-flash': 1000000, 'gemini-3': 1000000,
+  // ---- DeepSeek ----
+  'deepseek-v4-flash-vision-exp': 128000, 'deepseek-v4-flash': 128000, 'deepseek-v4-pro': 128000, 'deepseek-v3.2': 128000, 'deepseek-v3.1': 128000,
+  'deepseek-r1': 64000, 'deepseek-reasoner': 64000, 'deepseek-chat': 128000,
+  // ---- GLM (智谱) ----
+  'glm-5.2': 128000, 'glm-5.1': 128000, 'glm-5-turbo': 128000, 'glm-5': 128000,
+  'glm-4.7-flashx': 128000, 'glm-4.7-flash': 128000, 'glm-4.7': 128000, 'glm-4.6': 128000,
+  'glm-4.5-airx': 128000, 'glm-4.5-air': 128000, 'glm-4.5-flash': 128000, 'glm-4.5': 128000,
+  'glm-4-plus': 128000, 'glm-4-airx': 128000, 'glm-4-air': 128000, 'glm-4-flash': 128000, 'glm-4-long': 1000000, 'glm-4': 128000,
+  'glm-z1': 128000, 'glm-4v': 128000,
+  // ---- Qwen (通义千问) ----
+  'qwen3.8-max': 131072, 'qwen3.7-max': 131072, 'qwen3.7-plus': 131072, 'qwen3.5-flash': 131072, 'qwen3.5-plus': 131072,
+  'qwen3-coder': 131072, 'qwen3-max': 131072, 'qwq-plus': 131072, 'qwen-max': 131072, 'qwen-plus': 131072, 'qwen-turbo': 131072,
+  // ---- Kimi (月之暗面 Moonshot) ----
+  'kimi-k2.7': 131072, 'kimi-k2.6': 131072, 'kimi-k2.5': 131072, 'kimi-k2': 131072, 'moonshot-v1': 131072,
+  // ---- 其他国产模型 ----
+  'doubao-seed-2.1': 128000, 'doubao-1.6': 128000, 'doubao-1.5-pro': 128000, 'doubao': 128000,
+  'ernie-5.1': 128000, 'ernie-4.5-turbo': 128000, 'ernie': 128000,
+  'hunyuan-turbos': 128000, 'hunyuan-t1': 128000, 'hunyuan': 128000,
+  'minimax-m3': 128000, 'minimax': 128000,
+  'mimo-v2': 128000, 'step-3.7': 128000, 'step': 128000,
+  // ---- 万能兜底（子串最短，仅命中裸名/未知变体） ----
+  'glm': 128000, 'deepseek': 128000, 'qwen': 131072, 'kimi': 131072, 'gpt': 128000, 'claude': 200000, 'gemini': 1000000,
+};
+
 const AI_RATE_USD_CNY = 7.2;     // 美元→人民币汇率（可调）
 const AI_RATE_CREDITS_PER_CNY = 100; // 100 credits = 1 元人民币
 
@@ -3761,6 +3798,17 @@ function lookupModelRefRateUsd(modelId) {
   return null;
 }
 
+// 按模型 ID 命中参考上下文窗口（tokens）；匹配规则与定价表一致（大小写不敏感、子串、长 key 优先）
+function lookupModelRefContext(modelId) {
+  if (!modelId) return null;
+  const id = String(modelId).toLowerCase();
+  const keys = Object.keys(AI_MODEL_REF_CONTEXT).sort((a, b) => b.length - a.length);
+  for (const k of keys) {
+    if (id.indexOf(k) !== -1) return AI_MODEL_REF_CONTEXT[k];
+  }
+  return null;
+}
+
 // 选中/输入模型后自动折算参考价填入输入/输出/缓存命中三档速率；仍可手动调整
 const DEFAULT_CACHED_INPUT_RATIO = 0.1; // 未公布官方缓存价时，缓存命中输入价参考 = 输入价 × 10%
 
@@ -3782,6 +3830,13 @@ function fillModelRates(modelId) {
     outputEl.value = outputRate;
   }
   if (cachedEl) cachedEl.value = cachedRate;
+
+  // 参考上下文窗口：命中则一并填入「最大上下文」；未收录时保持原值，不强行覆盖
+  const ctx = lookupModelRefContext(modelId);
+  if (ctx) {
+    const ctxEl = document.getElementById('aiModelContextLength');
+    if (ctxEl) ctxEl.value = ctx;
+  }
 }
 
 // 通过 ai-gateway 调上游 /models 接口拉取模型列表（优先用弹窗里的临时 Key，否则用该模型已保存的 Key）
