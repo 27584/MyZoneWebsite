@@ -4287,8 +4287,8 @@ async function loadAIUsage(days) {
       { label: i18n.t('admin.aiStatRequests'), value: aiFormatNumber(data.total_requests) },
       { label: i18n.t('admin.aiStatSuccess'), value: aiFormatNumber(data.success_requests) },
       { label: i18n.t('admin.aiStatFailed'), value: aiFormatNumber(data.failed_requests) },
-      { label: i18n.t('admin.aiStatInputTokens'), value: aiFormatNumber(data.total_input_tokens) },
-      { label: i18n.t('admin.aiStatCachedTokens'), value: aiFormatNumber(data.total_cached_tokens) },
+      { label: i18n.t('admin.aiStatInputHit'), value: aiFormatNumber(data.total_cached_tokens) },
+      { label: i18n.t('admin.aiStatInputMiss'), value: aiFormatNumber(data.total_input_tokens) },
       { label: i18n.t('admin.aiStatOutputTokens'), value: aiFormatNumber(data.total_output_tokens) }
     ];
 
@@ -4309,8 +4309,8 @@ async function loadAIUsage(days) {
             <tr>
               <th>${i18n.t('admin.aiStatModelName')}</th>
               <th>${i18n.t('admin.aiStatModelRequests')}</th>
-              <th>${i18n.t('admin.aiStatModelInput')}</th>
-              <th>${i18n.t('admin.aiStatModelCached')}</th>
+              <th>${i18n.t('admin.aiStatModelHit')}</th>
+              <th>${i18n.t('admin.aiStatModelMiss')}</th>
               <th>${i18n.t('admin.aiStatModelOutput')}</th>
               <th>${i18n.t('admin.aiStatModelCost')}</th>
             </tr>
@@ -4320,8 +4320,8 @@ async function loadAIUsage(days) {
               <tr>
                 <td>${escapeHtml(pm.model_name || '-')}</td>
                 <td>${aiFormatNumber(pm.requests)}</td>
-                <td>${aiFormatNumber(pm.input_tokens)}</td>
                 <td>${aiFormatNumber(pm.cached_tokens)}</td>
+                <td>${aiFormatNumber(pm.input_tokens)}</td>
                 <td>${aiFormatNumber(pm.output_tokens)}</td>
                 <td>${aiFormatNumber(pm.credits_cost)}</td>
               </tr>
