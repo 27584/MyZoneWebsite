@@ -768,6 +768,11 @@
             <input type="text" id="aiKeyName" required>
           </div>
           <div class="form-group">
+            <label data-i18n="admin.aiKeyBaseUrl">上游地址（可选）</label>
+            <input type="text" id="aiKeyBaseUrl" data-i18n-placeholder="admin.aiKeyBaseUrlPlaceholder">
+            <small class="form-hint" data-i18n="admin.aiKeyBaseUrlHint">留空使用模型的上游地址；配置后该 Key 将请求此提供商的接口（同一模型可接入不同提供商）</small>
+          </div>
+          <div class="form-group">
             <label data-i18n="admin.aiKeyPlain">明文 Key</label>
             <input type="password" id="aiKeyPlain" data-i18n-placeholder="admin.aiKeyPlainPlaceholder">
             <small class="form-hint" data-i18n="admin.aiKeyPlainHint">新增必填；编辑时留空表示不修改</small>

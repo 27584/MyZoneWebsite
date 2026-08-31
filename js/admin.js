@@ -3988,6 +3988,7 @@ async function loadAIKeys(modelId) {
           <div class="code-details">
             <h4>${escapeHtml(k.key_name)} <span class="ai-status-badge ${k.enabled ? 'on' : 'off'}">${k.enabled ? i18n.t('admin.aiEnabled') : i18n.t('admin.aiDisabled')}</span></h4>
             <p>${i18n.t('admin.aiKeyAlias')}: ${escapeHtml(k.key_alias || '-')}</p>
+            ${k.base_url ? `<p>${i18n.t('admin.aiKeyBaseUrl')}: ${escapeHtml(k.base_url)}</p>` : ''}
             <p>${i18n.t('admin.aiQuotaCredits')}: ${k.quota_credits == null ? i18n.t('admin.aiUnlimited') : k.quota_credits} · ${i18n.t('admin.aiCost')}: ${k.total_cost_credits ?? 0}</p>
             <p>${i18n.t('admin.aiLastUsed')}: ${k.last_used_at ? aiDateTime(k.last_used_at) : i18n.t('admin.aiNeverUsed')}</p>
           </div>
@@ -4039,6 +4040,7 @@ function openAIKeyModal(keyId) {
   errorEl.classList.add('hidden');
   document.getElementById('aiKeyId').value = '';
   document.getElementById('aiKeyName').value = '';
+  document.getElementById('aiKeyBaseUrl').value = '';
   document.getElementById('aiKeyPlain').value = '';
   document.getElementById('aiKeyQuota').value = '';
   document.getElementById('aiKeyEnabled').checked = true;
@@ -4048,6 +4050,7 @@ function openAIKeyModal(keyId) {
     if (key) {
       document.getElementById('aiKeyId').value = key.id;
       document.getElementById('aiKeyName').value = key.key_name || '';
+      document.getElementById('aiKeyBaseUrl').value = key.base_url || '';
       document.getElementById('aiKeyQuota').value = key.quota_credits == null ? '' : key.quota_credits;
       document.getElementById('aiKeyEnabled').checked = !!key.enabled;
     }
@@ -4066,6 +4069,7 @@ async function saveAIKey(e) {
 
   const keyId = document.getElementById('aiKeyId').value || undefined;
   const keyName = document.getElementById('aiKeyName').value.trim();
+  const baseUrl = document.getElementById('aiKeyBaseUrl').value.trim();
   const plaintextKey = document.getElementById('aiKeyPlain').value.trim();
   const quotaVal = document.getElementById('aiKeyQuota').value.trim();
   const enabled = document.getElementById('aiKeyEnabled').checked;
@@ -4085,6 +4089,7 @@ async function saveAIKey(e) {
   if (keyId) payload.keyId = keyId;
   if (plaintextKey) payload.plaintextKey = plaintextKey;
   if (quotaVal !== '') payload.quotaCredits = parseFloat(quotaVal);
+  if (baseUrl) payload.baseUrl = baseUrl;
 
   try {
     const resp = await aiEdgeKeyRequest('POST', '', payload);
