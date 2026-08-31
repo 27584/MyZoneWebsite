@@ -2270,6 +2270,49 @@ body.dashboard-body {
   color: var(--error-color);
 }
 
+/* Key 状态探测结果 */
+#aiProbeResults:not(.hidden) {
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--bg-secondary, var(--card-bg, transparent));
+  padding: 12px 14px;
+}
+
+.ai-probe-row {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+.ai-probe-row:first-child { padding-top: 2px; }
+.ai-probe-row:last-child { border-bottom: none; padding-bottom: 2px; }
+
+.ai-probe-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.ai-probe-head strong { font-size: 13px; }
+
+.ai-probe-sub {
+  font-size: 12px;
+  margin-top: 4px;
+  line-height: 1.5;
+}
+.ai-probe-tag {
+  display: inline-block;
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 5px;
+  background: var(--border-color);
+  color: var(--text-secondary, inherit);
+}
+.ai-probe-tag-disabled {
+  background-color: var(--error-light, rgba(220, 38, 38, 0.1));
+  color: var(--error-color);
+}
+.ai-probe-muted { color: var(--text-secondary, inherit); opacity: .8; }
+.ai-probe-error { color: var(--error-color); }
+
 .ai-switch-label {
   display: inline-flex;
   align-items: center;

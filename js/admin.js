@@ -3470,7 +3470,7 @@ async function loadAIModels() {
             ${m.model_type === 'image' || m.model_type === 'video'
               ? `<p>${i18n.t('admin.aiFixedRate')}: ${m.fixed_credits_per_call ?? 0} credits/${i18n.t('admin.aiPerCall')}${m.model_type === 'video' && m.video_operation ? ` · ${i18n.t('admin.aiVideoOperation')}: ${escapeHtml(m.video_operation)}${m.video_status_operation ? ` · ${i18n.t('admin.aiVideoStatusOperation')}: ${escapeHtml(m.video_status_operation)}` : ''}` : ''}</p>`
               : `<p>${i18n.t('admin.aiRatePerMillion')}: ${i18n.t('admin.aiRateInput')} ${m.rate_input_tokens ?? 0} / ${i18n.t('admin.aiRateOutput')} ${m.rate_output_tokens ?? 0} / ${i18n.t('admin.aiRateCached')} ${m.rate_cached_tokens ?? 0} credits</p>`}
-            <p>${i18n.t('admin.aiKeysCount')}: ${m.key_count ?? 0} · ${i18n.t('admin.aiCost')}: ${m.key_total_cost ?? 0} credits · ${i18n.t('admin.aiMaxConcurrent')}: ${m.max_concurrent ?? 0}</p>
+            <p>${i18n.t('admin.aiKeysCount')}: ${m.key_count ?? 0} · ${i18n.t('admin.aiCost')}: ${m.key_total_cost ?? 0} credits · ${i18n.t('admin.aiMaxConcurrent')}: ${m.max_concurrent ?? 0}${m.context_length ? ` · ${i18n.t('admin.aiContextLength')}: ${Number(m.context_length).toLocaleString()}` : ''}</p>
           </div>
         </div>
         <div class="code-actions" style="flex-wrap: wrap; justify-content: flex-end;">
@@ -3511,7 +3511,8 @@ async function toggleAIModelEnabled(modelId, enabled) {
       p_max_concurrent: model.max_concurrent ?? 0,
       p_model_type: model.model_type || 'chat',
       p_fixed_credits_per_call: model.fixed_credits_per_call ?? 0,
-      p_video_operation: model.video_operation || null
+      p_video_operation: model.video_operation || null,
+      p_context_length: model.context_length || null
     });
     if (error) {
       console.error('Toggle AI model error:', error);
@@ -3548,6 +3549,7 @@ function openAIModelModal(modelId) {
   document.getElementById('aiModelRateCached').value = '0';
   document.getElementById('aiModelDiscount').value = '1';
   document.getElementById('aiModelMaxConcurrent').value = '5';
+  document.getElementById('aiModelContextLength').value = '';
   document.getElementById('aiModelType').value = 'chat';
   document.getElementById('aiModelFixedRate').value = '0';
   document.getElementById('aiModelVideoOperation').value = '';
@@ -3578,6 +3580,7 @@ function openAIModelModal(modelId) {
       document.getElementById('aiModelRateCached').value = model.rate_cached_tokens ?? 0;
       document.getElementById('aiModelDiscount').value = model.discount ?? 1;
       document.getElementById('aiModelMaxConcurrent').value = model.max_concurrent ?? 5;
+      document.getElementById('aiModelContextLength').value = model.context_length ?? '';
       document.getElementById('aiModelType').value = model.model_type || 'chat';
       document.getElementById('aiModelFixedRate').value = model.fixed_credits_per_call ?? 0;
       document.getElementById('aiModelVideoOperation').value = model.video_operation || '';
@@ -3859,6 +3862,10 @@ async function saveAIModel(e) {
       p_max_concurrent: Math.max(0, parseInt(document.getElementById('aiModelMaxConcurrent').value, 10) || 0),
       p_model_type: ['image', 'video'].includes(modelType) ? modelType : 'chat',
       p_fixed_credits_per_call: Math.max(0, parseFloat(document.getElementById('aiModelFixedRate').value) || 0),
+      p_context_length: (() => {
+        const v = parseInt(document.getElementById('aiModelContextLength').value, 10);
+        return Number.isFinite(v) && v > 0 ? v : null;
+      })(),
       p_video_operation: modelType === 'video'
         ? (document.getElementById('aiModelVideoOperation').value.trim() || null)
         : null,
@@ -4009,6 +4016,10 @@ function openAIKeysModal(modelId) {
   const model = aiModelsCache.find(m => m.id === modelId);
   document.getElementById('aiKeysModalTitle').textContent = (model ? model.name + ' · ' : '') + i18n.t('admin.aiKeysTitle');
   cancelAIKeyForm();
+  const probeResults = document.getElementById('aiProbeResults');
+  const probeSummary = document.getElementById('aiProbeSummary');
+  if (probeResults) { probeResults.classList.add('hidden'); probeResults.innerHTML = ''; }
+  if (probeSummary) probeSummary.textContent = '';
   const modal = document.getElementById('aiKeysModal');
   modal.classList.remove('hidden');
   modal.classList.add('active');
@@ -4125,6 +4136,106 @@ async function deleteAIKey(keyId) {
     console.error('Delete AI key error:', error);
     alert(i18n.t('admin.aiKeyDeleteFailed'));
   }
+}
+
+// ---------- 探测全部 Key 状态 ----------
+
+// 一键探测模型下所有 Key 的可用状态与额度（每次实时探测，不做缓存）
+async function probeAIKeys() {
+  const btn = document.getElementById('aiProbeKeysBtn');
+  const resultsEl = document.getElementById('aiProbeResults');
+  const summaryEl = document.getElementById('aiProbeSummary');
+  if (!btn || !resultsEl || btn.disabled || !aiCurrentKeyModelId) return;
+
+  if (!aiKeysCache.length) {
+    resultsEl.classList.remove('hidden');
+    resultsEl.innerHTML = `<div class="empty-state">${i18n.t('admin.aiProbeNoKeys')}</div>`;
+    return;
+  }
+
+  const labelSpan = btn.querySelector('span');
+  btn.disabled = true;
+  if (labelSpan) labelSpan.textContent = i18n.t('admin.aiProbing');
+  resultsEl.classList.remove('hidden');
+  resultsEl.innerHTML = `<div class="loading-state">${i18n.t('admin.aiProbing')}…</div>`;
+  if (summaryEl) summaryEl.textContent = '';
+
+  try {
+    const resp = await aiEdgeAdminRequest('POST', '/probe-keys', { modelId: aiCurrentKeyModelId });
+    if (!resp || !resp.success) {
+      resultsEl.innerHTML = `<div class="error-message">${escapeHtml((resp && resp.error) || i18n.t('admin.aiProbeFailed'))}</div>`;
+      return;
+    }
+    renderProbeResults(resp.keys || []);
+  } catch (error) {
+    console.error('Probe AI keys error:', error);
+    resultsEl.innerHTML = `<div class="error-message">${i18n.t('admin.aiProbeFailed')}</div>`;
+  } finally {
+    btn.disabled = false;
+    if (labelSpan) labelSpan.textContent = i18n.t('admin.aiProbeKeys');
+  }
+}
+
+const AI_PROBE_HEALTH = {
+  ok:            { cls: 'on',  label: 'admin.aiProbeHealthOk' },
+  invalid:       { cls: 'off', label: 'admin.aiProbeHealthInvalid' },
+  rate_limited:  { cls: 'off', label: 'admin.aiProbeHealthRateLimited' },
+  upstream_error:{ cls: 'off', label: 'admin.aiProbeHealthUpstreamError' },
+  error:         { cls: 'off', label: 'admin.aiProbeHealthError' },
+};
+
+function renderProbeResults(keys) {
+  const resultsEl = document.getElementById('aiProbeResults');
+  const summaryEl = document.getElementById('aiProbeSummary');
+  if (!resultsEl) return;
+
+  let okCount = 0;
+  const rows = keys.map(k => {
+    const h = AI_PROBE_HEALTH[k.health] || AI_PROBE_HEALTH.error;
+    if (k.health === 'ok') okCount++;
+    const healthBadge = `<span class="ai-status-badge ${h.cls}">${i18n.t(h.label)}</span>`;
+    const httpTag = k.httpStatus ? `<span class="ai-probe-tag">HTTP ${k.httpStatus}</span>` : '';
+    const enabledTag = !k.enabled ? `<span class="ai-probe-tag ai-probe-tag-disabled">${i18n.t('admin.aiKeyEnabledOff')}</span>` : '';
+
+    let quotaLine = '';
+    if (k.quotaCredits != null) {
+      const remaining = Math.max(0, k.quotaCredits - (k.totalCostCredits || 0));
+      quotaLine = `<div class="ai-probe-sub">${i18n.t('admin.aiProbeQuota')}: ${k.quotaCredits} · ${i18n.t('admin.aiProbeCost')}: ${k.totalCostCredits || 0} · ${i18n.t('admin.aiProbeRemaining')}: ${remaining}</div>`;
+    }
+
+    let balanceLine = '';
+    if (k.health === 'ok' && k.enabled) {
+      if (k.balance != null) {
+        balanceLine = `<div class="ai-probe-sub">${i18n.t('admin.aiProbeBalance')}: <strong>${k.balance}${k.balanceUnit || ''}</strong>${k.balanceProvider ? ` <span class="ai-probe-tag">${escapeHtml(k.balanceProvider)}</span>` : ''}${k.balanceNote ? ` <span class="ai-probe-muted">(${escapeHtml(k.balanceNote)})</span>` : ''}</div>`;
+      } else if (k.balanceProvider) {
+        balanceLine = `<div class="ai-probe-sub">${i18n.t('admin.aiProbeBalance')}: <span class="ai-probe-muted">${i18n.t('admin.aiProbeBalanceFailed')}</span></div>`;
+      } else {
+        balanceLine = `<div class="ai-probe-sub">${i18n.t('admin.aiProbeBalance')}: <span class="ai-probe-muted">${i18n.t('admin.aiProbeBalanceNone')}</span></div>`;
+      }
+    }
+
+    const noteLine = k.error && k.health !== 'ok'
+      ? `<div class="ai-probe-sub ai-probe-error">${escapeHtml(k.error)}</div>`
+      : '';
+
+    return `
+      <div class="ai-probe-row">
+        <div class="ai-probe-head">
+          <strong>${escapeHtml(k.keyName)}</strong>
+          ${enabledTag}
+          ${healthBadge}
+          ${httpTag}
+        </div>
+        ${k.baseUrl ? `<div class="ai-probe-sub ai-probe-muted">${escapeHtml(k.baseUrl)}</div>` : ''}
+        ${quotaLine}
+        ${balanceLine}
+        ${noteLine}
+      </div>
+    `;
+  }).join('');
+
+  resultsEl.innerHTML = rows || `<div class="empty-state">${i18n.t('admin.aiProbeNoKeys')}</div>`;
+  if (summaryEl) summaryEl.textContent = i18n.t('admin.aiProbeSummary').replace('{total}', keys.length).replace('{ok}', okCount);
 }
 
 // ---------- 用户额度 ----------

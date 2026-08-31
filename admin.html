@@ -744,6 +744,11 @@
           <input type="number" id="aiModelMaxConcurrent" min="0" step="1" value="5">
           <small class="form-hint" data-i18n="admin.aiMaxConcurrentHint">同一模型同时处理的请求数，超过后自动排队</small>
         </div>
+        <div class="form-group">
+          <label data-i18n="admin.aiContextLength">最大上下文</label>
+          <input type="number" id="aiModelContextLength" min="0" step="1" value="">
+          <small class="form-hint" data-i18n="admin.aiContextLengthHint">上下文窗口上限（tokens），0 或留空 = 未知；内置模型在客户端按此显示最大上下文</small>
+        </div>
         <div id="aiModelError" class="error-message hidden"></div>
         <div style="display: flex; justify-content: flex-end; gap: 10px;">
           <button type="button" class="btn btn-secondary" onclick="closeAIModelModal()" data-i18n="admin.aiCancel">取消</button>
@@ -759,6 +764,14 @@
       <button class="close-btn" onclick="closeAIKeysModal()">&times;</button>
       <h2 id="aiKeysModalTitle" data-i18n="admin.aiKeysTitle">管理 Key</h2>
       <div style="padding: 16px 24px 24px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <span id="aiProbeSummary" style="font-size:13px; opacity:.75;"></span>
+          <button id="aiProbeKeysBtn" class="btn btn-secondary" onclick="probeAIKeys()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+            <span data-i18n="admin.aiProbeKeys">探测全部 Key 状态</span>
+          </button>
+        </div>
+        <div id="aiProbeResults" class="hidden" style="margin-bottom:16px;"></div>
         <div id="aiKeysList" class="cards-container" style="margin-bottom: 16px;"></div>
         <button id="aiAddKeyBtn" class="btn btn-primary" onclick="openAIKeyModal()" data-i18n="admin.aiAddKey">新增 Key</button>
         <form id="aiKeyForm" class="hidden" style="margin-top: 16px;">
