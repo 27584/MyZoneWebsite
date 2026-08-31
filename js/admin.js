@@ -3466,8 +3466,10 @@ async function loadAIModels() {
         <div class="code-info">
           <div class="code-details" style="flex: 1;">
             <h4>${escapeHtml(m.name)} <span class="ai-status-badge ${m.enabled ? 'on' : 'off'}">${m.enabled ? i18n.t('admin.aiEnabled') : i18n.t('admin.aiDisabled')}</span></h4>
-            <p>${i18n.t('admin.aiModel')}: ${escapeHtml(m.model || '-')} · ${i18n.t('admin.aiBackend')}: ${escapeHtml(m.backend || '-')} · ${i18n.t('admin.aiBaseUrl')}: ${escapeHtml(m.base_url || '-')}</p>
-            <p>${i18n.t('admin.aiRatePerMillion')}: ${i18n.t('admin.aiRateInput')} ${m.rate_input_tokens ?? 0} / ${i18n.t('admin.aiRateOutput')} ${m.rate_output_tokens ?? 0} / ${i18n.t('admin.aiRateCached')} ${m.rate_cached_tokens ?? 0} credits</p>
+            <p>${i18n.t('admin.aiModel')}: ${escapeHtml(m.model || '-')} · ${i18n.t('admin.aiModelType')}: ${m.model_type === 'image' ? i18n.t('admin.aiModelTypeImage') : m.model_type === 'video' ? i18n.t('admin.aiModelTypeVideo') : i18n.t('admin.aiModelTypeChat')} · ${i18n.t('admin.aiBackend')}: ${escapeHtml(m.backend || '-')}</p>
+            ${m.model_type === 'image' || m.model_type === 'video'
+              ? `<p>${i18n.t('admin.aiFixedRate')}: ${m.fixed_credits_per_call ?? 0} credits/${i18n.t('admin.aiPerCall')}${m.model_type === 'video' && m.video_operation ? ` · ${i18n.t('admin.aiVideoOperation')}: ${escapeHtml(m.video_operation)}${m.video_status_operation ? ` · ${i18n.t('admin.aiVideoStatusOperation')}: ${escapeHtml(m.video_status_operation)}` : ''}` : ''}</p>`
+              : `<p>${i18n.t('admin.aiRatePerMillion')}: ${i18n.t('admin.aiRateInput')} ${m.rate_input_tokens ?? 0} / ${i18n.t('admin.aiRateOutput')} ${m.rate_output_tokens ?? 0} / ${i18n.t('admin.aiRateCached')} ${m.rate_cached_tokens ?? 0} credits</p>`}
             <p>${i18n.t('admin.aiKeysCount')}: ${m.key_count ?? 0} · ${i18n.t('admin.aiCost')}: ${m.key_total_cost ?? 0} credits · ${i18n.t('admin.aiMaxConcurrent')}: ${m.max_concurrent ?? 0}</p>
           </div>
         </div>
@@ -3506,7 +3508,10 @@ async function toggleAIModelEnabled(modelId, enabled) {
       p_rate_cached: model.rate_cached_tokens ?? 0,
       p_discount: model.discount ?? 1,
       p_sort_order: model.sort_order ?? 0,
-      p_max_concurrent: model.max_concurrent ?? 0
+      p_max_concurrent: model.max_concurrent ?? 0,
+      p_model_type: model.model_type || 'chat',
+      p_fixed_credits_per_call: model.fixed_credits_per_call ?? 0,
+      p_video_operation: model.video_operation || null
     });
     if (error) {
       console.error('Toggle AI model error:', error);
@@ -3521,6 +3526,16 @@ async function toggleAIModelEnabled(modelId, enabled) {
   }
 }
 
+// 切换模型类型：image / video 显示按次固定费率，隐藏 token 速率；video 额外显示视频操作/状态查询接口
+function onAIModelTypeChange() {
+  const type = document.getElementById('aiModelType').value;
+  const isGen = type === 'image' || type === 'video';
+  document.getElementById('aiModelFixedRateGroup').style.display = isGen ? '' : 'none';
+  document.getElementById('aiModelTokenRateGroup').style.display = isGen ? 'none' : 'grid';
+  document.getElementById('aiModelVideoOperationGroup').style.display = type === 'video' ? '' : 'none';
+  document.getElementById('aiModelVideoStatusGroup').style.display = type === 'video' ? '' : 'none';
+}
+
 function openAIModelModal(modelId) {
   const form = document.getElementById('aiModelForm');
   form.reset();
@@ -3533,6 +3548,11 @@ function openAIModelModal(modelId) {
   document.getElementById('aiModelRateCached').value = '0';
   document.getElementById('aiModelDiscount').value = '1';
   document.getElementById('aiModelMaxConcurrent').value = '5';
+  document.getElementById('aiModelType').value = 'chat';
+  document.getElementById('aiModelFixedRate').value = '0';
+  document.getElementById('aiModelVideoOperation').value = '';
+  document.getElementById('aiModelVideoStatusOperation').value = '';
+  onAIModelTypeChange();
   document.getElementById('aiModelEnabled').checked = true;
   document.getElementById('aiModelPreset').value = '';
   document.getElementById('aiModelDiscoveryKey').value = '';
@@ -3558,6 +3578,11 @@ function openAIModelModal(modelId) {
       document.getElementById('aiModelRateCached').value = model.rate_cached_tokens ?? 0;
       document.getElementById('aiModelDiscount').value = model.discount ?? 1;
       document.getElementById('aiModelMaxConcurrent').value = model.max_concurrent ?? 5;
+      document.getElementById('aiModelType').value = model.model_type || 'chat';
+      document.getElementById('aiModelFixedRate').value = model.fixed_credits_per_call ?? 0;
+      document.getElementById('aiModelVideoOperation').value = model.video_operation || '';
+      document.getElementById('aiModelVideoStatusOperation').value = model.video_status_operation || '';
+      onAIModelTypeChange();
       document.getElementById('aiModelEnabled').checked = !!model.enabled;
     }
   }
@@ -3817,6 +3842,7 @@ async function saveAIModel(e) {
 
   try {
     const isNew = !document.getElementById('aiModelId').value;
+    const modelType = document.getElementById('aiModelType').value;
     const { data, error } = await appSupabase.client.rpc('ai_admin_save_model', {
       p_id: document.getElementById('aiModelId').value || null,
       p_name: name,
@@ -3830,7 +3856,15 @@ async function saveAIModel(e) {
       p_rate_cached: parseFloat(document.getElementById('aiModelRateCached').value) || 0,
       p_discount: clampDiscount(parseFloat(document.getElementById('aiModelDiscount').value)),
       p_sort_order: parseInt(document.getElementById('aiModelSortOrder').value, 10) || 0,
-      p_max_concurrent: Math.max(0, parseInt(document.getElementById('aiModelMaxConcurrent').value, 10) || 0)
+      p_max_concurrent: Math.max(0, parseInt(document.getElementById('aiModelMaxConcurrent').value, 10) || 0),
+      p_model_type: ['image', 'video'].includes(modelType) ? modelType : 'chat',
+      p_fixed_credits_per_call: Math.max(0, parseFloat(document.getElementById('aiModelFixedRate').value) || 0),
+      p_video_operation: modelType === 'video'
+        ? (document.getElementById('aiModelVideoOperation').value.trim() || null)
+        : null,
+      p_video_status_operation: modelType === 'video'
+        ? (document.getElementById('aiModelVideoStatusOperation').value.trim() || null)
+        : null
     });
 
     if (error) {

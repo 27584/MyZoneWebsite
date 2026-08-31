@@ -697,7 +697,30 @@
             </label>
           </div>
         </div>
-        <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px;">
+        <div class="form-group">
+          <label data-i18n="admin.aiModelType">模型类型</label>
+          <select id="aiModelType" class="form-select" onchange="onAIModelTypeChange()">
+            <option value="chat" data-i18n="admin.aiModelTypeChat">对话 / 多模态输入（chat）</option>
+            <option value="image" data-i18n="admin.aiModelTypeImage">文生图（image）</option>
+            <option value="video" data-i18n="admin.aiModelTypeVideo">视频生成（video）</option>
+          </select>
+        </div>
+        <div class="form-group" id="aiModelFixedRateGroup" style="display: none;">
+          <label data-i18n="admin.aiFixedRate">按次固定费率（credits/次）</label>
+          <input type="number" id="aiModelFixedRate" min="0" step="any" value="0">
+          <small class="form-hint" data-i18n="admin.aiFixedRateHint">文生图 / 视频模型按每次生成固定扣费，0 = 免费</small>
+        </div>
+        <div class="form-group" id="aiModelVideoOperationGroup" style="display: none;">
+          <label data-i18n="admin.aiVideoOperation">视频操作接口</label>
+          <input type="text" id="aiModelVideoOperation" placeholder="/videos/generations">
+          <small class="form-hint" data-i18n="admin.aiVideoOperationHint">提交任务用 POST {base_url}{接口}，如 /v1/videos</small>
+        </div>
+        <div class="form-group" id="aiModelVideoStatusGroup" style="display: none;">
+          <label data-i18n="admin.aiVideoStatusOperation">视频状态查询接口</label>
+          <input type="text" id="aiModelVideoStatusOperation" placeholder="/agnesapi?video_id={task_id}&model_name={model}">
+          <small class="form-hint" data-i18n="admin.aiVideoStatusOperationHint">查询状态用 GET {base_url}{接口}，支持 {task_id} / {model} 占位符；留空默认 {视频操作接口}/{task_id}</small>
+        </div>
+        <div id="aiModelTokenRateGroup" class="form-group" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
           <div>
             <label data-i18n="admin.aiRateInput">输入速率</label>
             <input type="number" id="aiModelRateInput" step="any" value="0">
@@ -710,12 +733,12 @@
             <label data-i18n="admin.aiRateCached">缓存速率</label>
             <input type="number" id="aiModelRateCached" step="any" value="0">
           </div>
-          <div>
-            <label data-i18n="admin.aiDiscount">折扣</label>
-            <input type="number" id="aiModelDiscount" min="0.01" max="1" step="0.01" value="1">
-          </div>
         </div>
-        <small class="form-hint" data-i18n="admin.aiDiscountHint">（每百万 token 消耗 credits；折扣 0~1，如 0.8 = 8 折，1 = 不打折）</small>
+        <div class="form-group">
+          <label data-i18n="admin.aiDiscount">折扣</label>
+          <input type="number" id="aiModelDiscount" min="0.01" max="1" step="0.01" value="1">
+          <small class="form-hint" data-i18n="admin.aiDiscountHint">（对话模型按每百万 token 消耗 credits；图片/视频模型按每次生成固定费率。折扣 0~1，如 0.8 = 8 折，1 = 不打折）</small>
+        </div>
         <div class="form-group">
           <label data-i18n="admin.aiMaxConcurrent">最大并发数</label>
           <input type="number" id="aiModelMaxConcurrent" min="0" step="1" value="5">

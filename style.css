@@ -527,6 +527,67 @@ body.dashboard-body {
   min-width: 220px;
 }
 
+/* PRO 升级卡片：带金色标签与勾选权益 */
+.pro-card {
+  position: relative;
+  padding-top: 56px;
+}
+
+.pro-tag {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+  color: #fff;
+}
+
+.sponsor-card-header h3 {
+  font-weight: 800;
+}
+
+.sponsor-price {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 16px;
+  color: var(--text-secondary);
+  margin: 6px 0;
+}
+
+.pro-price-amount {
+  font-size: 40px;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.sponsor-features li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  font-size: 15px;
+  color: var(--text-primary);
+  text-align: left;
+  justify-content: flex-start;
+}
+
+.sponsor-check {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  color: var(--primary-color);
+}
+
+.sponsor-actions {
+  margin-top: 8px;
+}
+
 .features {
   max-width: 1200px;
   margin: 0 auto;

@@ -95,17 +95,29 @@
     </section>
 
     <section id="pro-plan" class="sponsor-plan">
-      <div class="sponsor-card">
+      <div class="sponsor-card pro-card">
+        <span class="pro-tag" data-i18n="sponsor.proTag">PRO</span>
         <div class="sponsor-card-header">
           <h3 data-i18n="sponsor.proPlan">PRO 版</h3>
-          <p class="sponsor-price" data-i18n="sponsor.priceMonthly">¥5/月</p>
+          <p class="sponsor-price">
+            <span class="pro-price-amount">¥5</span>
+            <span data-i18n="sponsor.priceMonthly">/月</span>
+          </p>
           <p class="sponsor-yearly" data-i18n="sponsor.priceYearly">¥54/年（省10%）</p>
         </div>
         <ul class="sponsor-features">
-          <li data-i18n="sponsor.feature">云空间创建数量不受限</li>
-          <li data-i18n="sponsor.supportNote">赞助即表示您对项目的支持，感谢您的慷慨！</li>
+          <li>
+            <svg class="sponsor-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            <span data-i18n="sponsor.featureExtAll">订阅所有PRO扩展</span>
+          </li>
+          <li>
+            <svg class="sponsor-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            <span data-i18n="sponsor.feature">云空间创建数量不受限</span>
+          </li>
         </ul>
-        <a class="btn btn-primary pro-sponsor-btn" href="https://www.ifdian.net/a/Chaohuan" target="_blank" rel="noopener noreferrer" data-i18n="sponsor.supportBtn">前往赞助</a>
+        <div class="sponsor-actions">
+          <a class="btn btn-primary pro-sponsor-btn" href="https://www.ifdian.net/a/Chaohuan" target="_blank" rel="noopener noreferrer" data-i18n="sponsor.supportBtn">前往赞助</a>
+        </div>
       </div>
     </section>
   </main>
