@@ -4288,7 +4288,7 @@ async function loadAIUsage(days) {
       { label: i18n.t('admin.aiStatSuccess'), value: aiFormatNumber(data.success_requests) },
       { label: i18n.t('admin.aiStatFailed'), value: aiFormatNumber(data.failed_requests) },
       { label: i18n.t('admin.aiStatInputHit'), value: aiFormatNumber(data.total_cached_tokens) },
-      { label: i18n.t('admin.aiStatInputMiss'), value: aiFormatNumber(data.total_input_tokens) },
+      { label: i18n.t('admin.aiStatInputMiss'), value: aiFormatNumber(Math.max(0, (data.total_input_tokens || 0) - (data.total_cached_tokens || 0))) },
       { label: i18n.t('admin.aiStatOutputTokens'), value: aiFormatNumber(data.total_output_tokens) }
     ];
 
@@ -4321,7 +4321,7 @@ async function loadAIUsage(days) {
                 <td>${escapeHtml(pm.model_name || '-')}</td>
                 <td>${aiFormatNumber(pm.requests)}</td>
                 <td>${aiFormatNumber(pm.cached_tokens)}</td>
-                <td>${aiFormatNumber(pm.input_tokens)}</td>
+                <td>${aiFormatNumber(Math.max(0, (pm.input_tokens || 0) - (pm.cached_tokens || 0)))}</td>
                 <td>${aiFormatNumber(pm.output_tokens)}</td>
                 <td>${aiFormatNumber(pm.credits_cost)}</td>
               </tr>
