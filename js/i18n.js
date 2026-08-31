@@ -1303,6 +1303,9 @@ function setLang(lang) {
     currentLang = lang;
     localStorage.setItem('myzone-lang', lang);
     applyTranslations();
+    // 同步语言下拉框的选中值
+    const langSelect = document.getElementById('langSelect');
+    if (langSelect) langSelect.value = lang;
     document.dispatchEvent(new CustomEvent('languageChanged', { detail: { lang } }));
   }
 }
