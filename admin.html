@@ -139,6 +139,29 @@
           </svg>
           <span data-i18n="admin.appVersions">应用版本</span>
         </button>
+        <button class="sidebar-item" data-page="ai" data-i18n="admin.aiTitle">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3v3"></path>
+            <path d="M12 18v3"></path>
+            <path d="M3 12h3"></path>
+            <path d="M18 12h3"></path>
+            <path d="M5.6 5.6l2.1 2.1"></path>
+            <path d="M16.3 16.3l2.1 2.1"></path>
+            <path d="M5.6 18.4l2.1-2.1"></path>
+            <path d="M16.3 7.7l2.1-2.1"></path>
+            <circle cx="12" cy="12" r="3"></circle>
+          </svg>
+          <span data-i18n="admin.aiTitle">内置 AI</span>
+        </button>
+        <button class="sidebar-item" data-page="plans" data-i18n="admin.aiPlan">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="8" cy="8" r="5.4"></circle>
+            <path d="M18.09 10.37A6 6 0 1 1 10.34 18"></path>
+            <path d="M7 6.2h1.2v3.6"></path>
+            <path d="m16.6 14 .8.8-2.9 2.9"></path>
+          </svg>
+          <span data-i18n="admin.aiPlan">AI Plan 管理</span>
+        </button>
       </div>
     </aside>
 
@@ -204,6 +227,52 @@
         </div>
         <p class="appversions-hint" data-i18n="admin.appVersionsHint">以下版本与文件均来自更新服务存储（updates bucket），仅供参考核对；带签名校验。</p>
         <div id="appVersionsList" class="cards-container"></div>
+      </div>
+
+      <div id="aiPage" class="subpage hidden">
+        <div class="page-header">
+          <h2 data-i18n="admin.aiTitle">内置 AI</h2>
+        </div>
+        <div class="ai-tabs">
+          <button class="tab active" data-ai-tab="models" onclick="switchAITab('models')" data-i18n="admin.aiTabModels">模型管理</button>
+          <button class="tab" data-ai-tab="credits" onclick="switchAITab('credits')" data-i18n="admin.aiTabCredits">用户额度</button>
+          <button class="tab" data-ai-tab="usage" onclick="switchAITab('usage')" data-i18n="admin.aiTabUsage">用量统计</button>
+        </div>
+
+        <div id="aiModelsPanel" class="ai-tab-panel">
+          <div class="cloud-data-toolbar">
+            <button id="aiAddModelBtn" class="btn btn-primary" data-i18n="admin.aiAddModel">新增模型</button>
+          </div>
+          <div id="aiModelsList" class="cards-container"></div>
+        </div>
+
+        <div id="aiCreditsPanel" class="ai-tab-panel hidden">
+          <div class="cloud-data-toolbar" style="justify-content: flex-start;">
+            <input type="text" id="aiCreditsSearch" class="ai-search-input" data-i18n-placeholder="admin.aiCreditsSearchPlaceholder">
+            <button id="aiCreditsSearchBtn" class="btn btn-secondary" data-i18n="admin.aiSearch">搜索</button>
+          </div>
+          <div id="aiCreditsList" class="cards-container"></div>
+        </div>
+
+        <div id="aiUsagePanel" class="ai-tab-panel hidden">
+          <div class="cloud-data-toolbar">
+            <button class="btn ai-days-btn active" data-days="7" onclick="loadAIUsage(7)" data-i18n="admin.aiDays7">近7天</button>
+            <button class="btn ai-days-btn" data-days="30" onclick="loadAIUsage(30)" data-i18n="admin.aiDays30">近30天</button>
+            <button class="btn ai-days-btn" data-days="90" onclick="loadAIUsage(90)" data-i18n="admin.aiDays90">近90天</button>
+          </div>
+          <div id="aiUsageContent"></div>
+        </div>
+      </div>
+
+      <div id="plansPage" class="subpage hidden">
+        <div class="page-header">
+          <h2 data-i18n="admin.aiPlan">AI Plan 管理</h2>
+          <div style="display: flex; gap: 10px;">
+            <button id="addPlanBtn" class="btn btn-primary" data-i18n="admin.planAdd">新增 Plan</button>
+          </div>
+        </div>
+        <p class="appversions-hint" data-i18n="admin.planPageHint">配置 AI Plan 档位后，可在「激活码管理」中生成对应 Plan 的激活码；用户开通后每月自动发放 credits。</p>
+        <div id="plansList" class="cards-container"></div>
       </div>
     </main>
   </div>
@@ -499,13 +568,36 @@
           <input type="number" id="codeCount" name="codeCount" min="1" max="100" value="10" required>
         </div>
         <div class="form-group">
-          <label data-i18n="admin.codeDays">PRO 时长（天）</label>
+          <label data-i18n="admin.codeType">激活码类型</label>
+          <select id="codeType" name="codeType" onchange="onCodeTypeChange()">
+            <option value="pro" data-i18n="admin.codeTypePro">PRO 时长</option>
+            <option value="credits" data-i18n="admin.codeTypeCredits">Credits 余额</option>
+            <option value="plan" data-i18n="admin.codeTypePlan">AI Plan</option>
+          </select>
+        </div>
+        <div class="form-group hidden" id="codePlanGroup">
+          <label data-i18n="admin.codePlan">AI Plan</label>
+          <select id="codePlanId" class="form-select"></select>
+        </div>
+        <div class="form-group" id="codeDaysGroup">
+          <label id="codeDaysLabel" data-i18n="admin.codeDays">PRO 时长（天）</label>
           <input type="number" id="codeDays" name="codeDays" min="1" max="3650" value="30" required>
+        </div>
+        <div class="form-group hidden" id="creditsGroup">
+          <label data-i18n="admin.creditsAmount">Credits 金额</label>
+          <input type="number" id="creditsAmount" name="creditsAmount" min="0.01" step="0.01" value="100" required>
+        </div>
+        <div class="form-group hidden" id="creditsValidGroup">
+          <label data-i18n="admin.creditsValidDays">Credits 有效期（天）</label>
+          <div style="display: flex; gap: 10px;">
+            <input type="number" id="creditsValidDays" name="creditsValidDays" min="0" max="3650" value="30" data-i18n-placeholder="admin.permanentPlaceholder">
+            <span data-i18n="admin.creditsValidHint" style="color: var(--text-muted); font-size: 12px; line-height: 32px;">0 表示永不过期</span>
+          </div>
         </div>
         <div class="form-group">
           <label data-i18n="admin.codeExpireDays">激活有效期（天）</label>
           <div style="display: flex; gap: 10px;">
-            <input type="number" id="codeExpireDays" name="codeExpireDays" min="0" max="3650" value="365" data-i18n-placeholder="admin.permanentPlaceholder">
+            <input type="number" id="codeExpireDays" name="codeExpireDays" min="0" max="3650" value="0" data-i18n-placeholder="admin.permanentPlaceholder">
             <span data-i18n="admin.permanentHint" style="color: var(--text-muted); font-size: 12px; line-height: 32px;">0 表示永久有效</span>
           </div>
         </div>
@@ -534,6 +626,243 @@
       <button class="close-btn" onclick="closeAppVersionDetailModal()">&times;</button>
       <h2 id="appVersionDetailTitle" data-i18n="admin.appVersionDetail">应用版本详情</h2>
       <div id="appVersionDetailContent"></div>
+    </div>
+  </div>
+
+  <div id="aiModelModal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content ai-model">
+      <button class="close-btn" onclick="closeAIModelModal()">&times;</button>
+      <h2 id="aiModelModalTitle" data-i18n="admin.aiModalTitleAddModel">新增模型</h2>
+      <form id="aiModelForm">
+        <input type="hidden" id="aiModelId">
+        <div class="form-group">
+          <label data-i18n="admin.aiPreset">预设</label>
+          <select id="aiModelPreset" class="form-select" onchange="applyAIModelPreset()">
+            <option value="" data-i18n="admin.aiPresetCustom">自定义</option>
+            <option value="openai" data-i18n="admin.aiPresetOpenAI">OpenAI</option>
+            <option value="deepseek" data-i18n="admin.aiPresetDeepseek">DeepSeek</option>
+            <option value="dashscope" data-i18n="admin.aiPresetDashscope">通义千问（阿里云百炼）</option>
+            <option value="zhipu" data-i18n="admin.aiPresetZhipu">智谱 GLM</option>
+            <option value="moonshot" data-i18n="admin.aiPresetMoonshot">Moonshot Kimi</option>
+            <option value="ark" data-i18n="admin.aiPresetArk">火山方舟（豆包）</option>
+            <option value="siliconflow" data-i18n="admin.aiPresetSiliconflow">硅基流动 SiliconFlow</option>
+            <option value="openrouter" data-i18n="admin.aiPresetOpenrouter">OpenRouter</option>
+            <option value="ollama" data-i18n="admin.aiPresetOllama">Ollama（本地）</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label data-i18n="admin.aiName">名称</label>
+          <input type="text" id="aiModelName" required data-i18n-placeholder="admin.aiName">
+        </div>
+        <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div>
+            <label data-i18n="admin.aiBackend">后端</label>
+            <select id="aiModelBackend" class="form-select">
+              <option value="openai" data-i18n="admin.aiBackendOpenAI">OpenAI</option>
+              <option value="ollama" data-i18n="admin.aiBackendOllama">Ollama</option>
+            </select>
+          </div>
+          <div>
+            <label data-i18n="admin.aiSortOrder">排序</label>
+            <input type="number" id="aiModelSortOrder" value="0">
+          </div>
+        </div>
+        <div class="form-group">
+          <label data-i18n="admin.aiBaseUrl">上游地址</label>
+          <input type="text" id="aiModelBaseUrl" placeholder="https://...">
+        </div>
+        <div class="form-group">
+          <label data-i18n="admin.aiModel">模型</label>
+          <div style="display: flex; gap: 8px;">
+            <input type="text" id="aiModelModel" required style="flex: 1;" onchange="fillModelRates(this.value)">
+            <button type="button" id="aiModelFetchBtn" class="btn btn-secondary" onclick="fetchAIModelList()" data-i18n="admin.aiFetchModels">获取模型列表</button>
+          </div>
+          <select id="aiModelPick" class="form-select hidden" style="margin-top: 8px;" onchange="document.getElementById('aiModelModel').value = this.value; fillModelRates(this.value)"></select>
+        </div>
+        <div class="form-group">
+          <label data-i18n="admin.aiDiscoveryKey">临时 API Key</label>
+          <input type="password" id="aiModelDiscoveryKey" data-i18n-placeholder="admin.aiDiscoveryKeyPlaceholder">
+          <small class="form-hint" data-i18n="admin.aiDiscoveryKeyHint">仅用于获取模型列表，不保存；留空则使用该模型已保存的 Key</small>
+        </div>
+        <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div>
+            <label data-i18n="admin.aiTemperature">温度</label>
+            <input type="number" id="aiModelTemperature" step="0.1" min="0" max="2" value="0.7">
+          </div>
+          <div>
+            <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer; height: 100%; justify-content: center;">
+              <input type="checkbox" id="aiModelEnabled" checked>
+              <span data-i18n="admin.aiEnabled">启用</span>
+            </label>
+          </div>
+        </div>
+        <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px;">
+          <div>
+            <label data-i18n="admin.aiRateInput">输入速率</label>
+            <input type="number" id="aiModelRateInput" step="any" value="0">
+          </div>
+          <div>
+            <label data-i18n="admin.aiRateOutput">输出速率</label>
+            <input type="number" id="aiModelRateOutput" step="any" value="0">
+          </div>
+          <div>
+            <label data-i18n="admin.aiRateCached">缓存速率</label>
+            <input type="number" id="aiModelRateCached" step="any" value="0">
+          </div>
+          <div>
+            <label data-i18n="admin.aiDiscount">折扣</label>
+            <input type="number" id="aiModelDiscount" min="0.01" max="1" step="0.01" value="1">
+          </div>
+        </div>
+        <small class="form-hint" data-i18n="admin.aiDiscountHint">（每百万 token 消耗 credits；折扣 0~1，如 0.8 = 8 折，1 = 不打折）</small>
+        <div class="form-group">
+          <label data-i18n="admin.aiMaxConcurrent">最大并发数</label>
+          <input type="number" id="aiModelMaxConcurrent" min="0" step="1" value="5">
+          <small class="form-hint" data-i18n="admin.aiMaxConcurrentHint">同一模型同时处理的请求数，超过后自动排队</small>
+        </div>
+        <div id="aiModelError" class="error-message hidden"></div>
+        <div style="display: flex; justify-content: flex-end; gap: 10px;">
+          <button type="button" class="btn btn-secondary" onclick="closeAIModelModal()" data-i18n="admin.aiCancel">取消</button>
+          <button type="submit" class="btn btn-primary" data-i18n="admin.aiSaveKey">保存</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="aiKeysModal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content large">
+      <button class="close-btn" onclick="closeAIKeysModal()">&times;</button>
+      <h2 id="aiKeysModalTitle" data-i18n="admin.aiKeysTitle">管理 Key</h2>
+      <div style="padding: 16px 24px 24px;">
+        <div id="aiKeysList" class="cards-container" style="margin-bottom: 16px;"></div>
+        <button id="aiAddKeyBtn" class="btn btn-primary" onclick="openAIKeyModal()" data-i18n="admin.aiAddKey">新增 Key</button>
+        <form id="aiKeyForm" class="hidden" style="margin-top: 16px;">
+          <input type="hidden" id="aiKeyId">
+          <div class="form-group">
+            <label data-i18n="admin.aiKeyName">Key 名称</label>
+            <input type="text" id="aiKeyName" required>
+          </div>
+          <div class="form-group">
+            <label data-i18n="admin.aiKeyPlain">明文 Key</label>
+            <input type="password" id="aiKeyPlain" data-i18n-placeholder="admin.aiKeyPlainPlaceholder">
+            <small class="form-hint" data-i18n="admin.aiKeyPlainHint">新增必填；编辑时留空表示不修改</small>
+          </div>
+          <div class="form-group">
+            <label data-i18n="admin.aiQuotaCredits">额度（credits）</label>
+            <input type="number" id="aiKeyQuota" step="any" data-i18n-placeholder="admin.aiQuotaUnlimited">
+          </div>
+          <div class="form-group">
+            <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+              <input type="checkbox" id="aiKeyEnabled" checked>
+              <span data-i18n="admin.aiEnabled">启用</span>
+            </label>
+          </div>
+          <div id="aiKeyError" class="error-message hidden"></div>
+          <div style="display: flex; justify-content: flex-end; gap: 10px;">
+            <button type="button" class="btn btn-secondary" onclick="cancelAIKeyForm()" data-i18n="admin.aiCancel">取消</button>
+            <button type="submit" class="btn btn-primary" data-i18n="admin.aiSaveKey">保存</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div id="aiRechargeModal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <button class="close-btn" onclick="closeAIRechargeModal()">&times;</button>
+      <h2 data-i18n="admin.aiRechargeTitle">充值 / 扣减额度</h2>
+      <form id="aiRechargeForm">
+        <input type="hidden" id="aiRechargeUserId">
+        <div class="form-group">
+          <label data-i18n="admin.aiName">用户</label>
+          <p id="aiRechargeUserLabel" style="margin: 0; font-size: 14px;"></p>
+        </div>
+        <div class="form-group">
+          <label data-i18n="admin.aiRechargeAmount">金额（credits）</label>
+          <input type="number" id="aiRechargeAmount" step="any" required>
+          <small class="form-hint" data-i18n="admin.aiRechargeHint">正数充值、负数扣减</small>
+        </div>
+        <div class="form-group">
+          <label data-i18n="admin.aiRechargeRemark">备注</label>
+          <input type="text" id="aiRechargeRemark" data-i18n-placeholder="admin.aiRechargeRemarkPlaceholder">
+        </div>
+        <div class="form-group">
+          <label data-i18n="admin.aiRechargeExpires">有效期</label>
+          <input type="date" id="aiRechargeExpires">
+          <small class="form-hint" data-i18n="admin.aiRechargeExpiresHint">留空 = 永不过期</small>
+        </div>
+        <div id="aiRechargeError" class="error-message hidden"></div>
+        <div style="display: flex; justify-content: flex-end; gap: 10px;">
+          <button type="button" class="btn btn-secondary" onclick="closeAIRechargeModal()" data-i18n="admin.aiCancel">取消</button>
+          <button type="submit" class="btn btn-primary" data-i18n="admin.aiRecharge">确认</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="aiLedgerModal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content large">
+      <button class="close-btn" onclick="closeAILedgerModal()">&times;</button>
+      <h2 data-i18n="admin.aiLedgerTitle">额度明细</h2>
+      <div style="padding: 16px 24px 24px;">
+        <div id="aiLedgerList" class="cards-container"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="planModal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <button class="close-btn" onclick="closePlanModal()">&times;</button>
+      <h2 id="planModalTitle" data-i18n="admin.planAdd">新增 Plan</h2>
+      <form id="planForm">
+        <input type="hidden" id="planId">
+        <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div>
+            <label data-i18n="admin.planName">名称</label>
+            <input type="text" id="planName" required data-i18n-placeholder="admin.planNamePlaceholder">
+          </div>
+          <div>
+            <label data-i18n="admin.planPrice">月费（元）</label>
+            <input type="number" id="planPrice" step="any" min="0" value="0">
+          </div>
+        </div>
+        <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div>
+            <label data-i18n="admin.planCreditsPerMonth">每月发放 credits</label>
+            <input type="number" id="planCreditsPerMonth" step="any" min="0" required>
+          </div>
+          <div>
+            <label data-i18n="admin.planCreditsValidDays">credits 有效期（天）</label>
+            <input type="number" id="planCreditsValidDays" min="1" max="3650" value="30" required>
+          </div>
+        </div>
+        <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div>
+            <label data-i18n="admin.planDurationDays">订阅时长（天）</label>
+            <input type="number" id="planDurationDays" min="1" max="3650" value="30" required>
+          </div>
+          <div>
+            <label data-i18n="admin.planSortOrder">排序</label>
+            <input type="number" id="planSortOrder" value="0">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="checkbox" id="planIsActive" checked>
+            <span data-i18n="admin.planIsActive">启用（用户可见可选）</span>
+          </label>
+        </div>
+        <div id="planError" class="error-message hidden"></div>
+        <div style="display: flex; justify-content: flex-end; gap: 10px;">
+          <button type="button" class="btn btn-secondary" onclick="closePlanModal()" data-i18n="admin.aiCancel">取消</button>
+          <button type="submit" class="btn btn-primary" data-i18n="admin.save">保存</button>
+        </div>
+      </form>
     </div>
   </div>
 

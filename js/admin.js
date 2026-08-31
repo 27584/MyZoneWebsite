@@ -4,10 +4,22 @@ const addCodeBtn = document.getElementById('addCodeBtn');
 const batchDeleteCodesBtn = document.getElementById('batchDeleteCodesBtn');
 const addCodesForm = document.getElementById('addCodesForm');
 const codeCount = document.getElementById('codeCount');
+const codeType = document.getElementById('codeType');
 const codeDays = document.getElementById('codeDays');
+const creditsAmount = document.getElementById('creditsAmount');
+const creditsValidDays = document.getElementById('creditsValidDays');
+const codeDaysGroup = document.getElementById('codeDaysGroup');
+const codeDaysLabel = document.querySelector('#codeDaysGroup label');
+const creditsGroup = document.getElementById('creditsGroup');
+const creditsValidGroup = document.getElementById('creditsValidGroup');
 const codeExpireDays = document.getElementById('codeExpireDays');
 const codeMaxUses = document.getElementById('codeMaxUses');
 const codesError = document.getElementById('codesError');
+const codePlanGroup = document.getElementById('codePlanGroup');
+const codePlanId = document.getElementById('codePlanId');
+const plansList = document.getElementById('plansList');
+const planForm = document.getElementById('planForm');
+const planError = document.getElementById('planError');
 let selectedCodeIds = [];
 
 function escapeHtml(str) {
@@ -313,9 +325,13 @@ async function loadCodes() {
         <div class="code-info">
           <div class="code-code">${code.code}</div>
           <div class="code-details">
-            <p>${i18n.t('codes.proCode')} · ${code.used_count >= code.max_uses ? '<span style="color:#ef4444">'+i18n.t('admin.used')+'</span>' : '<span style="color:#22c55e">'+i18n.t('admin.unused')+'</span>'} · ${code.is_active ? '' : '<span style="color:#f59e0b">'+i18n.t('admin.disabled')+'</span>'}</p>
+            <p>${code.code_type === 'credits' ? i18n.t('codes.creditsCode') : code.code_type === 'plan' ? i18n.t('codes.planCode') : i18n.t('codes.proCode')} · ${code.used_count >= code.max_uses ? '<span style="color:#ef4444">'+i18n.t('admin.used')+'</span>' : '<span style="color:#22c55e">'+i18n.t('admin.unused')+'</span>'} · ${code.is_active ? '' : '<span style="color:#f59e0b">'+i18n.t('admin.disabled')+'</span>'}</p>
             <p>${i18n.t('codes.expireAt')}: ${code.expires_at ? new Date(code.expires_at).toLocaleDateString(i18n.currentLang() === 'zh' ? 'zh-CN' : 'en-US') : i18n.t('admin.permanent')}</p>
-            <p>${i18n.t('codes.duration')}: ${code.duration_days}${i18n.t('admin.days')}</p>
+            ${code.code_type === 'credits'
+              ? `<p>${i18n.t('codes.creditsAmount')}: ${code.credits_amount} · ${i18n.t('codes.creditsValidDays')}: ${code.credits_valid_days > 0 ? code.credits_valid_days + i18n.t('admin.days') : i18n.t('admin.permanent')}</p>`
+              : code.code_type === 'plan'
+                ? `<p>${i18n.t('codes.plan')}: ${code.plan_name ? escapeHtml(code.plan_name) : '--'}${code.duration_days > 0 ? ' · ' + i18n.t('codes.planDuration') + ': ' + code.duration_days + i18n.t('admin.days') : ''}</p>`
+                : `<p>${i18n.t('codes.duration')}: ${code.duration_days}${i18n.t('admin.days')}</p>`}
             <p>${i18n.t('codes.usage')}: ${code.used_count}/${code.max_uses}</p>
             ${redeemedHtml}
           </div>
@@ -333,15 +349,44 @@ async function loadCodes() {
   }
 }
 
+function onCodeTypeChange() {
+  const type = codeType.value;
+  const isCredits = type === 'credits';
+  const isPlan = type === 'plan';
+  // 时长字段：pro 与 plan 均可设置（plan 时表示开通/续订的延长时间，默认 30 天）
+  codeDaysGroup.classList.toggle('hidden', isCredits);
+  creditsGroup.classList.toggle('hidden', !isCredits);
+  creditsValidGroup.classList.toggle('hidden', !isCredits);
+  codePlanGroup.classList.toggle('hidden', !isPlan);
+  codeDays.required = !isCredits;
+  creditsAmount.required = isCredits;
+  creditsValidDays.required = isCredits;
+  codePlanId.required = isPlan;
+  if (isPlan) {
+    loadPlanOptions();
+    codeDaysLabel.textContent = i18n.t('admin.planExtendDays');
+    codeDaysLabel.dataset.i18n = 'admin.planExtendDays';
+  } else {
+    codeDaysLabel.textContent = i18n.t('admin.codeDays');
+    codeDaysLabel.dataset.i18n = 'admin.codeDays';
+  }
+}
+
 async function addCodes(e) {
   e.preventDefault();
+
+  const selectedType = codeType.value;
 
   try {
     const { error } = await appSupabase.client.rpc('admin_create_codes', {
       count: parseInt(codeCount.value),
-      duration_days: parseInt(codeDays.value),
+      duration_days: selectedType === 'credits' ? 0 : parseInt(codeDays.value),
       expire_days: parseInt(codeExpireDays.value),
-      max_uses: parseInt(codeMaxUses.value)
+      max_uses: parseInt(codeMaxUses.value),
+      code_type: selectedType,
+      credits_amount: selectedType === 'credits' ? parseFloat(creditsAmount.value) : 0,
+      credits_valid_days: selectedType === 'credits' ? parseInt(creditsValidDays.value) : 0,
+      plan_id: selectedType === 'plan' ? codePlanId.value || null : null
     });
 
     if (error) {
@@ -428,6 +473,7 @@ function openAddCodesModal() {
   const modal = document.getElementById('addCodesModal');
   modal.classList.remove('hidden');
   modal.classList.add('active');
+  loadPlanOptions();
 }
 
 function closeAddCodesModal() {
@@ -437,6 +483,177 @@ function closeAddCodesModal() {
     modal.classList.add('hidden');
   }, 200);
   codesError.classList.add('hidden');
+}
+
+// ========== AI Plan 管理 ==========
+
+let plansCache = [];
+
+async function loadPlans() {
+  showLoading(plansList);
+
+  try {
+    const { data, error } = await appSupabase.client.rpc('admin_list_ai_plans');
+    if (error) {
+      console.error('Load plans error:', error);
+      showErrorState(plansList, i18n.t('common.error'));
+      return;
+    }
+
+    const plans = Array.isArray(data) ? data : [];
+    plansCache = plans;
+
+    if (plans.length === 0) {
+      plansList.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="8" cy="8" r="5.4"></circle>
+              <path d="M18.09 10.37A6 6 0 1 1 10.34 18"></path>
+              <path d="M7 6.2h1.2v3.6"></path>
+              <path d="m16.6 14 .8.8-2.9 2.9"></path>
+            </svg>
+          </div>
+          <p>${i18n.t('admin.planEmpty')}</p>
+        </div>
+      `;
+      return;
+    }
+
+    plansList.innerHTML = plans.map(plan => `
+      <div class="user-card">
+        <div class="user-info">
+          <div class="user-details" style="flex: 1;">
+            <h4 style="display: flex; align-items: center; gap: 8px;">
+              ${escapeHtml(plan.name)}
+              ${!plan.is_active ? `<span style="color:#f59e0b;font-size:12px;">${i18n.t('admin.disabled')}</span>` : ''}
+            </h4>
+            <p>${i18n.t('admin.planCreditsPerMonth')}: ${plan.credits_per_month} · ${i18n.t('admin.planCreditsValidDays')}: ${plan.credits_valid_days}${i18n.t('admin.days')}</p>
+            <p>${i18n.t('admin.planDurationDays')}: ${plan.duration_days}${i18n.t('admin.days')} · ${i18n.t('admin.planPrice')}: ¥${plan.price}</p>
+          </div>
+        </div>
+        <div class="code-actions">
+          <button class="action-btn" onclick="openPlanModal('${plan.id}')">${i18n.t('admin.edit')}</button>
+          <button class="action-btn delete" onclick="deletePlan('${plan.id}')">${i18n.t('admin.delete')}</button>
+        </div>
+      </div>
+    `).join('');
+  } catch (error) {
+    console.error('Load plans error:', error);
+    showErrorState(plansList, i18n.t('common.networkError'));
+  }
+}
+
+async function loadPlanOptions() {
+  if (!codePlanId) return;
+  try {
+    const { data, error } = await appSupabase.client.rpc('admin_list_ai_plans');
+    if (error || !Array.isArray(data)) return;
+    const current = codePlanId.value;
+    codePlanId.innerHTML = data.map(plan =>
+      `<option value="${plan.id}">${escapeHtml(plan.name)}${plan.is_active ? '' : ' (' + i18n.t('admin.disabled') + ')'}</option>`
+    ).join('');
+    if (current && data.some(p => p.id === current)) codePlanId.value = current;
+  } catch (error) {
+    console.error('Load plan options error:', error);
+  }
+}
+
+function openPlanModal(planId) {
+  const form = document.getElementById('planForm');
+  form.reset();
+  document.getElementById('planId').value = '';
+  document.getElementById('planPrice').value = '0';
+  document.getElementById('planCreditsValidDays').value = '30';
+  document.getElementById('planDurationDays').value = '30';
+  document.getElementById('planSortOrder').value = '0';
+  document.getElementById('planIsActive').checked = true;
+  document.getElementById('planModalTitle').textContent = i18n.t('admin.planAdd');
+
+  if (planId) {
+    const plan = plansCache.find(p => p.id === planId);
+    if (plan) {
+      document.getElementById('planModalTitle').textContent = i18n.t('admin.planEdit');
+      document.getElementById('planId').value = plan.id;
+      document.getElementById('planName').value = plan.name || '';
+      document.getElementById('planPrice').value = plan.price ?? 0;
+      document.getElementById('planCreditsPerMonth').value = plan.credits_per_month ?? 0;
+      document.getElementById('planCreditsValidDays').value = plan.credits_valid_days ?? 30;
+      document.getElementById('planDurationDays').value = plan.duration_days ?? 30;
+      document.getElementById('planSortOrder').value = plan.sort_order ?? 0;
+      document.getElementById('planIsActive').checked = !!plan.is_active;
+    }
+  }
+
+  planError.classList.add('hidden');
+  const modal = document.getElementById('planModal');
+  modal.classList.remove('hidden');
+  modal.classList.add('active');
+}
+
+function closePlanModal() {
+  const modal = document.getElementById('planModal');
+  modal.classList.remove('active');
+  setTimeout(() => modal.classList.add('hidden'), 200);
+}
+
+async function savePlan(e) {
+  e.preventDefault();
+  planError.classList.add('hidden');
+
+  try {
+    const { data, error } = await appSupabase.client.rpc('admin_save_ai_plan', {
+      p_name: document.getElementById('planName').value.trim(),
+      p_price: parseFloat(document.getElementById('planPrice').value) || 0,
+      p_credits_per_month: parseFloat(document.getElementById('planCreditsPerMonth').value),
+      p_credits_valid_days: parseInt(document.getElementById('planCreditsValidDays').value) || 30,
+      p_duration_days: parseInt(document.getElementById('planDurationDays').value) || 30,
+      p_sort_order: parseInt(document.getElementById('planSortOrder').value) || 0,
+      p_is_active: document.getElementById('planIsActive').checked,
+      p_plan_id: document.getElementById('planId').value || null
+    });
+
+    if (error) {
+      planError.textContent = error.message;
+      planError.classList.remove('hidden');
+      return;
+    }
+
+    if (data && data.success === false) {
+      planError.textContent = data.message || i18n.t('common.error');
+      planError.classList.remove('hidden');
+      return;
+    }
+
+    closePlanModal();
+    loadPlans();
+    alert(i18n.t('common.success'));
+  } catch (error) {
+    planError.textContent = error.message;
+    planError.classList.remove('hidden');
+  }
+}
+
+async function deletePlan(planId) {
+  if (!confirm(i18n.t('admin.planDeleteConfirm'))) return;
+
+  try {
+    const { data, error } = await appSupabase.client.rpc('admin_delete_ai_plan', { p_plan_id: planId });
+    if (error) {
+      console.error('Delete plan error:', error);
+      alert(i18n.t('admin.deleteFailed'));
+      return;
+    }
+    if (data && data.success === false) {
+      alert(data.message || i18n.t('admin.deleteFailed'));
+      return;
+    }
+    loadPlans();
+    alert(i18n.t('common.success'));
+  } catch (error) {
+    console.error('Delete plan error:', error);
+    alert(i18n.t('admin.deleteFailed'));
+  }
 }
 
 // ========== 扩展云数据管理 ==========
@@ -777,6 +994,10 @@ document.addEventListener('DOMContentLoaded', () => {
         loadCloudDataPage();
       } else if (item.dataset.page === 'appVersions') {
         loadAppVersions();
+      } else if (item.dataset.page === 'ai') {
+        loadAIPage();
+      } else if (item.dataset.page === 'plans') {
+        loadPlans();
       }
     });
   });
@@ -806,6 +1027,34 @@ document.addEventListener('DOMContentLoaded', () => {
   const cloudDataScope = document.getElementById('cloudDataScope');
   if (cloudDataScope) cloudDataScope.addEventListener('change', toggleCloudDataOwnerGroup);
 
+  // 内置 AI 事件
+  const aiAddModelBtn = document.getElementById('aiAddModelBtn');
+  if (aiAddModelBtn) aiAddModelBtn.addEventListener('click', () => openAIModelModal());
+
+  const aiModelForm = document.getElementById('aiModelForm');
+  if (aiModelForm) aiModelForm.addEventListener('submit', saveAIModel);
+
+  const aiKeyForm = document.getElementById('aiKeyForm');
+  if (aiKeyForm) aiKeyForm.addEventListener('submit', saveAIKey);
+
+  const aiRechargeForm = document.getElementById('aiRechargeForm');
+  if (aiRechargeForm) aiRechargeForm.addEventListener('submit', saveAIRecharge);
+
+  const aiCreditsSearchBtn = document.getElementById('aiCreditsSearchBtn');
+  if (aiCreditsSearchBtn) aiCreditsSearchBtn.addEventListener('click', () => {
+    loadAICredits(document.getElementById('aiCreditsSearch').value.trim());
+  });
+
+  const aiCreditsSearch = document.getElementById('aiCreditsSearch');
+  if (aiCreditsSearch) aiCreditsSearch.addEventListener('keydown', e => {
+    if (e.key === 'Enter') loadAICredits(aiCreditsSearch.value.trim());
+  });
+
+  // AI Plan 事件
+  const addPlanBtn = document.getElementById('addPlanBtn');
+  if (addPlanBtn) addPlanBtn.addEventListener('click', () => openPlanModal());
+  if (planForm) planForm.addEventListener('submit', savePlan);
+
   loadAdminPage();
 });
 
@@ -826,6 +1075,10 @@ document.addEventListener('languageChanged', () => {
     loadCloudDataPage();
   } else if (page === 'appVersions') {
     loadAppVersions();
+  } else if (page === 'ai') {
+    loadAIPage();
+  } else if (page === 'plans') {
+    loadPlans();
   }
 });
 
@@ -3084,5 +3337,1001 @@ async function saveAppVersionNote() {
   } catch (err) {
     console.error('Save app version note error:', err);
     alert(i18n.t('admin.appNoteSaveFailed') || '备注保存失败：' + err.message);
+  }
+}
+
+// ========== 内置 AI 管理 ==========
+
+let aiModelsCache = [];
+let aiKeysCache = [];
+let aiCreditsCache = [];
+let aiCurrentKeyModelId = null;
+let aiActiveTab = 'models';
+let aiUsageDays = 7;
+
+function aiFormatNumber(n) {
+  const num = Number(n) || 0;
+  return num.toLocaleString(i18n.currentLang() === 'zh' ? 'zh-CN' : 'en-US', { maximumFractionDigits: 2 });
+}
+
+function aiDateTime(v) {
+  if (!v) return '';
+  return new Date(v).toLocaleString(i18n.currentLang() === 'zh' ? 'zh-CN' : 'en-US');
+}
+
+async function aiGetAdminToken() {
+  const sessionData = await appSupabase.client.auth.getSession();
+  return sessionData?.data?.session?.access_token || null;
+}
+
+// 调用 ai-gateway Edge Function（API Key 加解密在服务端完成）
+async function aiEdgeAdminRequest(method, path, body) {
+  const token = await aiGetAdminToken();
+  if (!token) throw new Error('no-token');
+  const resp = await fetch(SUPABASE_URL + '/functions/v1/ai-gateway/admin' + path, {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + token
+    },
+    body: body ? JSON.stringify(body) : undefined
+  });
+  return resp.json();
+}
+
+async function aiEdgeKeyRequest(method, pathQuery, body) {
+  return aiEdgeAdminRequest(method, '/key' + (pathQuery || ''), body);
+}
+
+function switchAITab(name) {
+  aiActiveTab = name;
+  document.querySelectorAll('.ai-tabs .tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.aiTab === name);
+  });
+  document.querySelectorAll('.ai-tab-panel').forEach(p => p.classList.add('hidden'));
+  const panel = document.getElementById('ai' + name.charAt(0).toUpperCase() + name.slice(1) + 'Panel');
+  if (panel) panel.classList.remove('hidden');
+  if (name === 'models') {
+    loadAIModels();
+  } else if (name === 'credits') {
+    loadAICredits(document.getElementById('aiCreditsSearch').value.trim());
+  } else if (name === 'usage') {
+    loadAIUsage(aiUsageDays);
+  }
+}
+
+function loadAIPage() {
+  switchAITab(aiActiveTab);
+}
+
+// ---------- 模型管理 ----------
+
+async function loadAIModels() {
+  const list = document.getElementById('aiModelsList');
+  showLoading(list);
+
+  let billingCard = '';
+  try {
+    const cfgRes = await appSupabase.client.rpc('ai_admin_get_app_config');
+    const baseRate = (cfgRes && !cfgRes.error && cfgRes.data && cfgRes.data.base_rate) ?? '';
+    billingCard = `
+      <div class="code-card">
+        <div class="code-info">
+          <div class="code-details" style="flex: 1;">
+            <h4>${i18n.t('admin.aiBillingTitle')}</h4>
+            <p style="margin-top: 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <label for="aiBaseRateInput" style="color: var(--text-muted);">${i18n.t('admin.aiBaseRate')}</label>
+              <input id="aiBaseRateInput" type="number" step="any" min="0" value="${escapeHtml(String(baseRate))}" style="width: 130px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text);">
+              <span style="color: var(--text-muted); font-size: 12px;">${i18n.t('admin.aiBaseRateHint')}</span>
+              <button class="action-btn primary" onclick="saveAIConfig('base_rate')">${i18n.t('common.save')}</button>
+            </p>
+          </div>
+        </div>
+      </div>`;
+  } catch (e) { billingCard = ''; }
+
+  try {
+    const { data, error } = await appSupabase.client.rpc('ai_admin_list_models');
+    if (error) {
+      console.error('Load AI models error:', error);
+      showErrorState(list, i18n.t('common.error'));
+      return;
+    }
+
+    aiModelsCache = data || [];
+    if (!aiModelsCache.length) {
+      list.innerHTML = billingCard + `
+        <div class="empty-state">
+          <div class="empty-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M12 3v3"></path>
+              <path d="M12 18v3"></path>
+              <path d="M3 12h3"></path>
+              <path d="M18 12h3"></path>
+              <path d="M5.6 5.6l2.1 2.1"></path>
+              <path d="M16.3 16.3l2.1 2.1"></path>
+              <path d="M5.6 18.4l2.1-2.1"></path>
+              <path d="M16.3 7.7l2.1-2.1"></path>
+            </svg>
+          </div>
+          <p>${i18n.t('admin.aiNoModels')}</p>
+        </div>
+      `;
+      return;
+    }
+
+    list.innerHTML = billingCard + aiModelsCache.map(m => `
+      <div class="code-card">
+        <div class="code-info">
+          <div class="code-details" style="flex: 1;">
+            <h4>${escapeHtml(m.name)} <span class="ai-status-badge ${m.enabled ? 'on' : 'off'}">${m.enabled ? i18n.t('admin.aiEnabled') : i18n.t('admin.aiDisabled')}</span></h4>
+            <p>${i18n.t('admin.aiModel')}: ${escapeHtml(m.model || '-')} · ${i18n.t('admin.aiBackend')}: ${escapeHtml(m.backend || '-')} · ${i18n.t('admin.aiBaseUrl')}: ${escapeHtml(m.base_url || '-')}</p>
+            <p>${i18n.t('admin.aiRatePerMillion')}: ${i18n.t('admin.aiRateInput')} ${m.rate_input_tokens ?? 0} / ${i18n.t('admin.aiRateOutput')} ${m.rate_output_tokens ?? 0} / ${i18n.t('admin.aiRateCached')} ${m.rate_cached_tokens ?? 0} credits</p>
+            <p>${i18n.t('admin.aiKeysCount')}: ${m.key_count ?? 0} · ${i18n.t('admin.aiCost')}: ${m.key_total_cost ?? 0} credits · ${i18n.t('admin.aiMaxConcurrent')}: ${m.max_concurrent ?? 0}</p>
+          </div>
+        </div>
+        <div class="code-actions" style="flex-wrap: wrap; justify-content: flex-end;">
+          <label class="ai-switch-label" title="${i18n.t('admin.aiEnabled')}">
+            <input type="checkbox" class="ai-switch" ${m.enabled ? 'checked' : ''} onchange="toggleAIModelEnabled('${m.id}', this.checked)">
+          </label>
+          <button class="action-btn primary" onclick="openAIKeysModal('${m.id}')">${i18n.t('admin.aiManageKeys')}</button>
+          <button class="action-btn edit" onclick="openAIModelModal('${m.id}')">${i18n.t('admin.aiEdit')}</button>
+          <button class="action-btn" onclick="copyAIModel('${m.id}')">${i18n.t('admin.aiCopy')}</button>
+          <button class="action-btn delete" onclick="deleteAIModel('${m.id}')">${i18n.t('admin.aiDelete')}</button>
+        </div>
+      </div>
+    `).join('');
+  } catch (error) {
+    console.error('Load AI models error:', error);
+    showErrorState(list, i18n.t('common.networkError'));
+  }
+}
+
+async function toggleAIModelEnabled(modelId, enabled) {
+  const model = aiModelsCache.find(m => m.id === modelId);
+  if (!model) return;
+
+  try {
+    const { error } = await appSupabase.client.rpc('ai_admin_save_model', {
+      p_id: model.id,
+      p_name: model.name,
+      p_backend: model.backend || 'openai',
+      p_base_url: model.base_url,
+      p_model: model.model,
+      p_temperature: model.temperature ?? 0.7,
+      p_enabled: enabled,
+      p_rate_input: model.rate_input_tokens ?? 0,
+      p_rate_output: model.rate_output_tokens ?? 0,
+      p_rate_cached: model.rate_cached_tokens ?? 0,
+      p_discount: model.discount ?? 1,
+      p_sort_order: model.sort_order ?? 0,
+      p_max_concurrent: model.max_concurrent ?? 0
+    });
+    if (error) {
+      console.error('Toggle AI model error:', error);
+      alert(error.message || i18n.t('admin.aiModelSaveFailed'));
+      loadAIModels();
+      return;
+    }
+    model.enabled = enabled;
+  } catch (error) {
+    console.error('Toggle AI model error:', error);
+    loadAIModels();
+  }
+}
+
+function openAIModelModal(modelId) {
+  const form = document.getElementById('aiModelForm');
+  form.reset();
+  document.getElementById('aiModelId').value = '';
+  document.getElementById('aiModelBackend').value = 'openai';
+  document.getElementById('aiModelTemperature').value = '0.7';
+  document.getElementById('aiModelSortOrder').value = '0';
+  document.getElementById('aiModelRateInput').value = '0';
+  document.getElementById('aiModelRateOutput').value = '0';
+  document.getElementById('aiModelRateCached').value = '0';
+  document.getElementById('aiModelDiscount').value = '1';
+  document.getElementById('aiModelMaxConcurrent').value = '5';
+  document.getElementById('aiModelEnabled').checked = true;
+  document.getElementById('aiModelPreset').value = '';
+  document.getElementById('aiModelDiscoveryKey').value = '';
+  const modelPick = document.getElementById('aiModelPick');
+  modelPick.classList.add('hidden');
+  modelPick.innerHTML = '';
+  document.getElementById('aiModelError').classList.add('hidden');
+  document.getElementById('aiModelModalTitle').textContent = i18n.t('admin.aiModalTitleAddModel');
+
+  if (modelId) {
+    const model = aiModelsCache.find(m => m.id === modelId);
+    if (model) {
+      document.getElementById('aiModelModalTitle').textContent = i18n.t('admin.aiModalTitleEditModel');
+      document.getElementById('aiModelId').value = model.id;
+      document.getElementById('aiModelName').value = model.name || '';
+      document.getElementById('aiModelBackend').value = model.backend || 'openai';
+      document.getElementById('aiModelBaseUrl').value = model.base_url || '';
+      document.getElementById('aiModelModel').value = model.model || '';
+      document.getElementById('aiModelTemperature').value = model.temperature ?? 0.7;
+      document.getElementById('aiModelSortOrder').value = model.sort_order ?? 0;
+      document.getElementById('aiModelRateInput').value = model.rate_input_tokens ?? 0;
+      document.getElementById('aiModelRateOutput').value = model.rate_output_tokens ?? 0;
+      document.getElementById('aiModelRateCached').value = model.rate_cached_tokens ?? 0;
+      document.getElementById('aiModelDiscount').value = model.discount ?? 1;
+      document.getElementById('aiModelMaxConcurrent').value = model.max_concurrent ?? 5;
+      document.getElementById('aiModelEnabled').checked = !!model.enabled;
+    }
+  }
+
+  const modal = document.getElementById('aiModelModal');
+  modal.classList.remove('hidden');
+  modal.classList.add('active');
+}
+
+function closeAIModelModal() {
+  const modal = document.getElementById('aiModelModal');
+  modal.classList.remove('active');
+  setTimeout(() => modal.classList.add('hidden'), 200);
+}
+
+// 常见上游预设：选中后自动填充后端与上游地址
+const AI_MODEL_PRESETS = {
+  openai:      { backend: 'openai', baseUrl: 'https://api.openai.com/v1' },
+  deepseek:    { backend: 'openai', baseUrl: 'https://api.deepseek.com/v1' },
+  dashscope:   { backend: 'openai', baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1' },
+  zhipu:       { backend: 'openai', baseUrl: 'https://open.bigmodel.cn/api/paas/v4' },
+  moonshot:    { backend: 'openai', baseUrl: 'https://api.moonshot.cn/v1' },
+  ark:         { backend: 'openai', baseUrl: 'https://ark.cn-beijing.volces.com/api/v3' },
+  siliconflow: { backend: 'openai', baseUrl: 'https://api.siliconflow.cn/v1' },
+  openrouter:  { backend: 'openai', baseUrl: 'https://openrouter.ai/api/v1' },
+  ollama:      { backend: 'ollama', baseUrl: 'http://localhost:11434/v1' },
+};
+
+function applyAIModelPreset() {
+  const preset = AI_MODEL_PRESETS[document.getElementById('aiModelPreset').value];
+  if (!preset) return;
+  document.getElementById('aiModelBackend').value = preset.backend;
+  document.getElementById('aiModelBaseUrl').value = preset.baseUrl;
+  // 切换预设后清空模型，便于重新获取
+  document.getElementById('aiModelModel').value = '';
+  const pick = document.getElementById('aiModelPick');
+  pick.classList.add('hidden');
+  pick.innerHTML = '';
+}
+
+// 固定参考定价表（每百万 token，USD，input/output[/cached]）。仅作参考，选中模型后自动折算填入，可手动调整。
+// 第三元 cached（缓存命中输入价）仅对官方公布了缓存价的模型给出；未给出的模型按输入价的
+// DEFAULT_CACHED_INPUT_RATIO 折算参考。匹配按 key 子串（长度越长越优先，避免 gpt-4o-mini 误命中 gpt-4o、glm-4.5-air 误命中 glm-4）。
+// 覆盖 OpenAI / Anthropic / Google / DeepSeek / GLM / Qwen / Kimi / Doubao / ERNIE / 混元 / MiniMax 等主流模型。
+const AI_MODEL_REF_RATES_USD = {
+  // ---- OpenAI ----
+  'gpt-5.6': [2.50, 15.00, 0.25],
+  'gpt-5.5': [5.00, 30.00, 0.50],
+  'gpt-5.4-mini': [0.75, 4.50, 0.075],
+  'gpt-5.4-nano': [0.20, 1.25, 0.02],
+  'gpt-5.4': [2.50, 15.00, 0.25],
+  'gpt-4o-mini': [0.15, 0.60, 0.075],
+  'gpt-4o': [2.50, 10.00, 1.25],
+  'gpt-4.1-nano': [0.10, 0.40, 0.025],
+  'gpt-4.1-mini': [0.40, 1.60, 0.10],
+  'gpt-4.1': [2.00, 8.00, 0.50],
+  'gpt-4-turbo': [10.00, 30.00],
+  'gpt-4': [30.00, 60.00],
+  'o4-mini': [1.10, 4.40],
+  'o3': [2.00, 8.00],
+  'o1': [15.00, 60.00],
+  // ---- Anthropic ----
+  'claude-opus': [5.00, 25.00],
+  'claude-sonnet': [3.00, 15.00],
+  'claude-3-5-haiku': [0.80, 4.00],
+  'claude-3-7-sonnet': [3.00, 15.00],
+  'claude-haiku': [1.00, 5.00],
+  // ---- Google Gemini ----
+  'gemini-2.5-pro': [1.25, 10.00],
+  'gemini-2.5-flash': [0.30, 2.50],
+  'gemini-2-flash': [0.10, 0.40],
+  'gemini-1.5-pro': [1.25, 5.00],
+  'gemini-1.5-flash': [0.075, 0.30],
+  'gemini-3': [2.50, 15.00],
+  // ---- DeepSeek ----
+  'deepseek-v4-flash-vision-exp': [0.44, 1.33, 0.015],
+  'deepseek-v4-flash': [0.44, 1.33, 0.015],
+  'deepseek-v4-pro': [1.33, 4.00, 0.044],
+  'deepseek-v3.2': [0.30, 1.19, 0.074],
+  'deepseek-v3.1': [0.16, 0.71, 0.044],
+  'deepseek-r1': [0.55, 2.19, 0.40],
+  'deepseek-reasoner': [0.55, 2.19, 0.40],
+  'deepseek-chat': [0.28, 1.10, 0.07],
+  // ---- GLM (智谱) ----
+  'glm-5.2': [1.19, 4.15, 0.30],
+  'glm-5.1': [0.89, 3.56, 0.19],
+  'glm-5-turbo': [0.74, 3.26],
+  'glm-5': [0.59, 2.67],
+  'glm-4.7-flashx': [0.07, 0.40],
+  'glm-4.7-flash': [0, 0],
+  'glm-4.7': [0.30, 1.19, 0.059],
+  'glm-4.6': [0.43, 1.75],
+  'glm-4.5-airx': [0.15, 0.59],
+  'glm-4.5-air': [0.20, 1.10],
+  'glm-4.5-flash': [0, 0],
+  'glm-4.5': [0.30, 1.19],
+  'glm-4-plus': [0.74, 0.74],
+  'glm-4-airx': [0.15, 0.44],
+  'glm-4-air': [0.07, 0.07],
+  'glm-4-flash': [0, 0],
+  'glm-4-long': [0.15, 0.29],
+  'glm-4': [0.11, 0.28],
+  'glm-z1': [0.07, 0.44],
+  'glm-4v': [0.15, 0.44],
+  // ---- Qwen (通义千问) ----
+  'qwen3.8-max': [1.78, 5.34],
+  'qwen3.7-max': [1.78, 5.34],
+  'qwen3.7-plus': [0.36, 1.42],
+  'qwen3.5-flash': [0.03, 0.30],
+  'qwen3.5-plus': [0.12, 0.71],
+  'qwen3-coder': [5.00, 20.00],
+  'qwen3-max': [0.60, 2.00],
+  'qwq-plus': [0.60, 2.00],
+  'qwen-max': [0.60, 2.00],
+  'qwen-plus': [0.12, 0.69],
+  'qwen-turbo': [0.05, 0.40],
+  // ---- Kimi (月之暗面 Moonshot) ----
+  'kimi-k2.7': [1.00, 5.00, 0.20],
+  'kimi-k2.6': [0.96, 4.00, 0.16],
+  'kimi-k2.5': [0.60, 2.50, 0.10],
+  'kimi-k2': [0.60, 2.50],
+  'moonshot-v1': [1.00, 0.90],
+  // ---- 其他国产模型 ----
+  'doubao-seed-2.1': [0.89, 4.45],
+  'doubao-1.6': [0.12, 1.19],
+  'doubao-1.5-pro': [0.12, 0.30],
+  'doubao': [0.12, 0.30],
+  'ernie-5.1': [0.59, 2.67],
+  'ernie-4.5-turbo': [0.12, 0.47],
+  'ernie': [0.24, 0.95],
+  'hunyuan-turbos': [0.12, 0.30],
+  'hunyuan-t1': [0.15, 0.59],
+  'hunyuan': [0.12, 0.30],
+  'minimax-m3': [0.30, 1.20],
+  'minimax': [0.05, 0.10],
+  'mimo-v2': [0.15, 0.30],
+  'step-3.7': [0.20, 1.20],
+  'step': [0.15, 0.59],
+  // ---- 万能兜底（子串最短，仅命中裸名/未知变体） ----
+  'glm': [0.30, 1.19],
+  'deepseek': [0.28, 1.10],
+  'qwen': [0.50, 2.00],
+  'kimi': [0.60, 2.50],
+  'gpt': [2.50, 15.00],
+  'claude': [3.00, 15.00],
+  'gemini': [1.25, 10.00],
+};
+
+const AI_RATE_USD_CNY = 7.2;     // 美元→人民币汇率（可调）
+const AI_RATE_CREDITS_PER_CNY = 100; // 100 credits = 1 元人民币
+
+// USD/每百万token → credits/每百万token，整十位取整
+function usdToCreditsRate(usd) {
+  if (!usd || usd <= 0) return 0;
+  return Math.round((usd * AI_RATE_USD_CNY * AI_RATE_CREDITS_PER_CNY) / 10) * 10;
+}
+
+// 折扣系数合法化：0 < discount <= 1，非法值回落为 1（不打折）
+function clampDiscount(d) {
+  const v = Number(d);
+  if (!isFinite(v) || v <= 0 || v > 1) return 1;
+  return v;
+}
+
+function lookupModelRefRateUsd(modelId) {
+  if (!modelId) return null;
+  // 大小写不敏感匹配：模型 ID 常为大写（如 DeepSeek-V4-Pro），而定价表 key 为全小写
+  const id = String(modelId).toLowerCase();
+  const keys = Object.keys(AI_MODEL_REF_RATES_USD).sort((a, b) => b.length - a.length);
+  for (const k of keys) {
+    if (id.indexOf(k) !== -1) return AI_MODEL_REF_RATES_USD[k];
+  }
+  return null;
+}
+
+// 选中/输入模型后自动折算参考价填入输入/输出/缓存命中三档速率；仍可手动调整
+const DEFAULT_CACHED_INPUT_RATIO = 0.1; // 未公布官方缓存价时，缓存命中输入价参考 = 输入价 × 10%
+
+function fillModelRates(modelId) {
+  if (!modelId) return;
+  const ref = lookupModelRefRateUsd(modelId);
+  if (!ref) return;
+  const inputRate = usdToCreditsRate(ref[0]);
+  const outputRate = usdToCreditsRate(ref[1]);
+  // 缓存命中：有官方缓存价用官方值；否则按输入价 10% 折算参考
+  const cachedUsd = ref.length >= 3 ? ref[2] : ref[0] * DEFAULT_CACHED_INPUT_RATIO;
+  const cachedRate = ref.length >= 3 ? usdToCreditsRate(cachedUsd) : Math.round((cachedUsd * AI_RATE_USD_CNY * AI_RATE_CREDITS_PER_CNY) / 10) * 10;
+
+  const inputEl = document.getElementById('aiModelRateInput');
+  const outputEl = document.getElementById('aiModelRateOutput');
+  const cachedEl = document.getElementById('aiModelRateCached');
+  if (inputEl && outputEl) {
+    inputEl.value = inputRate;
+    outputEl.value = outputRate;
+  }
+  if (cachedEl) cachedEl.value = cachedRate;
+}
+
+// 通过 ai-gateway 调上游 /models 接口拉取模型列表（优先用弹窗里的临时 Key，否则用该模型已保存的 Key）
+async function fetchAIModelList() {
+  const errorEl = document.getElementById('aiModelError');
+  const btn = document.getElementById('aiModelFetchBtn');
+  errorEl.classList.add('hidden');
+
+  const baseUrl = document.getElementById('aiModelBaseUrl').value.trim();
+  if (!baseUrl) {
+    errorEl.textContent = i18n.t('admin.aiBaseUrlRequired');
+    errorEl.classList.remove('hidden');
+    return;
+  }
+
+  const apiKey = document.getElementById('aiModelDiscoveryKey').value.trim();
+  const modelId = document.getElementById('aiModelId').value || null;
+
+  btn.disabled = true;
+  const originalText = btn.textContent;
+  btn.textContent = i18n.t('admin.aiFetchModelsLoading');
+  try {
+    const resp = await aiEdgeAdminRequest('POST', '/list-models', { baseUrl, apiKey, modelId });
+    if (!resp || !Array.isArray(resp.models)) {
+      errorEl.textContent = (resp && resp.error) || i18n.t('admin.aiFetchModelsFailed');
+      errorEl.classList.remove('hidden');
+      return;
+    }
+    const pick = document.getElementById('aiModelPick');
+    pick.innerHTML = resp.models.map(id => `<option value="${escapeHtml(id)}">${escapeHtml(id)}</option>`).join('');
+    if (!resp.models.length) {
+      pick.classList.add('hidden');
+      errorEl.textContent = i18n.t('admin.aiFetchModelsEmpty');
+      errorEl.classList.remove('hidden');
+      return;
+    }
+    pick.classList.remove('hidden');
+    document.getElementById('aiModelModel').value = resp.models[0];
+    fillModelRates(resp.models[0]);
+  } catch (error) {
+    console.error('Fetch AI models error:', error);
+    errorEl.textContent = error.message || i18n.t('admin.aiFetchModelsFailed');
+    errorEl.classList.remove('hidden');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
+}
+
+async function saveAIModel(e) {
+  e.preventDefault();
+  const errorEl = document.getElementById('aiModelError');
+  errorEl.classList.add('hidden');
+
+  const name = document.getElementById('aiModelName').value.trim();
+  if (!name) {
+    errorEl.textContent = i18n.t('admin.aiModelNameRequired');
+    errorEl.classList.remove('hidden');
+    return;
+  }
+
+  try {
+    const isNew = !document.getElementById('aiModelId').value;
+    const { data, error } = await appSupabase.client.rpc('ai_admin_save_model', {
+      p_id: document.getElementById('aiModelId').value || null,
+      p_name: name,
+      p_backend: document.getElementById('aiModelBackend').value,
+      p_base_url: document.getElementById('aiModelBaseUrl').value.trim(),
+      p_model: document.getElementById('aiModelModel').value.trim(),
+      p_temperature: parseFloat(document.getElementById('aiModelTemperature').value) || 0.7,
+      p_enabled: document.getElementById('aiModelEnabled').checked,
+      p_rate_input: parseFloat(document.getElementById('aiModelRateInput').value) || 0,
+      p_rate_output: parseFloat(document.getElementById('aiModelRateOutput').value) || 0,
+      p_rate_cached: parseFloat(document.getElementById('aiModelRateCached').value) || 0,
+      p_discount: clampDiscount(parseFloat(document.getElementById('aiModelDiscount').value)),
+      p_sort_order: parseInt(document.getElementById('aiModelSortOrder').value, 10) || 0,
+      p_max_concurrent: Math.max(0, parseInt(document.getElementById('aiModelMaxConcurrent').value, 10) || 0)
+    });
+
+    if (error) {
+      console.error('Save AI model error:', error);
+      errorEl.textContent = error.message || i18n.t('admin.aiModelSaveFailed');
+      errorEl.classList.remove('hidden');
+      return;
+    }
+
+    // 首次创建且填写了临时 discovery Key 时，自动注册为该模型的第一个 API Key
+    const modelId = data && data.id;
+    const discoveryKey = document.getElementById('aiModelDiscoveryKey').value.trim();
+    if (isNew && modelId && discoveryKey) {
+      const keyResp = await aiEdgeKeyRequest('POST', '', {
+        modelId,
+        keyName: i18n.t('admin.aiTempKeyName'),
+        enabled: true,
+        plaintextKey: discoveryKey
+      });
+      if (!keyResp || keyResp.success !== true) {
+        console.error('Save temp AI key error:', keyResp);
+        alert((keyResp && keyResp.error) || i18n.t('admin.aiKeySaveFailed'));
+        return;
+      }
+    }
+
+    closeAIModelModal();
+    loadAIModels();
+    alert(i18n.t('admin.aiModelSaveSuccess'));
+  } catch (error) {
+    console.error('Save AI model error:', error);
+    errorEl.textContent = error.message || i18n.t('admin.aiModelSaveFailed');
+    errorEl.classList.remove('hidden');
+  }
+}
+
+// 复制模型：复制模型信息及其 API Key（服务端直接复制 Key 密文，不复制用量统计）
+async function copyAIModel(modelId) {
+  try {
+    const { data, error } = await appSupabase.client.rpc('ai_admin_copy_model', { p_id: modelId });
+    if (error) {
+      console.error('Copy AI model error:', error);
+      alert(error.message || i18n.t('admin.aiCopyFailed'));
+      return;
+    }
+    if (!data || data.success !== true || !data.id) {
+      alert((data && data.message) || i18n.t('admin.aiCopyFailed'));
+      return;
+    }
+    loadAIModels();
+    alert(i18n.t('admin.aiCopySuccess'));
+  } catch (error) {
+    console.error('Copy AI model error:', error);
+    alert(error.message || i18n.t('admin.aiCopyFailed'));
+  }
+}
+
+async function deleteAIModel(modelId) {
+  if (!confirm(i18n.t('admin.aiModelDeleteConfirm'))) return;
+
+  try {
+    const { error } = await appSupabase.client.rpc('ai_admin_delete_model', { p_id: modelId });
+    if (error) {
+      console.error('Delete AI model error:', error);
+      alert(error.message || i18n.t('admin.aiModelDeleteFailed'));
+      return;
+    }
+    loadAIModels();
+    alert(i18n.t('admin.aiModelDeleteSuccess'));
+  } catch (error) {
+    console.error('Delete AI model error:', error);
+    alert(i18n.t('admin.aiModelDeleteFailed'));
+  }
+}
+
+// 保存全局计费配置（如 1x 标准单位价 base_rate）
+async function saveAIConfig(key) {
+  try {
+    const value = (document.getElementById('aiBaseRateInput') || {}).value || '';
+    const { error } = await appSupabase.client.rpc('ai_admin_set_app_config', { p_key: key, p_value: String(value).trim() });
+    if (error) {
+      console.error('Save AI config error:', error);
+      alert(error.message || i18n.t('common.error'));
+      return;
+    }
+    alert(i18n.t('admin.aiBillingSaved'));
+  } catch (error) {
+    console.error('Save AI config error:', error);
+    alert(i18n.t('common.networkError') + (error && error.message ? ': ' + error.message : ''));
+  }
+}
+
+// ---------- 每个模型的 Key 管理 ----------
+
+async function loadAIKeys(modelId) {
+  aiCurrentKeyModelId = modelId;
+  const list = document.getElementById('aiKeysList');
+  showLoading(list);
+
+  try {
+    const { data, error } = await appSupabase.client.rpc('ai_admin_list_keys', { p_model_id: modelId });
+    if (error) {
+      console.error('Load AI keys error:', error);
+      showErrorState(list, i18n.t('common.error'));
+      return;
+    }
+
+    aiKeysCache = data || [];
+    if (!aiKeysCache.length) {
+      list.innerHTML = `
+        <div class="empty-state">
+          <p>${i18n.t('admin.aiNoKeys')}</p>
+        </div>
+      `;
+      return;
+    }
+
+    list.innerHTML = aiKeysCache.map(k => `
+      <div class="code-card" style="align-items: flex-start;">
+        <div class="code-info">
+          <div class="code-details">
+            <h4>${escapeHtml(k.key_name)} <span class="ai-status-badge ${k.enabled ? 'on' : 'off'}">${k.enabled ? i18n.t('admin.aiEnabled') : i18n.t('admin.aiDisabled')}</span></h4>
+            <p>${i18n.t('admin.aiKeyAlias')}: ${escapeHtml(k.key_alias || '-')}</p>
+            <p>${i18n.t('admin.aiQuotaCredits')}: ${k.quota_credits == null ? i18n.t('admin.aiUnlimited') : k.quota_credits} · ${i18n.t('admin.aiCost')}: ${k.total_cost_credits ?? 0}</p>
+            <p>${i18n.t('admin.aiLastUsed')}: ${k.last_used_at ? aiDateTime(k.last_used_at) : i18n.t('admin.aiNeverUsed')}</p>
+          </div>
+        </div>
+        <div class="code-actions">
+          <button class="action-btn edit" onclick="openAIKeyModal('${k.id}')">${i18n.t('admin.aiEdit')}</button>
+          <button class="action-btn delete" onclick="deleteAIKey('${k.id}')">${i18n.t('admin.aiDelete')}</button>
+        </div>
+      </div>
+    `).join('');
+  } catch (error) {
+    console.error('Load AI keys error:', error);
+    showErrorState(list, i18n.t('common.networkError'));
+  }
+}
+
+function openAIKeysModal(modelId) {
+  const model = aiModelsCache.find(m => m.id === modelId);
+  document.getElementById('aiKeysModalTitle').textContent = (model ? model.name + ' · ' : '') + i18n.t('admin.aiKeysTitle');
+  cancelAIKeyForm();
+  const modal = document.getElementById('aiKeysModal');
+  modal.classList.remove('hidden');
+  modal.classList.add('active');
+  loadAIKeys(modelId);
+}
+
+function closeAIKeysModal() {
+  const modal = document.getElementById('aiKeysModal');
+  modal.classList.remove('active');
+  setTimeout(() => modal.classList.add('hidden'), 200);
+}
+
+function showAIKeyForm(show) {
+  const form = document.getElementById('aiKeyForm');
+  const addBtn = document.getElementById('aiAddKeyBtn');
+  if (show) {
+    form.classList.remove('hidden');
+    form.style.display = 'flex';
+    addBtn.classList.add('hidden');
+  } else {
+    form.classList.add('hidden');
+    form.style.display = '';
+    addBtn.classList.remove('hidden');
+  }
+}
+
+function openAIKeyModal(keyId) {
+  const errorEl = document.getElementById('aiKeyError');
+  errorEl.classList.add('hidden');
+  document.getElementById('aiKeyId').value = '';
+  document.getElementById('aiKeyName').value = '';
+  document.getElementById('aiKeyPlain').value = '';
+  document.getElementById('aiKeyQuota').value = '';
+  document.getElementById('aiKeyEnabled').checked = true;
+
+  if (keyId) {
+    const key = aiKeysCache.find(k => k.id === keyId);
+    if (key) {
+      document.getElementById('aiKeyId').value = key.id;
+      document.getElementById('aiKeyName').value = key.key_name || '';
+      document.getElementById('aiKeyQuota').value = key.quota_credits == null ? '' : key.quota_credits;
+      document.getElementById('aiKeyEnabled').checked = !!key.enabled;
+    }
+  }
+  showAIKeyForm(true);
+}
+
+function cancelAIKeyForm() {
+  showAIKeyForm(false);
+}
+
+async function saveAIKey(e) {
+  e.preventDefault();
+  const errorEl = document.getElementById('aiKeyError');
+  errorEl.classList.add('hidden');
+
+  const keyId = document.getElementById('aiKeyId').value || undefined;
+  const keyName = document.getElementById('aiKeyName').value.trim();
+  const plaintextKey = document.getElementById('aiKeyPlain').value.trim();
+  const quotaVal = document.getElementById('aiKeyQuota').value.trim();
+  const enabled = document.getElementById('aiKeyEnabled').checked;
+
+  if (!keyName) {
+    errorEl.textContent = i18n.t('admin.aiKeyNameRequired');
+    errorEl.classList.remove('hidden');
+    return;
+  }
+  if (!keyId && !plaintextKey) {
+    errorEl.textContent = i18n.t('admin.aiKeyPlainRequired');
+    errorEl.classList.remove('hidden');
+    return;
+  }
+
+  const payload = { modelId: aiCurrentKeyModelId, keyName, enabled };
+  if (keyId) payload.keyId = keyId;
+  if (plaintextKey) payload.plaintextKey = plaintextKey;
+  if (quotaVal !== '') payload.quotaCredits = parseFloat(quotaVal);
+
+  try {
+    const resp = await aiEdgeKeyRequest('POST', '', payload);
+    if (!resp || !resp.success) {
+      console.error('Save AI key error:', resp);
+      errorEl.textContent = (resp && resp.error) || i18n.t('admin.aiKeySaveFailed');
+      errorEl.classList.remove('hidden');
+      return;
+    }
+    cancelAIKeyForm();
+    loadAIKeys(aiCurrentKeyModelId);
+    alert(i18n.t('admin.aiKeySaveSuccess'));
+  } catch (error) {
+    console.error('Save AI key error:', error);
+    errorEl.textContent = i18n.t('admin.aiKeySaveFailed');
+    errorEl.classList.remove('hidden');
+  }
+}
+
+async function deleteAIKey(keyId) {
+  if (!confirm(i18n.t('admin.aiKeyDeleteConfirm'))) return;
+
+  try {
+    const resp = await aiEdgeKeyRequest('DELETE', '?id=' + encodeURIComponent(keyId), null);
+    if (!resp || !resp.success) {
+      console.error('Delete AI key error:', resp);
+      alert((resp && resp.error) || i18n.t('admin.aiKeyDeleteFailed'));
+      return;
+    }
+    loadAIKeys(aiCurrentKeyModelId);
+    alert(i18n.t('admin.aiKeyDeleteSuccess'));
+  } catch (error) {
+    console.error('Delete AI key error:', error);
+    alert(i18n.t('admin.aiKeyDeleteFailed'));
+  }
+}
+
+// ---------- 用户额度 ----------
+
+async function loadAICredits(search) {
+  const list = document.getElementById('aiCreditsList');
+  showLoading(list);
+
+  try {
+    const params = {};
+    if (search) params.p_search = search;
+    const { data, error } = await appSupabase.client.rpc('ai_admin_list_credits', params);
+    if (error) {
+      console.error('Load AI credits error:', error);
+      showErrorState(list, i18n.t('common.error'));
+      return;
+    }
+
+    aiCreditsCache = data || [];
+    if (!aiCreditsCache.length) {
+      list.innerHTML = `
+        <div class="empty-state">
+          <p>${i18n.t('admin.aiNoCreditsUsers')}</p>
+        </div>
+      `;
+      return;
+    }
+
+    list.innerHTML = aiCreditsCache.map(u => `
+      <div class="user-card">
+        <div class="user-info">
+          <div class="user-icon">${u.username ? u.username.charAt(0).toUpperCase() : 'U'}</div>
+          <div class="user-details">
+            <h4>${escapeHtml(u.username || u.email)}</h4>
+            <p>${escapeHtml(u.email || '-')}</p>
+            <p>${i18n.t('admin.aiBalance')}: <strong>${u.balance ?? 0}</strong> · ${i18n.t('admin.aiTotalGranted')}: ${u.total_granted ?? 0} · ${i18n.t('admin.aiTotalSpent')}: ${u.total_spent ?? 0}</p>
+          </div>
+        </div>
+        <div class="user-actions">
+          <button class="action-btn primary" onclick="openAIRechargeModal('${u.user_id}')">${i18n.t('admin.aiRecharge')}</button>
+          <button class="action-btn edit" onclick="openAILedgerModal('${u.user_id}')">${i18n.t('admin.aiLedger')}</button>
+        </div>
+      </div>
+    `).join('');
+  } catch (error) {
+    console.error('Load AI credits error:', error);
+    showErrorState(list, i18n.t('common.networkError'));
+  }
+}
+
+function openAIRechargeModal(userId) {
+  const user = aiCreditsCache.find(u => u.user_id === userId);
+  if (!user) return;
+  document.getElementById('aiRechargeUserId').value = user.user_id;
+  document.getElementById('aiRechargeUserLabel').textContent = (user.username || user.email) + ' · ' + i18n.t('admin.aiBalance') + ': ' + (user.balance ?? 0);
+  document.getElementById('aiRechargeAmount').value = '';
+  document.getElementById('aiRechargeRemark').value = '';
+  document.getElementById('aiRechargeExpires').value = '';
+  document.getElementById('aiRechargeError').classList.add('hidden');
+  const modal = document.getElementById('aiRechargeModal');
+  modal.classList.remove('hidden');
+  modal.classList.add('active');
+}
+
+function closeAIRechargeModal() {
+  const modal = document.getElementById('aiRechargeModal');
+  modal.classList.remove('active');
+  setTimeout(() => modal.classList.add('hidden'), 200);
+}
+
+async function saveAIRecharge(e) {
+  e.preventDefault();
+  const errorEl = document.getElementById('aiRechargeError');
+  errorEl.classList.add('hidden');
+
+  const userId = document.getElementById('aiRechargeUserId').value;
+  const amount = parseFloat(document.getElementById('aiRechargeAmount').value);
+  if (!userId || isNaN(amount) || amount === 0) {
+    errorEl.textContent = i18n.t('admin.aiRechargeInvalid');
+    errorEl.classList.remove('hidden');
+    return;
+  }
+
+  const remark = document.getElementById('aiRechargeRemark').value.trim();
+  const expiresVal = document.getElementById('aiRechargeExpires').value;
+  const expiresAt = expiresVal ? new Date(expiresVal + 'T23:59:59').toISOString() : null;
+
+  try {
+    const { error } = await appSupabase.client.rpc('ai_admin_recharge', {
+      p_user_id: userId,
+      p_amount: amount,
+      p_remark: remark || null,
+      p_expires_at: expiresAt
+    });
+    if (error) {
+      console.error('AI recharge error:', error);
+      errorEl.textContent = error.message || i18n.t('admin.aiRechargeFailed');
+      errorEl.classList.remove('hidden');
+      return;
+    }
+    closeAIRechargeModal();
+    loadAICredits(document.getElementById('aiCreditsSearch').value.trim());
+    alert(i18n.t('admin.aiRechargeSuccess'));
+  } catch (error) {
+    console.error('AI recharge error:', error);
+    errorEl.textContent = error.message || i18n.t('admin.aiRechargeFailed');
+    errorEl.classList.remove('hidden');
+  }
+}
+
+// ---------- 额度明细（条目式账本） ----------
+
+function openAILedgerModal(userId) {
+  const modal = document.getElementById('aiLedgerModal');
+  modal.classList.remove('hidden');
+  modal.classList.add('active');
+  loadAILedger(userId);
+}
+
+function closeAILedgerModal() {
+  const modal = document.getElementById('aiLedgerModal');
+  modal.classList.remove('active');
+  setTimeout(() => modal.classList.add('hidden'), 200);
+}
+
+async function loadAILedger(userId) {
+  const list = document.getElementById('aiLedgerList');
+  showLoading(list);
+
+  try {
+    const { data, error } = await appSupabase.client.rpc('ai_admin_list_credits_ledger', { p_user_id: userId });
+    if (error) {
+      console.error('Load AI ledger error:', error);
+      showErrorState(list, i18n.t('common.error'));
+      return;
+    }
+
+    const rows = data || [];
+    if (!rows.length) {
+      list.innerHTML = `
+        <div class="empty-state">
+          <p>${i18n.t('admin.aiLedgerEmpty')}</p>
+        </div>
+      `;
+      return;
+    }
+
+    const fmtTime = (ts) => new Date(ts).toLocaleString(i18n.currentLang() === 'zh' ? 'zh-CN' : 'en-US');
+    list.innerHTML = rows.map(l => {
+      const isGrant = l.type === 'grant';
+      const expiresText = l.expires_at
+        ? new Date(l.expires_at).toLocaleDateString(i18n.currentLang() === 'zh' ? 'zh-CN' : 'en-US')
+        : i18n.t('admin.aiPermanent');
+      return `
+        <div class="user-card">
+          <div class="user-info">
+            <div class="user-details" style="width: 100%;">
+              <h4 style="display: flex; align-items: center; gap: 8px;">
+                <span class="ai-status-badge ${isGrant ? 'on' : 'off'}">${isGrant ? i18n.t('admin.aiLedgerGrant') : i18n.t('admin.aiLedgerConsume')}</span>
+                <span style="font-weight: 600; color: ${isGrant ? 'var(--success-color)' : 'var(--error-color)'};">${isGrant ? '+' : '-'}${escapeHtml(String(l.amount))}</span>
+              </h4>
+              <p>${i18n.t('admin.aiLedgerCreated')}: ${fmtTime(l.created_at)}${isGrant ? ' · ' + i18n.t('admin.aiLedgerRemaining') + ': ' + l.remaining : ''} · ${i18n.t('admin.aiLedgerExpires')}: ${escapeHtml(expiresText)}</p>
+              <p>${i18n.t('admin.aiLedgerRemark')}: ${escapeHtml(l.remark || '-')}</p>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  } catch (error) {
+    console.error('Load AI ledger error:', error);
+    showErrorState(list, i18n.t('common.networkError'));
+  }
+}
+
+// ---------- 用量统计 ----------
+
+async function loadAIUsage(days) {
+  aiUsageDays = days;
+  document.querySelectorAll('.ai-days-btn').forEach(b => {
+    b.classList.toggle('active', parseInt(b.dataset.days, 10) === days);
+  });
+  const content = document.getElementById('aiUsageContent');
+  showLoading(content);
+
+  try {
+    const { data, error } = await appSupabase.client.rpc('ai_admin_usage_stats', { p_days: days });
+    if (error) {
+      console.error('Load AI usage error:', error);
+      showErrorState(content, i18n.t('common.error'));
+      return;
+    }
+    if (!data) {
+      content.innerHTML = `<div class="empty-state"><p>${i18n.t('admin.aiNoStats')}</p></div>`;
+      return;
+    }
+
+    const cards = [
+      { label: i18n.t('admin.aiStatCost'), value: aiFormatNumber(data.total_cost) },
+      { label: i18n.t('admin.aiStatRequests'), value: aiFormatNumber(data.total_requests) },
+      { label: i18n.t('admin.aiStatSuccess'), value: aiFormatNumber(data.success_requests) },
+      { label: i18n.t('admin.aiStatFailed'), value: aiFormatNumber(data.failed_requests) },
+      { label: i18n.t('admin.aiStatInputTokens'), value: aiFormatNumber(data.total_input_tokens) },
+      { label: i18n.t('admin.aiStatCachedTokens'), value: aiFormatNumber(data.total_cached_tokens) },
+      { label: i18n.t('admin.aiStatOutputTokens'), value: aiFormatNumber(data.total_output_tokens) }
+    ];
+
+    const perModel = data.per_model || [];
+    content.innerHTML = `
+      <div class="ai-stat-grid">
+        ${cards.map(c => `
+          <div class="ai-stat-card">
+            <div class="ai-stat-label">${c.label}</div>
+            <div class="ai-stat-value">${c.value}</div>
+          </div>
+        `).join('')}
+      </div>
+      <h3 class="ai-stat-title">${i18n.t('admin.aiStatPerModel')}</h3>
+      ${perModel.length ? `
+        <table class="detail-table">
+          <thead>
+            <tr>
+              <th>${i18n.t('admin.aiStatModelName')}</th>
+              <th>${i18n.t('admin.aiStatModelRequests')}</th>
+              <th>${i18n.t('admin.aiStatModelInput')}</th>
+              <th>${i18n.t('admin.aiStatModelCached')}</th>
+              <th>${i18n.t('admin.aiStatModelOutput')}</th>
+              <th>${i18n.t('admin.aiStatModelCost')}</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${perModel.map(pm => `
+              <tr>
+                <td>${escapeHtml(pm.model_name || '-')}</td>
+                <td>${aiFormatNumber(pm.requests)}</td>
+                <td>${aiFormatNumber(pm.input_tokens)}</td>
+                <td>${aiFormatNumber(pm.cached_tokens)}</td>
+                <td>${aiFormatNumber(pm.output_tokens)}</td>
+                <td>${aiFormatNumber(pm.credits_cost)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      ` : `<p class="form-hint">${i18n.t('admin.aiNoStats')}</p>`}
+    `;
+  } catch (error) {
+    console.error('Load AI usage error:', error);
+    showErrorState(content, i18n.t('common.networkError'));
   }
 }

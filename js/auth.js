@@ -138,14 +138,29 @@ async function handleLogout() {
 
   try {
     await appSupabase.client.auth.signOut();
-    userMenu?.classList.add('hidden');
-    userMenu?.classList.remove('open');
-    loginBtn?.classList.remove('hidden');
-    signupBtn?.classList.remove('hidden');
-    userBtn?.classList.add('hidden');
-    window.location.href = '/MyZoneWebsite';
   } catch (error) {
-    console.error('Logout error:', error);
+    console.warn('[Auth] signOut 失败（令牌可能已失效），继续清除本地会话', error);
+  }
+
+  // signOut 在令牌失效时会抛错导致本地会话残留，这里强制清除本地持久化会话
+  const authKeys = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k && /^sb-.*-auth-token$/.test(k)) authKeys.push(k);
+  }
+  authKeys.forEach((k) => localStorage.removeItem(k));
+
+  userMenu?.classList.add('hidden');
+  userMenu?.classList.remove('open');
+  loginBtn?.classList.remove('hidden');
+  signupBtn?.classList.remove('hidden');
+  userBtn?.classList.add('hidden');
+
+  // 本地调试环境没有 /MyZoneWebsite，直接刷新当前页回到登录态；正式环境跳回官网
+  if (/^https?:\/\/(localhost|127\.0\.0\.1)|^file:/.test(location.origin)) {
+    window.location.reload();
+  } else {
+    window.location.href = '/MyZoneWebsite';
   }
 }
 
