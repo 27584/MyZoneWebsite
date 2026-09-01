@@ -3512,6 +3512,7 @@ async function toggleAIModelEnabled(modelId, enabled) {
       p_model_type: model.model_type || 'chat',
       p_fixed_credits_per_call: model.fixed_credits_per_call ?? 0,
       p_video_operation: model.video_operation || null,
+      p_multimodal: model.multimodal !== false,
       p_context_length: model.context_length || null
     });
     if (error) {
@@ -3556,6 +3557,7 @@ function openAIModelModal(modelId) {
   document.getElementById('aiModelVideoStatusOperation').value = '';
   onAIModelTypeChange();
   document.getElementById('aiModelEnabled').checked = true;
+  document.getElementById('aiModelMultimodal').checked = true;
   document.getElementById('aiModelPreset').value = '';
   document.getElementById('aiModelDiscoveryKey').value = '';
   const modelPick = document.getElementById('aiModelPick');
@@ -3587,6 +3589,7 @@ function openAIModelModal(modelId) {
       document.getElementById('aiModelVideoStatusOperation').value = model.video_status_operation || '';
       onAIModelTypeChange();
       document.getElementById('aiModelEnabled').checked = !!model.enabled;
+      document.getElementById('aiModelMultimodal').checked = model.multimodal !== false;
     }
   }
 
@@ -3926,7 +3929,8 @@ async function saveAIModel(e) {
         : null,
       p_video_status_operation: modelType === 'video'
         ? (document.getElementById('aiModelVideoStatusOperation').value.trim() || null)
-        : null
+        : null,
+      p_multimodal: document.getElementById('aiModelMultimodal').checked !== false
     });
 
     if (error) {
