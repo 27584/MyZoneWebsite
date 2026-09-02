@@ -164,11 +164,44 @@ async function handleLogout() {
   }
 }
 
+// 填充头像元素：有 URL 则渲染图片，否则显示兜底字符
+function applyAvatar(el, avatarUrl, fallback) {
+  if (!el) return;
+  el.textContent = '';
+  if (avatarUrl) {
+    const img = document.createElement('img');
+    img.src = avatarUrl;
+    img.alt = '';
+    el.appendChild(img);
+  } else {
+    el.textContent = fallback || 'U';
+  }
+}
+window.applyAvatar = applyAvatar;
+
 async function updateUserMenu(user) {
   const initial = user.email ? user.email.charAt(0).toUpperCase() : 'U';
-  if (userAvatar) userAvatar.textContent = initial;
-  if (userBtnAvatar) userBtnAvatar.textContent = initial;
-  if (userName) userName.textContent = user.email || i18n.t('common.error');
+  let username = user.email || i18n.t('common.error');
+  let avatarUrl = '';
+
+  // 从用户资料读取实际保存的用户名与头像，用于导航展示
+  try {
+    const { data: profile, error } = await appSupabase.client
+      .from('user_profiles')
+      .select('username, avatar_url')
+      .eq('id', user.id)
+      .maybeSingle();
+    if (!error && profile) {
+      if (profile.username) username = profile.username;
+      avatarUrl = profile.avatar_url || '';
+    }
+  } catch (e) {
+    console.error('Load profile for nav error:', e);
+  }
+
+  applyAvatar(userBtnAvatar, avatarUrl, initial);
+  applyAvatar(userAvatar, avatarUrl, initial);
+  if (userName) userName.textContent = username;
   if (userEmailEl) userEmailEl.textContent = user.email || '';
 
   loginBtn?.classList.add('hidden');

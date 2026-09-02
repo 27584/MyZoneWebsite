@@ -60,6 +60,15 @@
               </svg>
               <span>管理后台</span>
             </a>
+            <a href="dev-extensions.html" class="user-menu-item" data-i18n="nav.developerCenter">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 7h-9"></path>
+                <path d="M14 17H5"></path>
+                <circle cx="17" cy="17" r="3"></circle>
+                <circle cx="7" cy="7" r="3"></circle>
+              </svg>
+              <span>开发者中心</span>
+            </a>
             <div class="user-menu-divider"></div>
             <button id="logoutBtn" class="user-menu-item danger" data-i18n="nav.logout">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -102,6 +111,13 @@
           </svg>
           <span>云空间</span>
         </button>
+        <button class="sidebar-item" data-page="messages" data-i18n="admin.systemMessages">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+          </svg>
+          <span>系统消息</span>
+          <span id="sidebarMessagesBadge" class="sidebar-badge hidden"></span>
+        </button>
       </div>
     </aside>
 
@@ -110,9 +126,7 @@
         <h2 data-i18n="profile.title">个人资料</h2>
         <div class="profile-section">
           <div class="profile-header">
-            <div class="profile-avatar">
-              <span id="profileAvatar">U</span>
-            </div>
+            <div class="profile-avatar" id="profileAvatar">U</div>
             <div class="profile-status" id="proStatus">
               <span class="status-label" data-i18n="profile.normalStatus">普通用户</span>
             </div>
@@ -183,6 +197,18 @@
           <p data-i18n="cloud.selectFirst">请先选择一个云空间</p>
         </div>
         <p class="cloud-sync-hint" data-i18n="cloud.supportHint">支持坚果云、Nextcloud、Synology 等 WebDAV 服务</p>
+      </div>
+
+      <div id="messagesPage" class="subpage hidden">
+        <div class="page-header">
+          <h2 data-i18n="admin.systemMessages">系统消息</h2>
+          <button id="markAllMessagesReadBtn" class="btn btn-secondary" data-i18n="admin.messagesMarkAllRead">全部已读</button>
+        </div>
+        <div id="messagesList" class="cards-container"></div>
+      </div>
+
+      <div id="developerPage" class="subpage hidden">
+        <iframe id="developerFrame" src="dev-extensions.html" style="width:100%;height:calc(100vh - 165px);border:none;border-radius:12px;background:var(--surface-color,#fff);"></iframe>
       </div>
     </main>
   </div>

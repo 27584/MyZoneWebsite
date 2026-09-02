@@ -17,8 +17,100 @@ function showPage(pageName) {
   const targetPage = document.getElementById(pageName + 'Page');
   if (targetPage) {
     targetPage.classList.remove('hidden');
+    if (pageName === 'messages') loadMessages();
   }
 }
+
+// ========== 系统消息 ==========
+
+const messagesList = document.getElementById('messagesList');
+const markAllMessagesReadBtn = document.getElementById('markAllMessagesReadBtn');
+
+async function loadMessages() {
+  if (!messagesList) return;
+  const { data: messages, error } = await appSupabase.client.rpc('user_list_system_messages', { p_limit: 100, p_offset: 0 });
+  if (error) {
+    messagesList.innerHTML = `<p style="padding:16px;color:#dc2626">${escapeHtml(error.message || i18n.t('common.error'))}</p>`;
+    return;
+  }
+  const rows = (messages && messages.items) || [];
+  if (rows.length === 0) {
+    messagesList.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+          </svg>
+        </div>
+        <p>${i18n.t('admin.messagesEmpty') || '暂无系统消息'}</p>
+      </div>
+    `;
+    return;
+  }
+  messagesList.innerHTML = rows.map(m => {
+    const unreadDot = m.is_read ? '' : '<span class="messages-unread-dot"></span>';
+    const typeLabel = m.type === 'extension_review'
+      ? (i18n.t('admin.messagesTypeExtensionReview') || '扩展审核')
+      : (i18n.t('admin.messagesTypeSystem') || '系统');
+    return `
+      <div class="code-card ${m.is_read ? '' : 'message-unread'}" id="msg-${m.id}" onclick="markMessageRead('${m.id}')" style="cursor:pointer;">
+        <div class="code-info">
+          <div class="code-code">${unreadDot}<span class="tag-chip">${escapeHtml(typeLabel)}</span> ${escapeHtml(m.title)}</div>
+          <div class="code-details">
+            <p>${escapeHtml(m.content || '')}</p>
+            <p style="color:#a1a1aa;font-size:12px;">${new Date(m.created_at).toLocaleString(i18n.currentLang() === 'zh' ? 'zh-CN' : 'en-US')}</p>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function markMessageRead(id) {
+  const { error } = await appSupabase.client.rpc('user_mark_system_messages_read', { p_ids: [id] });
+  const card = document.getElementById('msg-' + id);
+  if (card) {
+    card.classList.add('message-read');
+    card.classList.remove('message-unread');
+    const dot = card.querySelector('.messages-unread-dot');
+    if (dot) dot.remove();
+  }
+  if (error) console.error('Mark message read error:', error);
+  else refreshMessagesBadge();
+}
+
+async function markAllMessagesRead() {
+  const { error } = await appSupabase.client.rpc('user_mark_all_system_messages_read');
+  if (error) {
+    console.error('Mark all messages read error:', error);
+    return;
+  }
+  loadMessages();
+  refreshMessagesBadge();
+}
+
+async function refreshMessagesBadge() {
+  const badge = document.getElementById('sidebarMessagesBadge');
+  if (!badge) return;
+  const { data, error } = await appSupabase.client.rpc('user_list_system_messages', { p_limit: 1, p_offset: 0 });
+  if (error || !data) return;
+  const unread = data.unread || 0;
+  if (unread > 0) {
+    badge.textContent = unread > 99 ? '99+' : String(unread);
+    badge.classList.remove('hidden');
+  } else {
+    badge.textContent = '';
+    badge.classList.add('hidden');
+  }
+}
+
+function escapeHtml(str) {
+  return String(str == null ? '' : str)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+}
+
+window.markMessageRead = markMessageRead;
 
 const devicesList = document.getElementById('devicesList');
 const addDeviceBtn = document.getElementById('addDeviceBtn');
@@ -116,6 +208,12 @@ async function loadProfile() {
     profileAvatarUrl.value = profile.avatar_url || '';
     profileBio.value = profile.bio || '';
 
+    const profileAvatarEl = document.getElementById('profileAvatar');
+    if (profileAvatarEl) {
+      const fallback = (profile.username || profile.email || user.email || 'U').charAt(0).toUpperCase();
+      applyAvatar(profileAvatarEl, profile.avatar_url || '', fallback);
+    }
+
     const { data: proStatusData, error: proError } = await appSupabase.client.rpc('check_pro_status');
     if (!proError && proStatusData) {
       if (proStatusData.is_pro) {
@@ -157,6 +255,10 @@ async function saveProfile() {
     }
 
     alert(i18n.t('common.saveSuccess'));
+
+    // 保存后即时刷新资料预览与顶部昵称/头像
+    await loadProfile();
+    window.updateUserMenu && window.updateUserMenu(user);
   } catch (error) {
     console.error('Save profile error:', error);
     alert(i18n.t('common.saveFailed') + error.message);
@@ -626,6 +728,7 @@ async function loadDashboard() {
   await loadProfile();
   await loadDevices();
   await loadCloudSpaces();
+  refreshMessagesBadge();
 }
 
 async function redeemCode() {
@@ -713,6 +816,8 @@ document.addEventListener('DOMContentLoaded', () => {
   if (cloudSyncDeleteSpaceBtn) cloudSyncDeleteSpaceBtn.addEventListener('click', deleteCloudSpace);
 
   if (redeemCodeBtn) redeemCodeBtn.addEventListener('click', redeemCode);
+
+  if (markAllMessagesReadBtn) markAllMessagesReadBtn.addEventListener('click', markAllMessagesRead);
 
   const sidebarItems = document.querySelectorAll('.sidebar-item');
   sidebarItems.forEach(item => {

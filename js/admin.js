@@ -306,47 +306,199 @@ async function loadCodes() {
       return;
     }
 
-    codesList.innerHTML = codes.map(code => {
-      const redeemedBy = code.redeemed_by || [];
-      const redeemedHtml = redeemedBy.length > 0 ? `
-        <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border-color);">
-          <p style="font-weight: bold; margin-bottom: 5px;">${i18n.t('codes.redeemedBy')}:</p>
-          ${redeemedBy.map(r => `
-            <p style="font-size: 12px; color: var(--text-secondary);">
-              ${r.username} (${r.email}) · ${new Date(r.redeemed_at).toLocaleString(i18n.currentLang() === 'zh' ? 'zh-CN' : 'en-US')}
-            </p>
-          `).join('')}
-        </div>
-      ` : '';
-      
-      return `
-      <div class="code-card" data-code-id="${code.code_id}">
-        <input type="checkbox" class="code-checkbox" value="${code.code_id}" onchange="toggleCodeSelection(this)">
-        <div class="code-info">
-          <div class="code-code">${code.code}</div>
-          <div class="code-details">
-            <p>${code.code_type === 'credits' ? i18n.t('codes.creditsCode') : code.code_type === 'plan' ? i18n.t('codes.planCode') : i18n.t('codes.proCode')} · ${code.used_count >= code.max_uses ? '<span style="color:#ef4444">'+i18n.t('admin.used')+'</span>' : '<span style="color:#22c55e">'+i18n.t('admin.unused')+'</span>'} · ${code.is_active ? '' : '<span style="color:#f59e0b">'+i18n.t('admin.disabled')+'</span>'}</p>
-            <p>${i18n.t('codes.expireAt')}: ${code.expires_at ? new Date(code.expires_at).toLocaleDateString(i18n.currentLang() === 'zh' ? 'zh-CN' : 'en-US') : i18n.t('admin.permanent')}</p>
-            ${code.code_type === 'credits'
-              ? `<p>${i18n.t('codes.creditsAmount')}: ${code.credits_amount} · ${i18n.t('codes.creditsValidDays')}: ${code.credits_valid_days > 0 ? code.credits_valid_days + i18n.t('admin.days') : i18n.t('admin.permanent')}</p>`
-              : code.code_type === 'plan'
-                ? `<p>${i18n.t('codes.plan')}: ${code.plan_name ? escapeHtml(code.plan_name) : '--'}${code.duration_days > 0 ? ' · ' + i18n.t('codes.planDuration') + ': ' + code.duration_days + i18n.t('admin.days') : ''}</p>`
-                : `<p>${i18n.t('codes.duration')}: ${code.duration_days}${i18n.t('admin.days')}</p>`}
-            <p>${i18n.t('codes.usage')}: ${code.used_count}/${code.max_uses}</p>
-            ${redeemedHtml}
-          </div>
-        </div>
-        <div class="code-actions">
-          <button class="action-btn delete" onclick="deleteCode('${code.code_id}')">${i18n.t('admin.deleteCode')}</button>
-        </div>
-      </div>
-    `;
-    }).join('');
+    // 按「除激活码值以外的属性」分组合并，展开后可查看/复制组内各激活码
+    const groupsMap = new Map();
+    for (const code of codes) {
+      const key = groupCodeKey(code);
+      if (!groupsMap.has(key)) groupsMap.set(key, { meta: code, items: [] });
+      groupsMap.get(key).items.push(code);
+    }
+    codesList.innerHTML = Array.from(groupsMap.values()).map(renderCodeGroup).join('');
     updateBatchDeleteBtn();
   } catch (error) {
     console.error('Load codes error:', error);
     showErrorState(codesList, i18n.t('common.networkError'));
   }
+}
+
+function codeTypeLabel(type) {
+  if (type === 'credits') return i18n.t('codes.creditsCode');
+  if (type === 'plan') return i18n.t('codes.planCode');
+  return i18n.t('codes.proCode');
+}
+
+// 生成分组键：除激活码值本身外的所有属性一致即为同一组
+function groupCodeKey(code) {
+  return [
+    code.code_type,
+    code.duration_days,
+    code.credits_amount ?? '',
+    code.credits_valid_days ?? '',
+    code.plan_id ?? '',
+    code.max_uses,
+    code.is_active ? '1' : '0',
+    code.expires_at ?? ''
+  ].join('|');
+}
+
+function locale() {
+  return i18n.currentLang() === 'zh' ? 'zh-CN' : 'en-US';
+}
+
+// 公共属性描述（该组各激活码一致）
+function codeAttrHtml(code) {
+  if (code.code_type === 'credits') {
+    return `${i18n.t('codes.creditsAmount')}: ${code.credits_amount} · ${i18n.t('codes.creditsValidDays')}: ${code.credits_valid_days > 0 ? code.credits_valid_days + i18n.t('admin.days') : i18n.t('admin.permanent')}`;
+  }
+  if (code.code_type === 'plan') {
+    let s = `${i18n.t('codes.plan')}: ${code.plan_name ? escapeHtml(code.plan_name) : '--'}`;
+    if (code.duration_days > 0) s += ` · ${i18n.t('codes.planDuration')}: ${code.duration_days}${i18n.t('admin.days')}`;
+    return s;
+  }
+  return `${i18n.t('codes.duration')}: ${code.duration_days}${i18n.t('admin.days')}`;
+}
+
+// 有效期限 + 激活状态
+function codeValidHtml(code) {
+  const expire = code.expires_at
+    ? new Date(code.expires_at).toLocaleDateString(locale())
+    : i18n.t('admin.permanent');
+  const disabled = !code.is_active ? `<span class="code-group-disabled">${i18n.t('admin.disabled')}</span>` : '';
+  return `${i18n.t('codes.expireAt')}: ${expire} ${disabled}`;
+}
+
+function renderCodeGroup(group) {
+  const meta = group.meta;
+  const items = group.items;
+  const used = items.filter(i => i.used_count >= i.max_uses).length;
+  const disabled = items.filter(i => !i.is_active).length;
+  const available = items.filter(i => i.used_count < i.max_uses && i.is_active).length;
+
+  const itemRows = items.map(code => {
+    const usedUp = code.used_count >= code.max_uses;
+    const inactive = !code.is_active;
+    let statusCls = 'unused';
+    let statusText = i18n.t('admin.unused');
+    if (inactive) { statusCls = 'disabled'; statusText = i18n.t('admin.disabled'); }
+    else if (usedUp) { statusCls = 'used'; statusText = i18n.t('admin.used'); }
+    const redeemedBy = code.redeemed_by || [];
+    const redeemedHtml = redeemedBy.length > 0
+      ? `<span class="code-group-redeemed">${redeemedBy.map(r =>
+            `${i18n.t('codes.redeemedBy')}: ${escapeHtml(r.username)} (${escapeHtml(r.email)}) · ${new Date(r.redeemed_at).toLocaleString(locale())}`
+          ).join('；')}</span>`
+      : '';
+    return `
+      <div class="code-group-item" data-code-id="${code.code_id}" data-used="${usedUp ? '1' : '0'}" data-inactive="${inactive ? '1' : '0'}">
+        <input type="checkbox" class="code-checkbox" value="${code.code_id}" onchange="toggleCodeSelection(this)">
+        <span class="code-group-item-code">${escapeHtml(code.code)}</span>
+        <span class="code-group-item-status ${statusCls}">${statusText}</span>
+        <span class="code-group-item-used">${i18n.t('codes.usage')}: ${code.used_count}/${code.max_uses}</span>
+        ${redeemedHtml}
+        <div class="code-group-item-actions">
+          <button class="action-btn" onclick="copySingleCode(this)" data-code="${escapeHtml(code.code)}">${i18n.t('admin.copy')}</button>
+          <button class="action-btn delete" onclick="deleteCode('${code.code_id}')">${i18n.t('admin.deleteCode')}</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  const toolbar = `
+    <div class="code-group-toolbar">
+      <span class="code-group-toolbar-label">${i18n.t('admin.selectAll')}:</span>
+      <button class="action-btn" onclick="selectGroupStatus(this, 'all')">${i18n.t('admin.selectAll')}</button>
+      <button class="action-btn" onclick="selectGroupStatus(this, 'unused')">${i18n.t('admin.unused')}</button>
+      <button class="action-btn" onclick="selectGroupStatus(this, 'used')">${i18n.t('admin.used')}</button>
+      <button class="action-btn" onclick="selectGroupStatus(this, 'disabled')">${i18n.t('admin.disabled')}</button>
+      <button class="action-btn" onclick="selectGroupStatus(this, 'none')">${i18n.t('admin.selectNone')}</button>
+    </div>
+  `;
+
+  const headerActions = `
+    <button class="action-btn" onclick="copyGroupCodes(event)">${i18n.t('admin.copyAll')}</button>
+    <button class="action-btn" onclick="copyUnusedCodes(event)">${i18n.t('admin.copyUnused')}</button>
+  `;
+
+  return `
+    <div class="code-group-card">
+      <div class="code-group-header" onclick="toggleCodeGroup(this)">
+        <div class="code-group-toggle">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path class="code-group-arrow" d="M9 6l6 6-6 6"></path>
+          </svg>
+        </div>
+        <div class="code-group-main">
+          <div class="code-group-title">${codeTypeLabel(meta.code_type)} <span class="code-group-count">× ${items.length}</span></div>
+          <div class="code-group-attr">${codeAttrHtml(meta)}</div>
+          <div class="code-group-valid">${codeValidHtml(meta)}</div>
+        </div>
+        <div class="code-group-stats">
+          <span class="code-group-badge unused">${i18n.t('admin.unused')} ${available}</span>
+          <span class="code-group-badge used">${i18n.t('admin.used')} ${used}</span>
+          ${disabled > 0 ? `<span class="code-group-badge disabled">${i18n.t('admin.disabled')} ${disabled}</span>` : ''}
+        </div>
+        ${headerActions}
+      </div>
+      <div class="code-group-body">
+        ${toolbar}
+        ${itemRows}
+      </div>
+    </div>
+  `;
+}
+
+function toggleCodeGroup(header) {
+  const card = header.closest('.code-group-card');
+  card.classList.toggle('open');
+}
+
+function copyToClipboard(text) {
+  if (!text) return;
+  navigator.clipboard.writeText(text).then(
+    () => alert(i18n.t('admin.copySuccess')),
+    () => alert(i18n.t('admin.copyFailed'))
+  );
+}
+
+function copyGroupCodes(event) {
+  event.stopPropagation();
+  const card = event.currentTarget.closest('.code-group-card');
+  const codes = Array.from(card.querySelectorAll('.code-group-item-code'))
+    .map(el => el.textContent.trim())
+    .filter(Boolean);
+  copyToClipboard(codes.join('\n'));
+}
+
+// 复制该组内所有未使用且未禁用的激活码
+function copyUnusedCodes(event) {
+  event.stopPropagation();
+  const card = event.currentTarget.closest('.code-group-card');
+  const codes = Array.from(card.querySelectorAll('.code-group-item'))
+    .filter(el => el.dataset.used === '0' && el.dataset.inactive === '0')
+    .map(el => el.querySelector('.code-group-item-code').textContent.trim())
+    .filter(Boolean);
+  copyToClipboard(codes.join('\n'));
+}
+
+// 按状态勾选（或取消勾选）当前组内的激活码：all=全部 / unused=未使用 / used=已使用 / disabled=禁用 / none=取消
+function selectGroupStatus(btn, status) {
+  const card = btn.closest('.code-group-card');
+  const checkboxes = card.querySelectorAll('.code-group-item .code-checkbox');
+  checkboxes.forEach(cb => {
+    const item = cb.closest('.code-group-item');
+    const usedUp = item.dataset.used === '1';
+    const inactive = item.dataset.inactive === '1';
+    let match = false;
+    if (status === 'all') match = true;
+    else if (status === 'unused') match = !usedUp && !inactive;
+    else if (status === 'used') match = usedUp;
+    else if (status === 'disabled') match = inactive;
+    cb.checked = match;
+    toggleCodeSelection(cb);
+  });
+}
+
+function copySingleCode(btn) {
+  copyToClipboard(btn.dataset.code || '');
 }
 
 function onCodeTypeChange() {
@@ -427,7 +579,7 @@ function toggleCodeSelection(checkbox) {
   const codeId = checkbox.value;
   
   if (checkbox.checked) {
-    selectedCodeIds.push(codeId);
+    if (!selectedCodeIds.includes(codeId)) selectedCodeIds.push(codeId);
   } else {
     selectedCodeIds = selectedCodeIds.filter(id => id !== codeId);
   }
@@ -656,127 +808,8 @@ async function deletePlan(planId) {
   }
 }
 
-// ========== 扩展云数据管理 ==========
-
-let cloudExtensionsCache = null;
-
-async function loadCloudCloudDataExtensions() {
-  if (cloudExtensionsCache) return cloudExtensionsCache;
-  const { data: extensions, error } = await appSupabase.client.rpc('admin_list_extensions');
-  if (error) return [];
-  cloudExtensionsCache = extensions || [];
-  return cloudExtensionsCache;
-}
-
-async function loadCloudDataPage() {
-  const select = document.getElementById('cloudDataExtensionSelect');
-  const list = document.getElementById('cloudDataList');
-
-  if (select.options.length <= 1) {
-    const extensions = await loadCloudCloudDataExtensions();
-    select.innerHTML = '<option value="" data-i18n="admin.cloudDataSelectExtension">选择扩展</option>' +
-      extensions.map(ext => `<option value="${escapeHtml(ext.slug)}">${escapeHtml(ext.name || ext.slug)}</option>`).join('');
-  }
-
-  if (!select.value) {
-    list.innerHTML = ` 
-      <div class="empty-state">
-        <div class="empty-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10"></circle>
-            <line x1="12" y1="2" x2="12" y2="6"></line>
-            <line x1="12" y1="18" x2="12" y2="22"></line>
-            <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line>
-            <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line>
-            <line x1="2" y1="12" x2="6" y2="12"></line>
-            <line x1="18" y1="12" x2="22" y2="12"></line>
-            <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line>
-            <line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line>
-          </svg>
-        </div>
-        <p>${i18n.t('admin.cloudDataSelectExtension') || '请先选择一个扩展'}</p>
-      </div>
-    `;
-    return;
-  }
-
-  fetchCloudData();
-}
-
-function buildCloudDataError(error) {
-  const parts = [error.code && error.code !== '0' ? error.code : null, error.message];
-  if (error.details) parts.push('详情: ' + error.details);
-  if (error.hint) parts.push('Hint: ' + error.hint);
-  return parts.filter(Boolean).map(escapeHtml).join('<br>');
-}
-
-async function fetchCloudData() {
-  const select = document.getElementById('cloudDataExtensionSelect');
-  const list = document.getElementById('cloudDataList');
-  const slug = select.value;
-  if (!slug) return;
-
-  showLoading(list);
-
-  try {
-    const { data: rows, error } = await appSupabase.client.rpc('admin_list_extension_cloud_data', { p_slug: slug });
-
-    if (error) {
-      console.error('Load cloud data error:', error);
-      showErrorState(list, buildCloudDataError(error));
-      return;
-    }
-
-    if (!rows || rows.length === 0) {
-      list.innerHTML = `
-        <div class="empty-state">
-          <div class="empty-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M20 7h-9"></path>
-              <path d="M14 17H5"></path>
-              <circle cx="17" cy="17" r="3"></circle>
-              <circle cx="7" cy="7" r="3"></circle>
-            </svg>
-          </div>
-          <p>${i18n.t('admin.cloudDataEmpty')}</p>
-        </div>
-      `;
-      return;
-    }
-
-    list.innerHTML = rows.map(row => {
-      const scopeBadge = row.scope === 'global'
-        ? '<span class="cloud-data-badge global">' + (i18n.t('admin.cloudDataScopeGlobal')) + '</span>'
-        : '<span class="cloud-data-badge user">' + (i18n.t('admin.cloudDataScopeUser')) + '</span>';
-
-      const ownerText = row.scope === 'global'
-        ? (i18n.t('admin.cloudDataAllUsers'))
-        : (row.user_email || row.data_user_id || (i18n.t('admin.unknown') || '未知'));
-
-      const valStr = typeof row.value === 'string' ? row.value : JSON.stringify(row.value);
-
-      return `
-      <div class="code-card">
-        <div class="code-info">
-          <div class="code-code">${scopeBadge} <span style="font-family:monospace;">${escapeHtml(row.key_name)}</span></div>
-          <div class="code-details">
-            <p>${i18n.t('admin.cloudDataOwner')}: ${escapeHtml(ownerText)}</p>
-            <p style="font-family:monospace; font-size:12px; color:var(--text-secondary); white-space:pre-wrap; word-break:break-all;">${escapeHtml(valStr)}</p>
-            <p>${i18n.t('admin.cloudDataUpdatedAt')}: ${row.updated_at ? new Date(row.updated_at).toLocaleString(i18n.currentLang() === 'zh' ? 'zh-CN' : 'en-US') : ''}</p>
-          </div>
-        </div>
-        <div class="code-actions">
-          <button class="action-btn edit" onclick="openCloudDataModal('${row.row_id}')">${i18n.t('admin.cloudDataEdit')}</button>
-          <button class="action-btn delete" onclick="deleteCloudData('${row.row_id}')">${i18n.t('admin.cloudDataDelete')}</button>
-        </div>
-      </div>
-    `;
-    }).join('');
-  } catch (error) {
-    console.error('Load cloud data error:', error);
-    showErrorState(list, buildCloudDataError(error));
-  }
-}
+// ========== 扩展云数据（合并到扩展详情） ==========
+let currentCloudDataSlug = null; // 当前查看云数据的扩展 slug
 
 function toggleCloudDataOwnerGroup() {
   const scope = document.getElementById('cloudDataScope').value;
@@ -794,7 +827,7 @@ async function openCloudDataModal(rowId) {
   toggleCloudDataOwnerGroup();
 
   if (rowId) {
-    const slug = document.getElementById('cloudDataExtensionSelect').value;
+    const slug = currentCloudDataSlug;
     const { data: rows, error } = await appSupabase.client.rpc('admin_list_extension_cloud_data', { p_slug: slug });
     const row = (rows || []).find(r => r.row_id === rowId);
     if (!error && row) {
@@ -822,7 +855,7 @@ function closeCloudDataModal() {
 
 async function saveCloudData(e) {
   e.preventDefault();
-  const slug = document.getElementById('cloudDataExtensionSelect').value;
+  const slug = currentCloudDataSlug;
   if (!slug) return;
 
   const errorEl = document.getElementById('cloudDataError');
@@ -871,7 +904,7 @@ async function saveCloudData(e) {
     }
 
     closeCloudDataModal();
-    fetchCloudData();
+    loadDetailCloudData(currentCloudDataSlug);
     alert(i18n.t('admin.cloudDataSaveSuccess'));
   } catch (error) {
     console.error('Save cloud data error:', error);
@@ -892,11 +925,227 @@ async function deleteCloudData(rowId) {
       return;
     }
 
-    fetchCloudData();
+    loadDetailCloudData(currentCloudDataSlug);
     alert(i18n.t('admin.cloudDataDeleteSuccess'));
   } catch (error) {
     console.error('Delete cloud data error:', error);
   }
+}
+
+// 在扩展详情中渲染该扩展的云数据
+async function loadDetailCloudData(slug) {
+  const container = document.getElementById('adminDetailCloudData');
+  if (!container) return;
+  container.innerHTML = `<div class="empty-state"><p>${i18n.t('common.loading')}</p></div>`;
+  try {
+    const { data: rows, error } = await appSupabase.client.rpc('admin_list_extension_cloud_data', { p_slug: slug });
+    if (error) {
+      container.innerHTML = `<p style="color:#dc2626">${escapeHtml(error.message || i18n.t('common.error'))}</p>`;
+      return;
+    }
+    if (!rows || rows.length === 0) {
+      container.innerHTML = `<p style="color:#a1a1aa">${i18n.t('admin.cloudDataEmpty')}</p>`;
+      return;
+    }
+    container.innerHTML = rows.map(row => {
+      const scopeBadge = row.scope === 'global'
+        ? `<span class="cloud-data-badge global">${i18n.t('admin.cloudDataScopeGlobal')}</span>`
+        : `<span class="cloud-data-badge user">${i18n.t('admin.cloudDataScopeUser')}</span>`;
+      const ownerText = row.scope === 'global'
+        ? i18n.t('admin.cloudDataAllUsers')
+        : (row.user_email || row.data_user_id || i18n.t('admin.unknown'));
+      const valStr = typeof row.value === 'string' ? row.value : JSON.stringify(row.value);
+      return `
+        <div class="code-card" style="margin-bottom:8px;">
+          <div class="code-info">
+            <div class="code-code">${scopeBadge} <span style="font-family:monospace;">${escapeHtml(row.key_name)}</span></div>
+            <div class="code-details">
+              <p>${i18n.t('admin.cloudDataOwner')}: ${escapeHtml(ownerText)}</p>
+              <p style="font-family:monospace;font-size:12px;color:var(--text-secondary);white-space:pre-wrap;word-break:break-all;">${escapeHtml(valStr)}</p>
+              <p>${i18n.t('admin.cloudDataUpdatedAt')}: ${row.updated_at ? new Date(row.updated_at).toLocaleString(i18n.currentLang() === 'zh' ? 'zh-CN' : 'en-US') : ''}</p>
+            </div>
+          </div>
+          <div class="code-actions">
+            <button class="action-btn edit" onclick="openCloudDataModal('${row.row_id}')">${i18n.t('admin.cloudDataEdit')}</button>
+            <button class="action-btn delete" onclick="deleteCloudData('${row.row_id}')">${i18n.t('admin.cloudDataDelete')}</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  } catch (error) {
+    console.error('Load detail cloud data error:', error);
+    container.innerHTML = `<p style="color:#dc2626">${escapeHtml(error.message || i18n.t('common.error'))}</p>`;
+  }
+}
+
+function addCloudDataForDetail() {
+  openCloudDataModal(null);
+}
+
+// ========== 扩展审核（管理员） ==========
+
+let currentReviewId = null;
+let currentReviews = []; // 当前审核列表缓存，供审核弹窗展示变更说明
+
+async function loadReviews() {
+  const list = document.getElementById('reviewsList');
+  if (!list) return;
+  showLoading(list);
+
+  try {
+    const status = document.getElementById('reviewStatusFilter').value;
+    const { data: reviews, error } = await appSupabase.client.rpc('admin_list_reviews', { p_status: status || null });
+
+    if (error) {
+      console.error('Load reviews error:', error);
+      showErrorState(list, error.message || i18n.t('common.error'));
+      return;
+    }
+
+    currentReviews = reviews || [];
+    const rows = currentReviews;
+    if (rows.length === 0) {
+      list.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 11l3 3L22 4"></path>
+              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+            </svg>
+          </div>
+          <p>${i18n.t('admin.noReviews')}</p>
+        </div>
+      `;
+      return;
+    }
+
+    list.innerHTML = rows.map(r => {
+      const typeBadge = `<span class="tag-chip">${reviewTypeLabel(r.review_type)}</span>`;
+      const statusBadge = `<span class="review-badge ${r.status}">${reviewStatusLabel(r.status)}</span>`;
+      const actionsHtml = r.status === 'pending'
+        ? `<button class="action-btn edit" onclick="openReviewModal('${r.id}')">${i18n.t('admin.reviewApproveTitle') || '审核'}</button>`
+        : `<span style="color:#a1a1aa;font-size:12px;">${r.review_comment ? escapeHtml(r.review_comment) : (i18n.t('admin.reviewDone') || '已处理')}</span>`;
+      return `
+        <div class="code-card">
+          <div class="code-info">
+            <div class="code-code">${typeBadge} ${escapeHtml(r.extension_name || r.extension_slug)} ${statusBadge} ${r.version_number ? '<span style="color:#6b7280">v' + escapeHtml(r.version_number) + '</span>' : ''}</div>
+            <div class="code-details">
+              <p>${i18n.t('admin.reviewExtension') || '扩展'}: ${escapeHtml(r.extension_slug)} · ${i18n.t('admin.reviewDeveloper') || '开发者'}: ${escapeHtml(r.developer_name || r.developer_email || '-')}</p>
+              <p>${i18n.t('admin.reviewSummary') || '变更说明'}: ${escapeHtml(r.summary || '-')}</p>
+              <p style="color:#a1a1aa;font-size:12px;">${new Date(r.created_at).toLocaleString(i18n.currentLang() === 'zh' ? 'zh-CN' : 'en-US')} ${r.reviewed_at ? '· ' + i18n.t('admin.reviewedAt') + ': ' + new Date(r.reviewed_at).toLocaleString(i18n.currentLang() === 'zh' ? 'zh-CN' : 'en-US') : ''}</p>
+            </div>
+          </div>
+          <div class="code-actions">${actionsHtml}</div>
+        </div>
+      `;
+    }).join('');
+  } catch (error) {
+    console.error('Load reviews error:', error);
+    showErrorState(list, error.message || i18n.t('common.networkError'));
+  }
+}
+
+function reviewTypeLabel(type) {
+  if (type === 'create') return i18n.t('admin.reviewTypeCreate') || '创建扩展';
+  if (type === 'version') return i18n.t('admin.reviewTypeVersion') || '上传版本';
+  return i18n.t('admin.reviewTypeUpdate') || '修改信息';
+}
+
+function reviewStatusLabel(status) {
+  if (status === 'approved') return i18n.t('admin.reviewStatusApproved') || '已通过';
+  if (status === 'rejected') return i18n.t('admin.reviewStatusRejected') || '已拒绝';
+  return i18n.t('admin.reviewStatusPending') || '待审核';
+}
+
+function openReviewModal(reviewId) {
+  currentReviewId = reviewId;
+
+  // 按钮文案
+  const approveBtn = document.querySelector('#reviewModal .btn-primary');
+  const rejectBtn = document.querySelector('#reviewModal .btn-secondary');
+  if (approveBtn) approveBtn.textContent = i18n.t('admin.reviewApprove') || '通过';
+  if (rejectBtn) rejectBtn.textContent = i18n.t('admin.reviewReject') || '拒绝';
+
+  const review = currentReviews.find(r => r.id === reviewId) || {};
+  document.getElementById('reviewModalSummary').innerHTML =
+    `${i18n.t('admin.reviewExtension') || '扩展'}: ${escapeHtml(review.extension_name || review.extension_slug || '-')} · ` +
+    `${i18n.t('admin.reviewType') || '变更类型'}: ${escapeHtml(reviewTypeLabel(review.review_type))} · ` +
+    `${i18n.t('admin.reviewVersion') || '版本'}: ${escapeHtml(review.version_number || '-')}` +
+    (review.summary ? `<br>${i18n.t('admin.reviewSummary') || '变更说明'}: ${escapeHtml(review.summary)}` : '');
+
+  // 信息修改审核：展示待审核的新值快照，便于管理员核对
+  const pendingPayloadEl = document.getElementById('reviewPayload');
+  if (pendingPayloadEl) {
+    if (review.review_type === 'update' && review.payload && typeof review.payload === 'object') {
+      const p = review.payload;
+      const fields = [
+        ['name', i18n.t('admin.extensionName') || '名称'],
+        ['description', i18n.t('admin.extensionDesc') || '描述'],
+        ['name_en', i18n.t('admin.extensionNameEn') || '名称(EN)'],
+        ['description_en', i18n.t('admin.extensionDescEn') || '描述(EN)'],
+        ['author', i18n.t('admin.extensionAuthor') || '作者'],
+        ['icon_url', i18n.t('admin.extensionIcon') || '图标'],
+        ['website', i18n.t('admin.extensionWebsite') || '官网'],
+        ['tags', i18n.t('admin.extensionTags') || '标签']
+      ].filter(([k]) => p[k] != null && (p[k] === '' ? false : true));
+      pendingPayloadEl.innerHTML = fields.map(([k, label]) =>
+        `<div class="review-payload-row"><span class="review-payload-label">${escapeHtml(label)}</span><span class="review-payload-value">${escapeHtml(Array.isArray(p[k]) ? p[k].join(', ') : p[k])}</span></div>`
+      ).join('') || `<p style="color:#a1a1aa;font-size:12px;">${i18n.t('admin.reviewNoChange') || '无变更内容'}</p>`;
+    } else {
+      pendingPayloadEl.innerHTML = '';
+    }
+  }
+
+  document.getElementById('reviewComment').value = '';
+  document.getElementById('reviewError').classList.add('hidden');
+  const modal = document.getElementById('reviewModal');
+  modal.classList.remove('hidden');
+  modal.classList.add('active');
+}
+
+async function handleReview(approved) {
+  if (!currentReviewId) return;
+  const comment = document.getElementById('reviewComment').value.trim();
+  const errorEl = document.getElementById('reviewError');
+  errorEl.classList.add('hidden');
+
+  if (!approved && !comment) {
+    errorEl.textContent = i18n.t('admin.reviewNeedComment') || '拒绝时请填写审核意见';
+    errorEl.classList.remove('hidden');
+    return;
+  }
+
+  try {
+    const { data, error } = await appSupabase.client.rpc('admin_review_extension', {
+      p_review_id: currentReviewId,
+      p_approved: approved,
+      p_comment: comment || null
+    });
+    if (error) {
+      errorEl.textContent = error.message || i18n.t('common.error');
+      errorEl.classList.remove('hidden');
+      return;
+    }
+    if (data && data.success === false) {
+      errorEl.textContent = data.message || i18n.t('admin.reviewProcessed') || '该审核已处理';
+      errorEl.classList.remove('hidden');
+      return;
+    }
+
+    closeReviewModal();
+    loadReviews();
+    alert(data && data.message ? data.message : i18n.t('admin.reviewDone'));
+  } catch (error) {
+    console.error('Review extension error:', error);
+    errorEl.textContent = error.message || i18n.t('common.error');
+    errorEl.classList.remove('hidden');
+  }
+}
+
+function closeReviewModal() {
+  const modal = document.getElementById('reviewModal');
+  modal.classList.remove('active');
+  setTimeout(() => modal.classList.add('hidden'), 200);
 }
 
 async function loadAdminPage() {
@@ -944,6 +1193,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const quickCreateBtn = document.getElementById('quickCreateExtensionBtn');
   if (quickCreateBtn) quickCreateBtn.addEventListener('click', openQuickCreateModal);
 
+  // 扩展审核状态筛选
+  const reviewStatusFilter = document.getElementById('reviewStatusFilter');
+  if (reviewStatusFilter) reviewStatusFilter.addEventListener('change', loadReviews);
+
   const quickCreateFileInput = document.getElementById('quickCreateFile');
   if (quickCreateFileInput) quickCreateFileInput.addEventListener('change', handleQuickCreateFileChange);
 
@@ -988,10 +1241,10 @@ document.addEventListener('DOMContentLoaded', () => {
         loadCodes();
       } else if (item.dataset.page === 'extensions') {
         loadExtensions();
+      } else if (item.dataset.page === 'reviews') {
+        loadReviews();
       } else if (item.dataset.page === 'crashReports') {
         loadCrashReports();
-      } else if (item.dataset.page === 'cloudData') {
-        loadCloudDataPage();
       } else if (item.dataset.page === 'appVersions') {
         loadAppVersions();
       } else if (item.dataset.page === 'ai') {
@@ -1007,19 +1260,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const refreshCrashReportsBtn = document.getElementById('refreshCrashReportsBtn');
   if (refreshCrashReportsBtn) refreshCrashReportsBtn.addEventListener('click', loadCrashReports);
-
-  // 扩展云数据：扩展下拉切换时加载对应数据
-  const cloudDataExtSelect = document.getElementById('cloudDataExtensionSelect');
-  if (cloudDataExtSelect) cloudDataExtSelect.addEventListener('change', () => {
-    if (!cloudDataExtSelect.value) {
-      document.getElementById('cloudDataList').innerHTML = '';
-      return;
-    }
-    fetchCloudData();
-  });
-
-  const cloudDataAddBtn = document.getElementById('cloudDataAddBtn');
-  if (cloudDataAddBtn) cloudDataAddBtn.addEventListener('click', openCloudDataModal);
 
   const cloudDataForm = document.getElementById('cloudDataForm');
   if (cloudDataForm) cloudDataForm.addEventListener('submit', saveCloudData);
@@ -1068,13 +1308,13 @@ document.addEventListener('languageChanged', () => {
   } else if (page === 'codes') {
     loadCodes();
   } else if (page === 'extensions') {
-    loadExtensions();
-  } else if (page === 'crashReports') {
-    loadCrashReports();
-  } else if (page === 'cloudData') {
-    loadCloudDataPage();
-  } else if (page === 'appVersions') {
-    loadAppVersions();
+        loadExtensions();
+      } else if (page === 'reviews') {
+        loadReviews();
+      } else if (page === 'crashReports') {
+        loadCrashReports();
+      } else if (page === 'appVersions') {
+        loadAppVersions();
   } else if (page === 'ai') {
     loadAIPage();
   } else if (page === 'plans') {
@@ -1387,7 +1627,8 @@ async function viewExtensionDetail(extId) {
                 <td>${v.is_latest ? '<span style="color:#22c55e">✓</span>' : '-'}</td>
                 <td>${new Date(v.created_at).toLocaleDateString()}</td>
                 <td>
-                  ${!v.is_latest ? `<button class="action-btn delete" onclick="deleteVersion('${v.id}')">${i18n.t('admin.delete') || '删除'}</button>` : '-'}
+                  ${v.file_path ? `<button class="action-btn" onclick="downloadVersion('${v.file_path.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}')">${i18n.t('admin.download') || '下载'}</button>` : '-'}
+                  ${!v.is_latest ? `<button class="action-btn delete" onclick="deleteVersion('${v.id}')">${i18n.t('admin.delete') || '删除'}</button>` : ''}
                 </td>
               </tr>
             `).join('')}
@@ -1420,9 +1661,19 @@ async function viewExtensionDetail(extId) {
         </div>
         ${versionsHtml}
       </div>
+      <div class="detail-section">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <h3>${i18n.t('dev.devCloudData') || '扩展云数据'}</h3>
+          <button class="btn btn-secondary" onclick="addCloudDataForDetail()">${i18n.t('dev.devAddCloudData') || '新建云数据'}</button>
+        </div>
+        <p style="margin-bottom:10px;font-size:13px;color:var(--text-muted,#6b7280);">${i18n.t('dev.devCloudDataHint') || ''}</p>
+        <div id="adminDetailCloudData"></div>
+      </div>
     `;
 
     document.getElementById('extensionDetailTitle').textContent = ext.name;
+    currentCloudDataSlug = ext.slug;
+    loadDetailCloudData(ext.slug);
     const modal = document.getElementById('extensionDetailModal');
     modal.classList.remove('hidden');
     modal.classList.add('active');
@@ -2220,6 +2471,26 @@ async function deleteVersion(versionId) {
     }
   } catch (error) {
     console.error('Delete version error:', error);
+  }
+}
+
+// 下载指定版本的扩展源文件（通过签名 URL）
+async function downloadVersion(filePath) {
+  try {
+    const fileName = filePath.split('/').pop() || 'extension.zip';
+    const { data, error } = await appSupabase.client.storage
+      .from('extension-files')
+      .createSignedUrl(filePath, 3600);
+    if (error || !data?.signedUrl) throw error || new Error('签名失败');
+    const a = document.createElement('a');
+    a.href = data.signedUrl;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  } catch (err) {
+    console.error('Download version error:', err);
+    alert(err?.message || (i18n.t('admin.downloadFailed') || '下载失败'));
   }
 }
 

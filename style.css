@@ -271,6 +271,8 @@ body.dashboard-body {
 }
 
 .user-btn img {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   border-radius: var(--radius-full);
@@ -325,6 +327,7 @@ body.dashboard-body {
 }
 
 .user-info-avatar {
+  position: relative;
   width: 40px;
   height: 40px;
   border-radius: var(--radius-full);
@@ -336,6 +339,7 @@ body.dashboard-body {
   font-size: 16px;
   color: white;
   flex-shrink: 0;
+  overflow: hidden;
 }
 
 .user-info-avatar img {
@@ -700,6 +704,11 @@ body.dashboard-body {
 .modal.active {
   opacity: 1;
   visibility: visible;
+}
+
+/* 叠放在已打开弹窗之上的次级弹窗，使用更高的层级确保不被父弹窗遮住 */
+.modal.overlay {
+  z-index: 2100;
 }
 
 .modal-backdrop {
@@ -1072,6 +1081,17 @@ body.dashboard-body {
   gap: 24px;
 }
 
+/* 以 iframe 嵌入宿主页面（如 dashboard 的「扩展管理」）时，隐藏本页自身的导航与侧边栏，
+   避免与宿主重复嵌套；内容区自动占满剩余宽度 */
+body.embedded .navbar,
+body.embedded .sidebar {
+  display: none;
+}
+
+body.embedded .dashboard-container {
+  min-height: auto;
+}
+
 .sidebar {
   width: 240px;
   background-color: var(--surface-color);
@@ -1124,6 +1144,21 @@ body.dashboard-body {
 .sidebar-item.active {
   background-color: var(--primary-light);
   color: var(--primary-color);
+}
+
+.sidebar-badge {
+  margin-left: auto;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+  text-align: center;
+  flex-shrink: 0;
 }
 
 .sidebar-item svg {
@@ -1201,6 +1236,8 @@ body.dashboard-body {
   font-weight: 600;
   font-size: 28px;
   color: white;
+  overflow: hidden;
+  flex-shrink: 0;
 }
 
 .profile-avatar img {
@@ -1387,6 +1424,225 @@ body.dashboard-body {
 .code-actions {
   display: flex;
   gap: 8px;
+}
+
+/* ===== 激活码分组折叠卡片 ===== */
+.code-group-card {
+  background-color: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  transition: all var(--transition-fast);
+}
+
+.code-group-card:hover {
+  box-shadow: var(--shadow-sm);
+}
+
+.code-group-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.code-group-header:hover {
+  background-color: var(--surface-light);
+}
+
+.code-group-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+  transition: transform var(--transition-fast);
+}
+
+.code-group-card.open .code-group-toggle {
+  transform: rotate(90deg);
+}
+
+.code-group-toggle svg {
+  width: 18px;
+  height: 18px;
+}
+
+.code-group-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.code-group-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.code-group-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--primary-color);
+  background-color: var(--primary-light);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+}
+
+.code-group-attr,
+.code-group-valid {
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.code-group-disabled {
+  color: #f59e0b;
+}
+
+.code-group-stats {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.code-group-badge {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+}
+
+.code-group-badge.used {
+  background-color: #fee2e2;
+  color: #ef4444;
+}
+
+.code-group-badge.unused {
+  background-color: #dcfce7;
+  color: #22c55e;
+}
+
+.code-group-badge.disabled {
+  background-color: #fef3c7;
+  color: #d97706;
+}
+
+.code-group-body {
+  display: none;
+  border-top: 1px solid var(--border-color);
+  padding: 4px 16px 12px;
+}
+
+.code-group-card.open .code-group-body {
+  display: block;
+}
+
+.code-group-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 4px;
+}
+
+.code-group-toolbar-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.code-group-toolbar .action-btn {
+  background-color: var(--surface-light);
+  color: var(--text-primary);
+  flex-shrink: 0;
+}
+
+.code-group-toolbar .action-btn:hover {
+  background-color: var(--surface-hover);
+}
+
+.code-group-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 4px;
+  border-bottom: 1px dashed var(--border-color);
+  flex-wrap: wrap;
+}
+
+.code-group-item:last-child {
+  border-bottom: none;
+}
+
+.code-group-item .code-checkbox {
+  position: static;
+  flex-shrink: 0;
+}
+
+.code-group-item-code {
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary-color);
+  background-color: var(--primary-light);
+  padding: 3px 10px;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+
+.code-group-item-status {
+  font-size: 12px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.code-group-item-status.unused {
+  color: #22c55e;
+}
+
+.code-group-item-status.used {
+  color: #ef4444;
+}
+
+.code-group-item-status.disabled {
+  color: #d97706;
+}
+
+.code-group-item-used {
+  font-size: 12px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.code-group-redeemed {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.code-group-item-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.code-group-card .code-group-header > .action-btn,
+.code-group-item-actions .action-btn:not(.delete) {
+  background-color: var(--surface-light);
+  color: var(--primary-color);
+}
+
+.code-group-card .code-group-header > .action-btn:hover,
+.code-group-item-actions .action-btn:not(.delete):hover {
+  background-color: var(--surface-hover);
 }
 
 .action-btn {
@@ -2130,6 +2386,84 @@ body.dashboard-body {
 .cloud-data-badge.user {
   background-color: var(--info-light, rgba(33, 150, 243, 0.12));
   color: var(--info-color, #2196f3);
+}
+
+.dev-intro {
+  margin-bottom: 16px;
+  font-size: 13px;
+  color: var(--text-muted, #6b7280);
+}
+
+.review-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  margin-right: 2px;
+}
+
+.review-badge.pending {
+  background-color: rgba(245, 158, 11, 0.14);
+  color: #d97706;
+}
+
+.review-badge.approved {
+  background-color: rgba(34, 197, 94, 0.14);
+  color: #16a34a;
+}
+
+.review-badge.rejected {
+  background-color: rgba(239, 68, 68, 0.14);
+  color: #dc2626;
+}
+
+/* 信息修改审核：待审核的新值快照展示 */
+.review-payload-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 5px 0;
+  border-bottom: 1px dashed var(--border-color);
+  font-size: 13px;
+}
+
+.review-payload-row:last-child {
+  border-bottom: none;
+}
+
+.review-payload-label {
+  flex-shrink: 0;
+  min-width: 84px;
+  color: var(--text-secondary);
+}
+
+.review-payload-value {
+  color: var(--text-primary);
+  word-break: break-all;
+}
+
+/* 系统消息未读状态 */
+.messages-unread-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #ef4444;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+.message-unread {
+  background-color: var(--primary-light, #eef2ff);
+}
+
+.message-unread .code-code {
+  font-weight: 600;
+}
+
+.message-read {
+  opacity: 0.75;
 }
 
 .cloud-data-owner {

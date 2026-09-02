@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n="dev.devTitle">开发者中心</title>
+  <link rel="stylesheet" href="style.css?v=2">
+</head>
+<body class="dashboard-body">
+  <nav class="navbar">
+    <div class="nav-container">
+      <div class="nav-logo">
+        <a href="index.html"><h1>MyZone</h1></a>
+      </div>
+      <div class="nav-settings">
+        <select id="langSelect" class="lang-select">
+          <option value="zh" data-i18n="lang.zh">中文</option>
+          <option value="en" data-i18n="lang.en">English</option>
+        </select>
+        <button id="themeToggle" class="theme-toggle" data-i18n-title="admin.toggleTheme" title="切换主题">
+          <svg id="themeIconSun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+          <svg id="themeIconMoon" class="hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+        </button>
+      </div>
+      <div class="nav-auth">
+        <div id="userBtn" class="user-btn">
+          <span id="userBtnAvatar">U</span>
+          <div id="userMenu" class="user-menu hidden">
+            <div class="user-info">
+              <div class="user-info-avatar" id="userAvatar">U</div>
+              <div class="user-info-text">
+                <h4 id="userName">用户</h4>
+                <p id="userEmail">user@example.com</p>
+              </div>
+            </div>
+            <div class="user-menu-divider"></div>
+            <a href="dashboard.html" class="user-menu-item" data-i18n="nav.dashboard">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                <polyline points="9 22 9 12 15 12 15 22"></polyline>
+              </svg>
+              <span data-i18n="nav.dashboard">个人中心</span>
+            </a>
+            <a href="admin.html" id="adminLink" class="user-menu-item hidden" data-i18n="nav.admin">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                <circle cx="12" cy="8" r="3"></circle>
+              </svg>
+              <span data-i18n="nav.admin">管理后台</span>
+            </a>
+            <div class="user-menu-divider"></div>
+            <button id="logoutBtn" class="user-menu-item danger" data-i18n="nav.logout">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                <polyline points="16 17 21 12 16 7"></polyline>
+                <line x1="21" y1="12" x2="9" y2="12"></line>
+              </svg>
+              <span data-i18n="nav.logout">退出登录</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <div class="dashboard-container">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h3 data-i18n="dev.devTitle">我的扩展</h3>
+      </div>
+      <div class="sidebar-menu">
+        <button class="sidebar-item active" data-page="extensions" data-i18n="nav.developerExtensions">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M20 7h-9"></path>
+            <path d="M14 17H5"></path>
+            <circle cx="17" cy="17" r="3"></circle>
+            <circle cx="7" cy="7" r="3"></circle>
+          </svg>
+          <span>扩展管理</span>
+        </button>
+      </div>
+    </aside>
+
+    <main class="dashboard-content">
+      <div id="extensionsPage" class="subpage">
+        <div class="page-header">
+          <h2 data-i18n="dev.devTitle">我的扩展</h2>
+          <div style="display:flex; gap:10px;">
+            <button id="quickCreateDevBtn" class="btn btn-primary" data-i18n="admin.quickCreateExtension">快捷创建</button>
+            <button id="addExtensionBtn" class="btn btn-primary" data-i18n="dev.devCreate">创建扩展</button>
+          </div>
+        </div>
+        <p class="dev-intro" data-i18n="dev.devIntro"></p>
+        <div id="extensionsList" class="cards-container"></div>
+      </div>
+    </main>
+  </div>
+
+  <div id="editExtensionModal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <button class="close-btn" onclick="closeEditExtensionModal()">&times;</button>
+      <h2 id="editExtensionTitle" data-i18n="dev.devCreate">创建扩展</h2>
+      <form id="editExtensionForm">
+        <input type="hidden" id="editExtensionId">
+        <div class="form-group">
+          <label data-i18n="admin.extSlug">扩展标识（英文）</label>
+          <input type="text" id="editExtSlug" required data-i18n-placeholder="admin.extSlugPlaceholder">
+        </div>
+        <div class="form-group">
+          <label data-i18n="admin.extName">扩展名称</label>
+          <input type="text" id="editExtName" required data-i18n-placeholder="admin.extNamePlaceholder">
+        </div>
+        <div class="form-group">
+          <label data-i18n="admin.extDesc">扩展描述</label>
+          <textarea id="editExtDesc" rows="3" data-i18n-placeholder="admin.extDescPlaceholder"></textarea>
+        </div>
+        <div class="form-group">
+          <label data-i18n="admin.extNameEn">扩展名称（English）</label>
+          <input type="text" id="editExtNameEn" data-i18n-placeholder="admin.extNameEnPlaceholder">
+        </div>
+        <div class="form-group">
+          <label data-i18n="admin.extDescEn">扩展描述（English）</label>
+          <textarea id="editExtDescEn" rows="3" data-i18n-placeholder="admin.extDescEnPlaceholder"></textarea>
+        </div>
+        <div class="form-group">
+          <label data-i18n="admin.extAuthor">作者</label>
+          <input type="text" id="editExtAuthor" data-i18n-placeholder="admin.extAuthorPlaceholder">
+        </div>
+        <div class="form-group">
+          <label data-i18n="admin.extIcon">图标URL</label>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <input type="text" id="editExtIcon" placeholder="https://..." style="flex: 1;">
+            <img id="editExtIconPreview" alt="icon preview" style="width: 40px; height: 40px; border-radius: 6px; border: 1px solid var(--border-color, #e0e0e0); object-fit: contain; background: var(--bg-secondary, #f5f5f5); display: none;" onerror="this.style.display='none'">
+          </div>
+        </div>
+        <div class="form-group">
+          <label data-i18n="admin.extWebsite">官方网站</label>
+          <input type="text" id="editExtWebsite" placeholder="https://...">
+        </div>
+        <div class="form-group">
+          <label data-i18n="admin.extTags">标签（用逗号分隔）</label>
+          <input type="text" id="editExtTags" data-i18n-placeholder="admin.extTagsPlaceholder">
+        </div>
+        <div id="editExtensionError" class="error-message hidden"></div>
+        <button type="submit" class="btn btn-primary" id="saveExtensionBtn" data-i18n="admin.save">保存</button>
+      </form>
+    </div>
+  </div>
+
+  <div id="extensionDetailModal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content large">
+      <button class="close-btn" onclick="closeExtensionDetailModal()">&times;</button>
+      <h2 id="extensionDetailTitle"></h2>
+      <div id="extensionDetailContent"></div>
+    </div>
+  </div>
+
+  <div id="addVersionModal" class="modal overlay hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content large">
+      <button class="close-btn" onclick="closeAddVersionModal()">&times;</button>
+      <h2 data-i18n="dev.devNewVersion">上传新版本</h2>
+      <form id="addVersionForm">
+        <input type="hidden" id="versionExtensionId">
+        <div class="form-group">
+          <label data-i18n="admin.versionFile">扩展文件（ZIP压缩包）</label>
+          <input type="file" id="versionFile" accept=".zip" required>
+          <div id="manifestParseStatus" class="manifest-parse-status hidden"></div>
+        </div>
+        <div class="form-group">
+          <label data-i18n="admin.versionNumber">版本号</label>
+          <input type="text" id="versionNumber" required data-i18n-placeholder="admin.versionNumberPlaceholder">
+        </div>
+        <div class="form-group">
+          <label data-i18n="admin.versionChangelog">更新日志</label>
+          <textarea id="versionChangelog" rows="3" data-i18n-placeholder="admin.versionChangelogPlaceholder"></textarea>
+        </div>
+        <div class="form-group">
+          <label data-i18n="admin.minAppVersion">最低应用版本</label>
+          <input type="text" id="versionMinApp" data-i18n-placeholder="admin.versionMinAppPlaceholder">
+        </div>
+        <div class="form-group">
+          <label data-i18n="admin.minAppVersionCode">最低绝对版本</label>
+          <input type="number" id="versionMinAppCode" min="1" data-i18n-placeholder="admin.versionMinAppCodePlaceholder">
+        </div>
+        <div id="addVersionError" class="error-message hidden"></div>
+        <div id="uploadProgress" class="upload-progress hidden">
+          <div class="upload-progress-header">
+            <span id="uploadProgressLabel" data-i18n="admin.uploading">上传中...</span>
+            <span id="uploadProgressPercent">0%</span>
+          </div>
+          <div class="upload-progress-bar">
+            <div id="uploadProgressFill" class="upload-progress-fill" style="width:0%"></div>
+          </div>
+          <div id="uploadProgressStage" class="upload-progress-stage"></div>
+        </div>
+        <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:10px;">
+          <button type="button" class="btn btn-secondary" onclick="closeAddVersionModal()" data-i18n="admin.cloudDataCancel">取消</button>
+          <button type="submit" class="btn btn-primary" id="uploadVersionBtn" data-i18n="admin.upload">上传并提交审核</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="reviewsModal" class="modal overlay hidden">
+    <div class="modal-backdrop" onclick="closeReviewsModal()"></div>
+    <div class="modal-content large">
+      <button class="close-btn" onclick="closeReviewsModal()">&times;</button>
+      <h2 data-i18n="dev.devReviewTitle">审核记录</h2>
+      <div id="reviewsContent"></div>
+    </div>
+  </div>
+
+  <div id="cloudDataModal" class="modal overlay hidden">
+    <div class="modal-backdrop" onclick="closeCloudDataModal()"></div>
+    <div class="modal-content">
+      <button class="close-btn" onclick="closeCloudDataModal()">&times;</button>
+      <h2 id="cloudDataModalTitle" data-i18n="dev.devCloudData">扩展云数据</h2>
+      <form id="cloudDataForm">
+        <input type="hidden" id="cloudDataRowId">
+        <input type="hidden" id="cloudDataExtensionId">
+        <input type="hidden" id="cloudDataScopeFixed">
+        <div class="form-group">
+          <label data-i18n="admin.cloudDataKeyLabel">键名</label>
+          <input type="text" id="cloudDataKey" required data-i18n-placeholder="admin.cloudDataKeyPlaceholder">
+        </div>
+        <div class="form-group">
+          <label data-i18n="admin.cloudDataValueLabel">值（JSON）</label>
+          <textarea id="cloudDataValue" rows="4" required data-i18n-placeholder="admin.cloudDataValuePlaceholder"></textarea>
+        </div>
+        <div id="cloudDataError" class="error-message hidden"></div>
+        <div style="display: flex; justify-content: flex-end; gap: 10px;">
+          <button type="button" class="btn btn-secondary" onclick="closeCloudDataModal()" data-i18n="admin.cloudDataCancel">取消</button>
+          <button type="submit" class="btn btn-primary" data-i18n="admin.cloudDataSave">保存</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="quickCreateModal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content large">
+      <button class="close-btn" onclick="closeQuickCreateModal()">&times;</button>
+      <h2 data-i18n="admin.quickCreateExtension">快捷创建扩展</h2>
+      <p class="manifest-update-hint" data-i18n="admin.quickCreateHint">上传扩展 ZIP 包，系统将自动解析 manifest 并创建扩展及首个版本。</p>
+      <form id="quickCreateForm">
+        <div class="form-group">
+          <label data-i18n="admin.versionFile">扩展文件（ZIP压缩包）</label>
+          <input type="file" id="quickCreateFile" accept=".zip" required>
+          <div id="quickCreateParseStatus" class="manifest-parse-status hidden"></div>
+        </div>
+
+        <div id="quickCreateSummary" class="quick-create-summary hidden">
+          <div class="form-group">
+            <label data-i18n="admin.extSlug">扩展标识</label>
+            <input type="text" id="quickCreateSlug" required data-i18n-placeholder="admin.extSlugPlaceholder">
+          </div>
+          <div class="form-group">
+            <label data-i18n="admin.extName">扩展名称</label>
+            <input type="text" id="quickCreateName" required data-i18n-placeholder="admin.extNamePlaceholder">
+          </div>
+          <div class="form-group">
+            <label data-i18n="admin.extDesc">扩展描述</label>
+            <textarea id="quickCreateDesc" rows="2" data-i18n-placeholder="admin.extDescPlaceholder"></textarea>
+          </div>
+          <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div>
+              <label data-i18n="admin.extNameEn">名称（En）</label>
+              <input type="text" id="quickCreateNameEn" data-i18n-placeholder="admin.extNameEnPlaceholder">
+            </div>
+            <div>
+              <label data-i18n="admin.extDescEn">描述（En）</label>
+              <input type="text" id="quickCreateDescEn" data-i18n-placeholder="admin.extDescEnPlaceholder">
+            </div>
+          </div>
+          <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div>
+              <label data-i18n="admin.extAuthor">作者</label>
+              <input type="text" id="quickCreateAuthor" data-i18n-placeholder="admin.extAuthorPlaceholder">
+            </div>
+            <div>
+              <label data-i18n="admin.extWebsite">官方网站</label>
+              <input type="text" id="quickCreateWebsite" placeholder="https://...">
+            </div>
+          </div>
+          <div class="form-group">
+            <label data-i18n="admin.extTags">标签（用逗号分隔）</label>
+            <input type="text" id="quickCreateTags" data-i18n-placeholder="admin.extTagsPlaceholder">
+          </div>
+          <div class="form-group" id="quickCreateIconGroup" style="display: none;">
+            <label data-i18n="admin.extIcon">扩展图标</label>
+            <div style="display: flex; align-items: center; gap: 12px; margin-top: 6px;">
+              <img id="quickCreateIconPreview" alt="icon" style="width: 64px; height: 64px; border-radius: 8px; border: 1px solid var(--border-color, #e0e0e0); object-fit: contain; background: var(--bg-secondary, #f5f5f5);" onerror="this.style.display='none'; document.getElementById('quickCreateIconFallback').style.display='';">
+              <span id="quickCreateIconFallback" style="display: none; color: var(--text-secondary, #888); font-size: 12px;"></span>
+            </div>
+          </div>
+          <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
+            <div>
+              <label data-i18n="admin.versionNumber">版本号</label>
+              <input type="text" id="quickCreateVersion" required data-i18n-placeholder="admin.versionNumberPlaceholder">
+            </div>
+            <div>
+              <label data-i18n="admin.minAppVersion">最低应用版本</label>
+              <input type="text" id="quickCreateMinApp" data-i18n-placeholder="admin.versionMinAppPlaceholder">
+            </div>
+            <div>
+              <label data-i18n="admin.minAppVersionCode">最低绝对版本</label>
+              <input type="number" id="quickCreateMinAppCode" min="1" data-i18n-placeholder="admin.versionMinAppCodePlaceholder">
+            </div>
+          </div>
+          <div class="form-group">
+            <label data-i18n="admin.versionChangelog">更新日志</label>
+            <textarea id="quickCreateChangelog" rows="2" data-i18n-placeholder="admin.versionChangelogPlaceholder"></textarea>
+          </div>
+        </div>
+
+        <div id="quickCreateError" class="error-message hidden"></div>
+
+        <div id="quickCreateProgress" class="upload-progress hidden">
+          <div class="upload-progress-header">
+            <span id="quickCreateProgressLabel" data-i18n="admin.uploading">上传中...</span>
+            <span id="quickCreateProgressPercent">0%</span>
+          </div>
+          <div class="upload-progress-bar">
+            <div id="quickCreateProgressFill" class="upload-progress-fill" style="width: 0%"></div>
+          </div>
+          <p id="quickCreateProgressStage" class="upload-progress-stage"></p>
+        </div>
+
+        <button type="submit" class="btn btn-primary" id="quickCreateSubmitBtn" disabled data-i18n="admin.quickCreateSubmit">创建扩展并上传</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="js/lib/supabase.min.js"></script>
+  <script src="js/supabase-client.js"></script>
+  <script src="js/i18n.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/dev-extensions.js"></script>
+</body>
+</html>
