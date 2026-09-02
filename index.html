@@ -3,228 +3,440 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title data-i18n="app.tagline">你的个人空间</title>
-  <link rel="stylesheet" href="style.css">
+  <title data-i18n="app.tagline">你的个人数据中心</title>
+  <meta name="description" content="MyZone 本地加密个人空间">
+  <!-- Tailwind Play CDN + 自定义品牌色 -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          borderRadius: { xl2: '2rem' },
+          keyframes: {
+            float: { '0%,100%': { transform: 'translateY(0)' }, '50%': { transform: 'translateY(-10px)' } },
+            pulseRing: { '0%': { boxShadow: '0 0 0 0 var(--p)' }, '70%': { boxShadow: '0 0 0 10px transparent' }, '100%': { boxShadow: '0 0 0 0 transparent' } }
+          },
+          animation: {
+            float: 'float 6s ease-in-out infinite',
+            floatSlow: 'float 9s ease-in-out infinite',
+            pulseRing: 'pulseRing 2.5s cubic-bezier(0.4,0,0.6,1) infinite'
+          }
+        }
+      }
+    };
+  </script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daisyui@4.12.24/dist/full.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+  <link rel="stylesheet" href="css/site-chrome.css">
+  <style>
+    /* ===== auth.js 交互所需最小样式（首页独立，不复用全局 style.css 避免与 DaisyUI 冲突） ===== */
+    .theme-toggle { display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+    .theme-icon-sun, .theme-icon-moon { width: 20px; height: 20px; }
+    #userBtnAvatar img { width: 100%; height: 100%; border-radius: 9999px; object-fit: cover; }
+
+    #userBtn { position: relative; }
+    .user-menu-card {
+      position: absolute; top: calc(100% + 8px); right: 0; z-index: 1001;
+      min-width: 216px; background: var(--b1, #fff); border: 1px solid var(--bc, #d1d5db);
+      border-radius: 12px; padding: 6px; box-shadow: 0 10px 30px rgba(0,0,0,.15);
+      opacity: 0; visibility: hidden; transform: translateY(-8px);
+      transition: all .2s ease;
+    }
+    #userMenu.open { opacity: 1; visibility: visible; transform: translateY(0); animation: userMenuIn .18s ease; }
+    @keyframes userMenuIn {
+      from { opacity: 0; transform: translateY(-8px) scale(.98); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .user-identity { padding: 8px 12px 10px; border-bottom: 1px solid var(--bc, #eee); display: flex; flex-direction: column; }
+    .user-identity #userName { font-weight: 600; font-size: 14px; }
+    .user-email { font-size: 12px; opacity: .6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .user-item {
+      display: flex; align-items: center; gap: 10px; width: 100%;
+      padding: 9px 12px; margin-top: 2px; border: none; background: none;
+      border-radius: 8px; font-size: 14px; color: inherit; cursor: pointer; text-align: left; text-decoration: none;
+    }
+    .user-item:hover { background: var(--bc, #eee); }
+    .user-item-danger { color: var(--er, #dc2626); }
+    .user-item svg, .user-item i { width: 16px; height: 16px; flex-shrink: 0; }
+
+    #loginModal { display: none; position: fixed; inset: 0; z-index: 2000; align-items: flex-start; justify-content: center; padding: 48px 16px 16px; }
+    #loginModal.active { display: flex; }
+    #loginBackdrop { position: absolute; inset: 0; background: rgba(0,0,0,.5); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+    .close-btn { position: absolute; top: 12px; right: 16px; background: none; border: none; font-size: 24px; line-height: 1; cursor: pointer; color: var(--bc, #000); }
+    .error-message { color: var(--er, #dc2626); font-size: 13px; margin-top: 8px; }
+    .form-group label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 6px; }
+    .form-group input { width: 100%; padding: 10px 12px; border: 1px solid var(--bc, #d1d5db); border-radius: 8px; font-size: 14px; background: var(--b2, #fff); color: var(--bc, #111); }
+    .form-group input:focus { outline: 2px solid var(--p, #4f46e5); outline-offset: -1px; }
+    .modal-tabs .tab.active { color: var(--p); font-weight: 600; border-bottom: 2px solid var(--p); }
+
+    /* ===== 页面自用样式 ===== */
+    html { scroll-behavior: smooth; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif; }
+
+    /* Hero 标题支持换行（i18n 文本含真实换行符） */
+    #heroTitle { white-space: pre-line; }
+
+    /* 淡淡的网点背景 */
+    .dot-grid {
+      background-image: radial-gradient(circle at 1px 1px, var(--bc, #d1d5db) 1px, transparent 0);
+      background-size: 28px 28px;
+      opacity: .22;
+    }
+
+    /* 功能卡片 */
+    .feature-card { position: relative; overflow: hidden; }
+    .feature-card::after {
+      content: ''; position: absolute; inset: 0; border-radius: inherit;
+      box-shadow: inset 0 1px 0 0 rgba(255,255,255,.08);
+      pointer-events: none;
+    }
+    .feature-card:hover { transform: translateY(-6px); box-shadow: 0 24px 48px -16px rgba(0,0,0,.18); }
+    .feature-icon { transition: transform .3s ease; }
+    .feature-card:hover .feature-icon { transform: scale(1.08); }
+
+    [data-reveal] { opacity: 0; }
+  </style>
 </head>
-<body>
-  <nav class="navbar">
-    <div class="nav-container">
-      <div class="nav-logo">
-        <h1>MyZone</h1>
-      </div>
-      <div class="nav-links">
-        <a href="#features" data-i18n="nav.features">功能</a>
-        <a href="#about" data-i18n="nav.about">关于</a>
-        <a href="sponsor.html" data-i18n="nav.sponsor">赞助</a>
-      </div>
-      <div class="nav-settings">
-        <select id="langSelect" class="lang-select">
-          <option value="zh" data-i18n="lang.zh">中文</option>
-          <option value="en" data-i18n="lang.en">English</option>
-        </select>
-        <button id="themeToggle" class="theme-toggle" title="切换主题">
-          <svg id="themeIconSun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="5"></circle>
-            <line x1="12" y1="1" x2="12" y2="3"></line>
-            <line x1="12" y1="21" x2="12" y2="23"></line>
-            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-            <line x1="1" y1="12" x2="3" y2="12"></line>
-            <line x1="21" y1="12" x2="23" y2="12"></line>
-            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-          </svg>
-          <svg id="themeIconMoon" class="hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-          </svg>
-        </button>
-      </div>
-      <div class="nav-auth">
-        <button id="loginBtn" class="btn btn-secondary" data-i18n="nav.login">登录</button>
-        <button id="signupBtn" class="btn btn-primary" data-i18n="nav.signup">注册</button>
-        <div id="userBtn" class="user-btn hidden">
-          <span id="userBtnAvatar">U</span>
-          <div id="userMenu" class="user-menu hidden">
-            <div class="user-info">
-              <div class="user-info-avatar" id="userAvatar">U</div>
-              <div class="user-info-text">
-                <h4 id="userName">用户</h4>
-                <p id="userEmail">user@example.com</p>
-              </div>
-            </div>
-            <div class="user-menu-divider"></div>
-            <a href="dashboard.html" class="user-menu-item" data-i18n="nav.dashboard">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2 2z"></path>
-                <polyline points="9 22 9 12 15 12 15 22"></polyline>
-              </svg>
-              <span data-i18n="nav.dashboard">个人中心</span>
-            </a>
-            <a href="admin.html" id="adminLink" class="user-menu-item hidden" data-i18n="nav.admin">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-                <circle cx="12" cy="8" r="3"></circle>
-              </svg>
-              <span data-i18n="nav.admin">管理后台</span>
-            </a>
-            <div class="user-menu-divider"></div>
-            <button id="logoutBtn" class="user-menu-item danger" data-i18n="nav.logout">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                <polyline points="16 17 21 12 16 7"></polyline>
-                <line x1="21" y1="12" x2="9" y2="12"></line>
-              </svg>
-              <span data-i18n="nav.logout">退出登录</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </nav>
+<body class="min-h-screen bg-base-100 text-base-content antialiased" data-page="index">
+  <!-- 共享头部（由 js/site-chrome.js 注入） -->
+  <div id="site-header"></div>
 
   <main>
-    <section class="hero">
-      <div class="hero-content">
-        <h2 data-i18n="hero.title">你的个人空间</h2>
-        <p data-i18n="hero.subtitle">桌面个人隐私空间，支持加密文件与内置浏览器。</p>
-        <div class="hero-actions">
-          <button id="heroLoginBtn" class="btn btn-primary" data-i18n="hero.getStarted">立即开始</button>
-          <a href="#features" class="btn btn-secondary" data-i18n="hero.learnMore">了解更多</a>
+    <!-- ===== Hero ===== -->
+    <section class="relative overflow-hidden">
+      <div class="absolute inset-0 dot-grid pointer-events-none"></div>
+      <div class="relative max-w-7xl mx-auto px-6 py-20 lg:py-28 grid lg:grid-cols-2 gap-14 items-center">
+        <!-- 左：文案 -->
+        <div class="text-center lg:text-left">
+          <span class="inline-flex items-center gap-2 badge badge-primary badge-outline badge-lg pl-3 pr-4 py-2 mb-6" data-reveal data-anim="animate__fadeInDown">
+            <span class="w-2 h-2 rounded-full bg-success animate-pulse"></span>
+            <span data-i18n="home.badge">本地加密 · 隐私优先</span>
+          </span>
+          <h1 id="heroTitle" class="text-5xl md:text-6xl xl:text-7xl font-extrabold leading-[1.08] tracking-tight mb-6" data-reveal data-anim="animate__fadeInUp" data-i18n="home.title">你的数据,<br>只属于你。</h1>
+          <p class="text-lg md:text-xl text-base-content/70 max-w-xl mx-auto lg:mx-0 mb-9" data-reveal data-anim="animate__fadeInUp" data-i18n="home.subtitle">MyZone 是本地优先的加密个人空间：数据在你的设备上用密码加密，也可通过 WebDAV 同步到云端。</p>
+          <div class="flex flex-wrap gap-3 justify-center lg:justify-start mb-10" data-reveal data-anim="animate__fadeInUp">
+            <button id="heroLoginBtn" class="btn btn-primary btn-lg px-8 shadow-lg shadow-primary/25">
+              <span data-i18n="home.cta">立即开始 · 免费</span>
+              <i data-lucide="arrow-right" class="w-5"></i>
+            </button>
+            <a href="#features" class="btn btn-ghost btn-lg btn-outline px-8" data-i18n="home.learnMore">了解更多</a>
+          </div>
+          <!-- 信任标记 -->
+          <div class="grid grid-cols-3 gap-4 max-w-lg mx-auto lg:mx-0" data-reveal data-anim="animate__fadeInUp">
+            <div class="flex items-center gap-2.5">
+              <span class="w-9 h-9 rounded-xl bg-success/10 text-success flex items-center justify-center"><i data-lucide="shield-check" class="w-5"></i></span>
+              <div class="text-left leading-tight"><p class="font-semibold text-sm" data-i18n="trust.encryption">客户端加密</p><p class="text-xs opacity-60" data-i18n="trust.filesPlaceholder">文件仅在设备端解密</p></div>
+            </div>
+            <div class="flex items-center gap-2.5">
+              <span class="w-9 h-9 rounded-xl bg-info/10 text-info flex items-center justify-center"><i data-lucide="cloud" class="w-5"></i></span>
+              <div class="text-left leading-tight"><p class="font-semibold text-sm" data-i18n="trust.sync">多设备云同步</p><p class="text-xs opacity-60" data-i18n="trust.devicesPlaceholder">WebDAV 无缝同步</p></div>
+            </div>
+            <div class="flex items-center gap-2.5">
+              <span class="w-9 h-9 rounded-xl bg-secondary/10 text-secondary flex items-center justify-center"><i data-lucide="puzzle" class="w-5"></i></span>
+              <div class="text-left leading-tight"><p class="font-semibold text-sm" data-i18n="trust.extensions">扩展生态</p><p class="text-xs opacity-60" data-i18n="trust.extensionsPlaceholder">私人订制你的空间</p></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 右：真实产品窗口预览 -->
+        <div class="relative" data-reveal data-anim="animate__fadeInRight">
+          <div class="bg-base-200 border border-base-300 shadow-2xl shadow-primary/10 rounded-2xl overflow-hidden relative">
+            <div class="flex items-center gap-1.5 px-4 h-9 border-b border-base-300 absolute top-0 left-0 right-0 z-10">
+              <span class="w-3 h-3 rounded-full bg-error"></span>
+              <span class="w-3 h-3 rounded-full bg-warning"></span>
+              <span class="w-3 h-3 rounded-full bg-success"></span>
+            </div>
+            <!-- 应用主体 -->
+            <div class="pt-9 flex h-[480px]">
+              <!-- 侧边栏 -->
+              <div class="w-44 bg-base-100 border-r border-base-300 px-3 py-4 flex flex-col gap-1">
+                <div class="flex items-center gap-2 px-2 mb-4">
+                  <img src="images/icon.png" alt="MyZone" class="w-7 h-7 rounded-lg object-contain">
+                  <span class="font-bold text-sm">MyZone</span>
+                </div>
+                <a class="flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm text-base-content/50"><i data-lucide="user" class="w-4"></i>个人资料</a>
+                <a class="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-primary/10 text-primary text-sm font-medium"><i data-lucide="cloud" class="w-4"></i>云空间</a>
+                <a class="flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm text-base-content/50"><i data-lucide="globe" class="w-4"></i>浏览器</a>
+                <a class="flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm text-base-content/50"><i data-lucide="puzzle" class="w-4"></i>扩展</a>
+                <div class="mt-auto px-2 pt-3 border-t border-base-300">
+                  <div class="flex items-center gap-2 text-sm text-base-content/50"><i data-lucide="cpu" class="w-4"></i>Windows</div>
+                </div>
+              </div>
+              <!-- 主内容 -->
+              <div class="flex-1 bg-base-200 px-5 py-4 flex flex-col gap-4">
+                <div class="flex items-center justify-between">
+                  <h3 class="font-semibold text-lg">我的空间</h3>
+                  <span class="badge badge-success badge-sm gap-1"><i data-lucide="check" class="w-3"></i>已同步</span>
+                </div>
+                <!-- 文件列表 -->
+                <div class="flex flex-col gap-2.5">
+                  <div class="bg-base-100 rounded-xl p-3 flex items-center gap-3 shadow-sm border border-base-300">
+                    <span class="w-10 h-10 rounded-lg bg-error/10 text-error flex items-center justify-center"><i data-lucide="file-text" class="w-5"></i></span>
+                    <div class="flex-1 min-w-0"><p class="font-medium text-sm truncate">项目计划.docx</p><p class="text-xs opacity-50">12 KB · 已加密</p></div>
+                    <i data-lucide="lock" class="w-4 text-success"></i>
+                  </div>
+                  <div class="bg-base-100 rounded-xl p-3 flex items-center gap-3 shadow-sm border border-base-300">
+                    <span class="w-10 h-10 rounded-lg bg-info/10 text-info flex items-center justify-center"><i data-lucide="image" class="w-5"></i></span>
+                    <div class="flex-1 min-w-0"><p class="font-medium text-sm truncate">壁纸合集</p><p class="text-xs opacity-50">48 MB · 已加密</p></div>
+                    <i data-lucide="lock" class="w-4 text-success"></i>
+                  </div>
+                  <div class="bg-base-100 rounded-xl p-3 flex items-center gap-3 shadow-sm border border-base-300">
+                    <span class="w-10 h-10 rounded-lg bg-warning/10 text-warning flex items-center justify-center"><i data-lucide="file-archive" class="w-5"></i></span>
+                    <div class="flex-1 min-w-0"><p class="font-medium text-sm truncate">备份-2026.tar.gz</p><p class="text-xs opacity-50">320 MB · 已加密</p></div>
+                    <i data-lucide="lock" class="w-4 text-success"></i>
+                  </div>
+                </div>
+                <!-- 存储条 -->
+                <div class="mt-auto">
+                  <div class="flex justify-between text-xs mb-1.5"><span class="opacity-60">云空间用量</span><span class="font-medium">51% · 26.4 GB</span></div>
+                  <progress class="progress progress-primary w-full h-2" value="51" max="100"></progress>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- 浮动小卡：端到端加密 -->
+          <div class="absolute -left-5 top-24 hidden md:flex items-center gap-2 bg-base-100 border border-base-300 rounded-2xl px-4 py-3 shadow-xl animate-float">
+            <span class="w-9 h-9 rounded-xl bg-success/10 text-success flex items-center justify-center"><i data-lucide="shield-check" class="w-5"></i></span>
+            <div class="leading-tight"><p class="text-sm font-semibold">客户端加密</p><p class="text-xs opacity-60">AES-256-GCM</p></div>
+          </div>
+          <!-- 浮动小卡：本地密钥 -->
+          <div class="absolute -right-4 bottom-24 hidden md:flex items-center gap-2 bg-base-100 border border-base-300 rounded-2xl px-4 py-3 shadow-xl animate-floatSlow">
+            <span class="w-9 h-9 rounded-xl bg-info/10 text-info flex items-center justify-center"><i data-lucide="key-round" class="w-5"></i></span>
+            <div class="leading-tight"><p class="text-sm font-semibold">密码派生 · 不存密钥</p><p class="text-xs opacity-60">设备端本地派生</p></div>
+          </div>
         </div>
       </div>
     </section>
 
-    <section id="features" class="features">
-      <h2 data-i18n="features.title">核心功能</h2>
-      <div class="features-grid">
-        <div class="feature-card">
-          <div class="feature-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-            </svg>
+    <!-- ===== 功能 ===== -->
+    <section id="features" class="py-24 px-6 max-w-6xl mx-auto scroll-mt-20">
+      <div class="text-center max-w-2xl mx-auto mb-16" data-reveal data-anim="animate__fadeInUp">
+        <span class="badge badge-neutral badge-outline mb-4" data-i18n="home.badge">本地加密 · 隐私优先</span>
+        <h2 class="text-4xl md:text-5xl font-bold tracking-tight mb-4" data-i18n="featuresTitle">为隐私而生的能力</h2>
+        <p class="text-base-content/60 text-lg" data-i18n="featuresSub">把文件、浏览、与你的个人习惯，都安全地放进这一方空间。</p>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="feature-card card bg-base-100 border border-base-300 rounded-2xl transition-all duration-300" data-reveal data-anim="animate__fadeInUp">
+          <div class="card-body gap-3 p-7">
+            <span class="feature-icon w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center"><i data-lucide="lock" class="w-6"></i></span>
+            <h3 class="card-title text-lg" data-i18n="featEncryptTitle">端到端加密</h3>
+            <p class="text-sm opacity-60 leading-relaxed" data-i18n="featEncryptDesc">所有文件在写入前加密，密钥只存在你的设备上，云端无法读取任何内容。</p>
           </div>
-          <h3 data-i18n="features.security">隐私浏览器</h3>
-          <p data-i18n="features.securityDesc">内置安全浏览器，支持多标签与隔离存储。</p>
         </div>
-        <div class="feature-card">
-          <div class="feature-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="2" y="17" width="20" height="5" rx="2" ry="2"></rect>
-              <path d="M8 17V7a4 4 0 0 1 8 0v10"></path>
-              <path d="M16 22v-4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v4"></path>
-            </svg>
+        <div class="feature-card card bg-base-100 border border-base-300 rounded-2xl transition-all duration-300" data-reveal data-anim="animate__fadeInUp" style="animation-delay:.05s">
+          <div class="card-body gap-3 p-7">
+            <span class="feature-icon w-12 h-12 rounded-xl bg-secondary/10 text-secondary flex items-center justify-center"><i data-lucide="globe" class="w-6"></i></span>
+            <h3 class="card-title text-lg" data-i18n="featBrowserTitle">内置隐私浏览器</h3>
+            <p class="text-sm opacity-60 leading-relaxed" data-i18n="featBrowserDesc">多标签浏览 + 隔离存储，浏览历史默认不落盘，退出即清理。</p>
           </div>
-          <h3 data-i18n="features.sync">加密文件系统</h3>
-          <p data-i18n="features.syncDesc">本地加密存储，文件内容仅在你的个人空间解密。</p>
         </div>
-        <div class="feature-card">
-          <div class="feature-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
-            </svg>
+        <div class="feature-card card bg-base-100 border border-base-300 rounded-2xl transition-all duration-300" data-reveal data-anim="animate__fadeInUp" style="animation-delay:.1s">
+          <div class="card-body gap-3 p-7">
+            <span class="feature-icon w-12 h-12 rounded-xl bg-accent/10 text-accent flex items-center justify-center"><i data-lucide="puzzle" class="w-6"></i></span>
+            <h3 class="card-title text-lg" data-i18n="featExtTitle">扩展生态</h3>
+            <p class="text-sm opacity-60 leading-relaxed" data-i18n="featExtDesc">安装、启用和管理扩展，把常用工具整合进你的个人空间。</p>
           </div>
-          <h3 data-i18n="features.cloud">扩展支持</h3>
-          <p data-i18n="features.cloudDesc">支持安装、启用和管理扩展。</p>
         </div>
-        <div class="feature-card">
-          <div class="feature-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
-            </svg>
+        <div class="feature-card card bg-base-100 border border-base-300 rounded-2xl transition-all duration-300" data-reveal data-anim="animate__fadeInUp">
+          <div class="card-body gap-3 p-7">
+            <span class="feature-icon w-12 h-12 rounded-xl bg-warning/10 text-warning flex items-center justify-center"><i data-lucide="shield" class="w-6"></i></span>
+            <h3 class="card-title text-lg" data-i18n="featLockTitle">密码锁屏</h3>
+            <p class="text-sm opacity-60 leading-relaxed" data-i18n="featLockDesc">离开即锁，密码与系统凭证管理，防止他人在你不在时查看空间。</p>
           </div>
-          <h3 data-i18n="features.speed">安全保护</h3>
-          <p data-i18n="features.speedDesc">密码锁屏与托盘隐藏，帮助你保护隐私空间。</p>
+        </div>
+        <div class="feature-card card bg-base-100 border border-base-300 rounded-2xl transition-all duration-300" data-reveal data-anim="animate__fadeInUp" style="animation-delay:.05s">
+          <div class="card-body gap-3 p-7">
+            <span class="feature-icon w-12 h-12 rounded-xl bg-info/10 text-info flex items-center justify-center"><i data-lucide="cloud" class="w-6"></i></span>
+            <h3 class="card-title text-lg" data-i18n="featCloudTitle">云空间同步</h3>
+            <p class="text-sm opacity-60 leading-relaxed" data-i18n="featCloudDesc">接入坚果云、Nextcloud 等 WebDAV，多设备间保持一致的加密副本。</p>
+          </div>
+        </div>
+        <div class="feature-card card bg-base-100 border border-base-300 rounded-2xl transition-all duration-300" data-reveal data-anim="animate__fadeInUp" style="animation-delay:.1s">
+          <div class="card-body gap-3 p-7">
+            <span class="feature-icon w-12 h-12 rounded-xl bg-success/10 text-success flex items-center justify-center"><i data-lucide="minimize-2" class="w-6"></i></span>
+            <h3 class="card-title text-lg" data-i18n="featTrayTitle">托盘隐藏</h3>
+            <p class="text-sm opacity-60 leading-relaxed" data-i18n="featTrayDesc">一键隐藏到系统托盘，快速切换，隐私不被旁人打扰。</p>
+          </div>
         </div>
       </div>
     </section>
 
-    <section id="about" class="about">
-      <h2 data-i18n="about.title">关于 MyZone</h2>
-      <p data-i18n="about.content">桌面个人隐私空间，支持加密文件与内置浏览器。</p>
+    <!-- ===== 三步开启 ===== -->
+    <section id="how" class="py-24 px-6 bg-base-200 scroll-mt-20">
+      <div class="max-w-5xl mx-auto">
+        <div class="text-center max-w-2xl mx-auto mb-16" data-reveal data-anim="animate__fadeInUp">
+          <h2 class="text-4xl md:text-5xl font-bold tracking-tight mb-4" data-i18n="stepsTitle">三步开启你的空间</h2>
+          <p class="text-base-content/60 text-lg" data-i18n="stepsSub">下载安装、创建账户、开始加密存储与浏览。</p>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="card bg-base-100 border border-base-300 rounded-2xl p-8 text-center" data-reveal data-anim="animate__fadeInUp">
+            <div class="mx-auto w-16 h-16 rounded-full bg-primary/10 text-primary flex items-center justify-center mb-5">
+              <i data-lucide="download" class="w-7"></i>
+            </div>
+            <span class="badge badge-primary badge-outline mb-3">01</span>
+            <h3 class="card-title justify-center text-lg mb-2" data-i18n="step1Title">下载并安装</h3>
+            <p class="text-sm opacity-60 leading-relaxed" data-i18n="step1Desc">支持 Windows，安装即用，无需复杂配置。</p>
+          </div>
+          <div class="card bg-base-100 border border-base-300 rounded-2xl p-8 text-center" data-reveal data-anim="animate__fadeInUp" style="animation-delay:.05s">
+            <div class="mx-auto w-16 h-16 rounded-full bg-secondary/10 text-secondary flex items-center justify-center mb-5">
+              <i data-lucide="key-round" class="w-7"></i>
+            </div>
+            <span class="badge badge-secondary badge-outline mb-3">02</span>
+            <h3 class="card-title justify-center text-lg mb-2" data-i18n="step2Title">创建你的空间</h3>
+            <p class="text-sm opacity-60 leading-relaxed" data-i18n="step2Desc">选择一个密码即可初始化本地加密存储和内置浏览器。</p>
+          </div>
+          <div class="card bg-base-100 border border-base-300 rounded-2xl p-8 text-center" data-reveal data-anim="animate__fadeInUp" style="animation-delay:.1s">
+            <div class="mx-auto w-16 h-16 rounded-full bg-success/10 text-success flex items-center justify-center mb-5">
+              <i data-lucide="sparkles" class="w-7"></i>
+            </div>
+            <span class="badge badge-success badge-outline mb-3">03</span>
+            <h3 class="card-title justify-center text-lg mb-2" data-i18n="step3Title">开始使用</h3>
+            <p class="text-sm opacity-60 leading-relaxed" data-i18n="step3Desc">加密文件、隐私浏览、安装扩展——随时随地在你的空间里工作。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 安全亮点 ===== -->
+    <section id="security" class="py-24 px-6 max-w-6xl mx-auto scroll-mt-20">
+      <div class="grid lg:grid-cols-2 gap-14 items-center">
+        <div data-reveal data-anim="animate__fadeInLeft">
+          <span class="badge badge-primary badge-outline mb-5"><i data-lucide="lock" class="w-3.5"></i>Privacy</span>
+          <h2 class="text-4xl md:text-5xl font-bold tracking-tight mb-5" data-i18n="securityTitle">你的数据,在你掌握</h2>
+          <p class="text-base-content/60 text-lg mb-8" data-i18n="securitySub">从云端到设备,每一环节都以你的隐私为先。</p>
+          <button id="secLoginBtn" class="btn btn-primary btn-lg px-8" data-i18n="ctaBtn">立即开始</button>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          <div class="card bg-base-100 border border-base-300 rounded-2xl p-6" data-reveal data-anim="animate__fadeInRight">
+            <span class="w-11 h-11 rounded-xl bg-success/10 text-success flex items-center justify-center mb-4"><i data-lucide="lock" class="w-5"></i></span>
+            <h3 class="font-semibold mb-1" data-i18n="securityPoint1Title">端到端加密</h3>
+            <p class="text-sm opacity-60" data-i18n="securityPoint1Desc">内容在写入前即加密,云端仅存储密文。</p>
+          </div>
+          <div class="card bg-base-100 border border-base-300 rounded-2xl p-6" data-reveal data-anim="animate__fadeInRight" style="animation-delay:.05s">
+            <span class="w-11 h-11 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-4"><i data-lucide="key-round" class="w-5"></i></span>
+            <h3 class="font-semibold mb-1" data-i18n="securityPoint2Title">本地密钥</h3>
+            <p class="text-sm opacity-60" data-i18n="securityPoint2Desc">解密密钥只存在于你的设备,绝不上传。</p>
+          </div>
+          <div class="card bg-base-100 border border-base-300 rounded-2xl p-6" data-reveal data-anim="animate__fadeInRight" style="animation-delay:.1s">
+            <span class="w-11 h-11 rounded-xl bg-info/10 text-info flex items-center justify-center mb-4"><i data-lucide="globe" class="w-5"></i></span>
+            <h3 class="font-semibold mb-1" data-i18n="securityPoint3Title">无痕浏览</h3>
+            <p class="text-sm opacity-60" data-i18n="securityPoint3Desc">浏览数据默认不落盘,退出即清理。</p>
+          </div>
+          <div class="card bg-base-100 border border-base-300 rounded-2xl p-6" data-reveal data-anim="animate__fadeInRight" style="animation-delay:.15s">
+            <span class="w-11 h-11 rounded-xl bg-warning/10 text-warning flex items-center justify-center mb-4"><i data-lucide="shield" class="w-5"></i></span>
+            <h3 class="font-semibold mb-1" data-i18n="securityPoint4Title">随时锁定</h3>
+            <p class="text-sm opacity-60" data-i18n="securityPoint4Desc">密码锁屏 + 托盘隐藏,离开即背隐私保护。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== CTA ===== -->
+    <section class="px-6 pb-24">
+      <div class="max-w-5xl mx-auto bg-gradient-to-br from-primary to-secondary text-primary-content rounded-3xl px-8 py-16 text-center relative overflow-hidden">
+        <div class="absolute inset-0 opacity-10 dot-grid"></div>
+        <div class="relative" data-reveal data-anim="animate__zoomIn">
+          <h2 class="text-3xl md:text-5xl font-bold tracking-tight mb-4" data-i18n="ctaTitle">准备好把数据放进你的空间了吗?</h2>
+          <p class="text-primary-content/80 text-lg mx-auto max-w-xl mb-9" data-i18n="ctaSub">免费开始,下载即用。你的隐私空间,现在就能拥有。</p>
+          <button id="ctaLoginBtn" class="btn btn-primary btn-lg px-10 shadow-xl border border-white/10" data-i18n="ctaBtn">立即开始</button>
+        </div>
+      </div>
     </section>
   </main>
 
-  <footer class="footer">
-    <p data-i18n="footer.copyright">&copy; 2026 MyZone. All rights reserved.</p>
-  </footer>
+  <!-- ===== 页脚（共享，由 js/site-chrome.js 注入） ===== -->
+  <div id="site-footer"></div>
 
-  <div id="loginModal" class="modal hidden">
+  <!-- ===== 登录弹窗（保留 auth.js 所需 .active/.hidden） ===== -->
+  <div id="loginModal" class="modal-hidden">
     <div id="loginBackdrop" class="modal-backdrop"></div>
-    <div class="modal-content">
-      <button id="closeModal" class="close-btn">&times;</button>
-      <h2 id="modalTitle" data-i18n="auth.login">登录</h2>
-      <div class="modal-tabs">
-        <button id="tabLogin" class="tab active" data-i18n="auth.login">登录</button>
-        <button id="tabSignup" class="tab" data-i18n="auth.signup">注册</button>
+    <div class="card w-full max-w-md bg-base-100 shadow-2xl relative mt-10">
+      <div class="card-body">
+        <button id="closeModal" class="close-btn">&times;</button>
+        <h2 id="modalTitle" class="card-title text-2xl mb-2" data-i18n="auth.login">登录</h2>
+        <div id="modalTabs" class="modal-tabs flex gap-6 border-b border-base-300 mb-4">
+          <button id="tabLogin" class="tab tab-lg active pb-2" data-i18n="auth.login">登录</button>
+          <button id="tabSignup" class="tab tab-lg pb-2" data-i18n="auth.signup">注册</button>
+        </div>
+        <form id="authForm">
+          <div class="form-group mb-3 hidden" id="usernameGroup">
+            <label data-i18n="auth.username">用户名</label>
+            <input type="text" id="authUsername" name="username" placeholder="请输入用户名" data-i18n-placeholder="auth.placeholder.username">
+          </div>
+          <div class="form-group mb-3">
+            <label data-i18n="auth.email">邮箱</label>
+            <input type="email" id="authEmail" name="email" placeholder="请输入邮箱" data-i18n-placeholder="auth.placeholder.email" required>
+          </div>
+          <div class="form-group mb-3">
+            <label data-i18n="auth.password">密码</label>
+            <input type="password" id="authPassword" name="password" placeholder="请输入密码" data-i18n-placeholder="auth.placeholder.password" required>
+          </div>
+          <div class="form-group mb-3 hidden" id="confirmPasswordGroup">
+            <label data-i18n="auth.confirmPassword">确认密码</label>
+            <input type="password" id="authConfirmPassword" name="confirmPassword" placeholder="请再次输入密码" data-i18n-placeholder="auth.placeholder.confirmPassword">
+          </div>
+          <div id="authError" class="error-message hidden"></div>
+          <button type="submit" id="authSubmit" class="btn btn-primary w-full mt-4" data-i18n="auth.login">登录</button>
+        </form>
       </div>
-      <form id="authForm">
-        <div class="form-group" id="usernameGroup">
-          <label data-i18n="auth.username">用户名</label>
-          <input type="text" id="authUsername" name="username" data-i18n-placeholder="auth.placeholder.username" placeholder="请输入用户名">
-        </div>
-        <div class="form-group">
-          <label data-i18n="auth.email">邮箱</label>
-          <input type="email" id="authEmail" name="email" data-i18n-placeholder="auth.placeholder.email" placeholder="请输入邮箱" required>
-        </div>
-        <div class="form-group">
-          <label data-i18n="auth.password">密码</label>
-          <input type="password" id="authPassword" name="password" data-i18n-placeholder="auth.placeholder.password" placeholder="请输入密码" required>
-        </div>
-        <div class="form-group" id="confirmPasswordGroup">
-          <label data-i18n="auth.confirmPassword">确认密码</label>
-          <input type="password" id="authConfirmPassword" name="confirmPassword" data-i18n-placeholder="auth.placeholder.confirmPassword" placeholder="请再次输入密码">
-        </div>
-        <div id="authError" class="error-message hidden"></div>
-        <button type="submit" id="authSubmit" class="btn btn-primary" data-i18n="auth.login">登录</button>
-      </form>
     </div>
   </div>
 
+  <script src="https://unpkg.com/lucide@latest"></script>
   <script src="js/lib/supabase.min.js"></script>
   <script src="js/supabase-client.js"></script>
   <script src="js/i18n.js"></script>
-  <script src="js/auth.js"></script>
-
   <script>
+    // 首页导航链接（共享头部据此渲染）
+    window.siteNav = [
+      { href: '#features', label: '功能', i18n: 'nav.features', active: false },
+      { href: '#security', label: '关于', i18n: 'nav.about', active: false },
+      { href: 'download.html', label: '下载', i18n: 'nav.download', active: false },
+      { href: 'sponsor.html', label: '赞助', i18n: 'nav.sponsor', active: false }
+    ];
+  </script>
+  <script src="js/site-chrome.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    // 初始化 i18n 与图标
     document.addEventListener('DOMContentLoaded', () => {
-      const heroLoginBtn = document.getElementById('heroLoginBtn');
-      if (heroLoginBtn) {
-        heroLoginBtn.addEventListener('click', async () => {
-          if (window.appSupabase && window.appSupabase.ensureInitialized) {
-            const initialized = await appSupabase.ensureInitialized();
-            if (initialized) {
-              try {
-                const { data, error } = await appSupabase.client.auth.getSession();
-                if (!error && data?.session?.user) {
-                  window.location.href = 'dashboard.html';
-                  return;
-                }
-              } catch (err) {
-                console.error('Session check failed:', err);
-              }
-            }
-          }
-
-          const loginModal = document.getElementById('loginModal');
-          if (loginModal) {
-            loginModal.classList.remove('hidden');
-            loginModal.classList.add('active');
-          }
-          const tabLogin = document.getElementById('tabLogin');
-          if (tabLogin) tabLogin.classList.add('active');
-          const tabSignup = document.getElementById('tabSignup');
-          if (tabSignup) tabSignup.classList.remove('active');
-          const modalTitle = document.getElementById('modalTitle');
-          if (modalTitle && window.i18n) modalTitle.textContent = i18n.t('auth.login');
-          const authSubmit = document.getElementById('authSubmit');
-          if (authSubmit && window.i18n) authSubmit.textContent = i18n.t('auth.login');
-          const confirmPasswordGroup = document.getElementById('confirmPasswordGroup');
-          if (confirmPasswordGroup) confirmPasswordGroup.classList.add('hidden');
-          const usernameGroup = document.getElementById('usernameGroup');
-          if (usernameGroup) usernameGroup.classList.add('hidden');
-        });
+      if (window.i18n) i18n.init();
+      if (window.lucide) lucide.createIcons();
+    });
+  </script>
+  <script>
+    // ===== 滚动进场动画（尊重减少动效偏好） =====
+    document.addEventListener('DOMContentLoaded', () => {
+      const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const els = document.querySelectorAll('[data-reveal]');
+      if (reduce) {
+        els.forEach(el => el.style.opacity = '1');
+        return;
       }
+      const io = new IntersectionObserver((entries) => {
+        entries.forEach(e => {
+          if (e.isIntersecting) {
+            const anim = e.target.getAttribute('data-anim') || 'animate__fadeInUp';
+            e.target.classList.add('animate__animated', anim);
+            e.target.style.opacity = '1';
+            io.unobserve(e.target);
+          }
+        });
+      }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+      els.forEach(el => io.observe(el));
+    });
+  </script>
+  <script>
+    // ===== 各 CTA 按钮：直接跳转到下载页面 =====
+    document.addEventListener('DOMContentLoaded', () => {
+      ['heroLoginBtn', 'secLoginBtn', 'ctaLoginBtn'].forEach(id => {
+        const btn = document.getElementById(id);
+        if (!btn) return;
+        btn.addEventListener('click', () => {
+          window.location.href = 'download.html';
+        });
+      });
     });
   </script>
 </body>

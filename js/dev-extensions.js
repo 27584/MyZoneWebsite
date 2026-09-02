@@ -34,28 +34,24 @@ function showLoading(container) {
   container.innerHTML = `
     <div class="empty-state">
       <div class="empty-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path class="animate-spin" d="M21 12a9 9 0 1 1-6.219-8.56"></path>
-        </svg>
+        <i data-lucide="loader-2" class="animate-spin"></i>
       </div>
       <p>${i18n.t('common.loading')}</p>
     </div>
   `;
+  if (window.lucide) lucide.createIcons();
 }
 
 function showErrorState(container, message) {
   container.innerHTML = `
     <div class="empty-state">
       <div class="empty-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="10"></circle>
-          <line x1="15" y1="9" x2="9" y2="15"></line>
-          <line x1="9" y1="9" x2="15" y2="15"></line>
-        </svg>
+        <i data-lucide="x-circle"></i>
       </div>
       <p>${escapeHtml(message)}</p>
     </div>
   `;
+  if (window.lucide) lucide.createIcons();
 }
 
 async function getCurrentUser() {
@@ -712,16 +708,12 @@ async function loadExtensions() {
       extensionsListEl.innerHTML = `
         <div class="empty-state">
           <div class="empty-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M20 7h-9"></path>
-              <path d="M14 17H5"></path>
-              <circle cx="17" cy="17" r="3"></circle>
-              <circle cx="7" cy="7" r="3"></circle>
-            </svg>
+            <i data-lucide="sliders"></i>
           </div>
           <p>${i18n.t('dev.devNoExtensions') || '您还没有扩展'}</p>
         </div>
       `;
+      if (window.lucide) lucide.createIcons();
       return;
     }
 

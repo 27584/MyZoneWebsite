@@ -311,8 +311,8 @@ function initElements() {
 
   langSelect = document.getElementById('langSelect');
   themeToggle = document.getElementById('themeToggle');
-  themeIconSun = document.getElementById('themeIconSun');
-  themeIconMoon = document.getElementById('themeIconMoon');
+  themeIconSun = document.querySelector('.theme-icon-sun');
+  themeIconMoon = document.querySelector('.theme-icon-moon');
 }
 
 function initEventListeners() {

@@ -4,163 +4,180 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title data-i18n="sponsor.pageTitle">MyZone - 赞助</title>
-  <link rel="stylesheet" href="style.css">
+  <!-- 与首页一致的 UI 依赖：Tailwind + DaisyUI + Animate.css -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          borderRadius: { xl2: '2rem' },
+          keyframes: {
+            float: { '0%,100%': { transform: 'translateY(0)' }, '50%': { transform: 'translateY(-10px)' } }
+          },
+          animation: { float: 'float 6s ease-in-out infinite' }
+        }
+      }
+    };
+  </script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daisyui@4.12.24/dist/full.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+  <link rel="stylesheet" href="css/site-chrome.css">
+  <style>
+    /* ===== 与首页一致：auth.js 交互 + 页面自用最小样式 ===== */
+    .hidden { display: none !important; }
+
+    #userBtn { position: relative; }
+
+    #loginModal { display: none; position: fixed; inset: 0; z-index: 2000; align-items: flex-start; justify-content: center; padding: 48px 16px 16px; }
+    #loginModal.active { display: flex; }
+    #loginBackdrop { position: absolute; inset: 0; background: rgba(0,0,0,.5); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+    .close-btn { position: absolute; top: 12px; right: 16px; background: none; border: none; font-size: 24px; line-height: 1; cursor: pointer; color: var(--bc, #000); }
+    .error-message { color: var(--er, #dc2626); font-size: 13px; margin-top: 8px; }
+    .form-group label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 6px; }
+    .form-group input { width: 100%; padding: 10px 12px; border: 1px solid var(--bc, #d1d5db); border-radius: 8px; font-size: 14px; background: var(--b2, #fff); color: var(--bc, #111); }
+    .form-group input:focus { outline: 2px solid var(--p, #4f46e5); outline-offset: -1px; }
+
+    html { scroll-behavior: smooth; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif; }
+
+    /* 淡淡的网点背景 */
+    .dot-grid {
+      background-image: radial-gradient(circle at 1px 1px, var(--bc, #d1d5db) 1px, transparent 0);
+      background-size: 28px 28px;
+      opacity: .22;
+    }
+
+    .feature-card { position: relative; overflow: hidden; }
+    .feature-card:hover { transform: translateY(-6px); box-shadow: 0 24px 48px -16px rgba(0,0,0,.18); }
+
+    [data-reveal] { opacity: 0; }
+  </style>
 </head>
-<body>
-  <nav class="navbar">
-    <div class="nav-container">
-      <div class="nav-logo">
-        <a href="index.html"><h1>MyZone</h1></a>
-      </div>
-      <div class="nav-links">
-        <a href="index.html#features" data-i18n="nav.features">功能</a>
-        <a href="index.html#about" data-i18n="nav.about">关于</a>
-        <a href="sponsor.html" data-i18n="nav.sponsor">赞助</a>
-      </div>
-      <div class="nav-settings">
-        <select id="langSelect" class="lang-select">
-          <option value="zh" data-i18n="lang.zh">中文</option>
-          <option value="en" data-i18n="lang.en">English</option>
-        </select>
-        <button id="themeToggle" class="theme-toggle" data-i18n-title="common.toggleTheme">
-          <svg id="themeIconSun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="5"></circle>
-            <line x1="12" y1="1" x2="12" y2="3"></line>
-            <line x1="12" y1="21" x2="12" y2="23"></line>
-            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-            <line x1="1" y1="12" x2="3" y2="12"></line>
-            <line x1="21" y1="12" x2="23" y2="12"></line>
-            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-          </svg>
-          <svg id="themeIconMoon" class="hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-          </svg>
-        </button>
-      </div>
-      <div class="nav-auth">
-        <button id="loginBtn" class="btn btn-secondary" data-i18n="nav.login">登录</button>
-        <button id="signupBtn" class="btn btn-primary" data-i18n="nav.signup">注册</button>
-        <div id="userBtn" class="user-btn hidden">
-          <span id="userBtnAvatar">U</span>
-          <div id="userMenu" class="user-menu hidden">
-            <div class="user-info">
-              <div class="user-info-avatar" id="userAvatar">U</div>
-              <div class="user-info-text">
-                <h4 id="userName">用户</h4>
-                <p id="userEmail">user@example.com</p>
-              </div>
-            </div>
-            <div class="user-menu-divider"></div>
-            <a href="dashboard.html" class="user-menu-item" data-i18n="nav.dashboard">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2 2z"></path>
-                <polyline points="9 22 9 12 15 12 15 22"></polyline>
-              </svg>
-              <span>个人中心</span>
-            </a>
-            <a href="admin.html" id="adminLink" class="user-menu-item hidden" data-i18n="nav.admin">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-                <circle cx="12" cy="8" r="3"></circle>
-              </svg>
-              <span>管理后台</span>
-            </a>
-            <div class="user-menu-divider"></div>
-            <button id="logoutBtn" class="user-menu-item danger" data-i18n="nav.logout">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                <polyline points="16 17 21 12 16 7"></polyline>
-                <line x1="21" y1="12" x2="9" y2="12"></line>
-              </svg>
-              <span>退出登录</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </nav>
+<body class="min-h-screen bg-base-100 text-base-content antialiased" data-page="sponsor">
+  <!-- 共享头部（由 js/site-chrome.js 注入） -->
+  <div id="site-header"></div>
 
   <main>
-    <section class="hero sponsor-hero">
-      <div class="hero-content">
-        <h2 data-i18n="sponsor.title">支持 MyZone 发展</h2>
-        <p data-i18n="sponsor.subtitle">赞助即表示您对项目的支持，感谢您的慷慨。</p>
-        <div class="hero-actions">
-          <a href="https://www.ifdian.net/a/Chaohuan" class="btn btn-primary" target="_blank" rel="noopener noreferrer" data-i18n="sponsor.supportBtn">前往赞助</a>
-          <a href="index.html" class="btn btn-secondary" data-i18n="nav.about">返回首页</a>
+    <!-- ===== Hero ===== -->
+    <section class="relative overflow-hidden">
+      <div class="absolute inset-0 dot-grid pointer-events-none"></div>
+      <div class="relative max-w-7xl mx-auto px-6 py-20 lg:py-28 text-center">
+        <span class="inline-flex items-center gap-2 badge badge-primary badge-outline badge-lg pl-3 pr-4 py-2 mb-6" data-reveal data-anim="animate__fadeInDown">
+          <i data-lucide="heart" class="w-3.5"></i>
+          <span data-i18n="sponsor.title">支持 MyZone 发展</span>
+        </span>
+        <h1 class="text-4xl md:text-5xl xl:text-6xl font-extrabold tracking-tight mb-6 max-w-3xl mx-auto" data-reveal data-anim="animate__fadeInUp" data-i18n="sponsor.subtitle">赞助即表示您对项目的支持，感谢您的慷慨。</h1>
+        <div class="flex flex-wrap gap-3 justify-center" data-reveal data-anim="animate__fadeInUp">
+          <a href="https://www.ifdian.net/a/Chaohuan" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-lg px-8 shadow-lg shadow-primary/25">
+            <span data-i18n="sponsor.supportBtn">前往赞助</span>
+            <i data-lucide="arrow-right" class="w-5"></i>
+          </a>
+          <a href="index.html" class="btn btn-ghost btn-lg btn-outline px-8" data-i18n="nav.about">返回首页</a>
         </div>
       </div>
     </section>
 
-    <section id="pro-plan" class="sponsor-plan">
-      <div class="sponsor-card pro-card">
-        <span class="pro-tag" data-i18n="sponsor.proTag">PRO</span>
-        <div class="sponsor-card-header">
-          <h3 data-i18n="sponsor.proPlan">PRO 版</h3>
-          <p class="sponsor-price">
-            <span class="pro-price-amount">¥5</span>
-            <span data-i18n="sponsor.priceMonthly">/月</span>
-          </p>
-          <p class="sponsor-yearly" data-i18n="sponsor.priceYearly">¥54/年（省10%）</p>
-        </div>
-        <ul class="sponsor-features">
-          <li>
-            <svg class="sponsor-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            <span data-i18n="sponsor.featureExtAll">订阅所有PRO扩展</span>
-          </li>
-          <li>
-            <svg class="sponsor-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            <span data-i18n="sponsor.feature">云空间创建数量不受限</span>
-          </li>
-        </ul>
-        <div class="sponsor-actions">
-          <a class="btn btn-primary pro-sponsor-btn" href="https://www.ifdian.net/a/Chaohuan" target="_blank" rel="noopener noreferrer" data-i18n="sponsor.supportBtn">前往赞助</a>
+    <!-- ===== PRO 计划 ===== -->
+    <section id="pro-plan" class="py-16 lg:py-24 px-6 max-w-6xl mx-auto scroll-mt-20">
+      <div class="max-w-md mx-auto">
+        <div class="card bg-base-100 border-2 border-primary rounded-2xl p-8 text-center shadow-2xl shadow-primary/10 relative overflow-hidden" data-reveal data-anim="animate__zoomIn">
+          <div class="absolute inset-0 opacity-10 dot-grid pointer-events-none"></div>
+          <div class="relative">
+            <span class="badge badge-primary badge-outline badge-lg mb-5"><i data-lucide="crown" class="w-3.5"></i><span data-i18n="sponsor.proTag">PRO</span></span>
+            <p class="text-5xl font-extrabold tracking-tight mb-1">
+              <span class="text-primary">¥5</span>
+              <span class="text-lg font-medium text-base-content/60" data-i18n="sponsor.priceMonthly">/月</span>
+            </p>
+            <p class="text-sm text-base-content/50 mt-2 mb-8" data-i18n="sponsor.priceYearly">¥54/年（省10%）</p>
+            <ul class="flex flex-col gap-3.5 text-left mb-9">
+              <li class="flex items-center gap-3">
+                <span class="w-6 h-6 rounded-full bg-success/10 text-success flex items-center justify-center flex-shrink-0"><i data-lucide="check" class="w-4"></i></span>
+                <span class="text-sm" data-i18n="sponsor.featureExtAll">订阅所有PRO扩展</span>
+              </li>
+              <li class="flex items-center gap-3">
+                <span class="w-6 h-6 rounded-full bg-success/10 text-success flex items-center justify-center flex-shrink-0"><i data-lucide="check" class="w-4"></i></span>
+                <span class="text-sm" data-i18n="sponsor.feature">云空间创建数量不受限</span>
+              </li>
+            </ul>
+            <a href="https://www.ifdian.net/a/Chaohuan" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-lg w-full shadow-lg shadow-primary/25" data-i18n="sponsor.supportBtn">前往赞助</a>
+          </div>
         </div>
       </div>
     </section>
   </main>
 
-  <footer class="footer">
-    <p data-i18n="footer.copyright">© 2026 MyZone. All rights reserved.</p>
-  </footer>
+  <!-- ===== 页脚（共享，由 js/site-chrome.js 注入） ===== -->
+  <div id="site-footer"></div>
 
-  <div id="loginModal" class="modal hidden">
+  <!-- ===== 登录弹窗（保留 auth.js 所需 .active/.hidden） ===== -->
+  <div id="loginModal" class="modal-hidden">
     <div id="loginBackdrop" class="modal-backdrop"></div>
-    <div class="modal-content">
-      <button id="closeModal" class="close-btn">&times;</button>
-      <h2 id="modalTitle" data-i18n="auth.login">登录</h2>
-      <div class="modal-tabs">
-        <button id="tabLogin" class="tab active" data-i18n="auth.login">登录</button>
-        <button id="tabSignup" class="tab" data-i18n="auth.signup">注册</button>
+    <div class="card w-full max-w-md bg-base-100 shadow-2xl relative mt-10">
+      <div class="card-body">
+        <button id="closeModal" class="close-btn">&times;</button>
+        <h2 id="modalTitle" class="card-title text-2xl mb-2" data-i18n="auth.login">登录</h2>
+        <div id="modalTabs" class="modal-tabs flex gap-6 border-b border-base-300 mb-4">
+          <button id="tabLogin" class="tab tab-lg active pb-2" data-i18n="auth.login">登录</button>
+          <button id="tabSignup" class="tab tab-lg pb-2" data-i18n="auth.signup">注册</button>
+        </div>
+        <form id="authForm">
+          <div class="form-group mb-3 hidden" id="usernameGroup">
+            <label data-i18n="auth.username">用户名</label>
+            <input type="text" id="authUsername" name="username" placeholder="请输入用户名" data-i18n-placeholder="auth.placeholder.username">
+          </div>
+          <div class="form-group mb-3">
+            <label data-i18n="auth.email">邮箱</label>
+            <input type="email" id="authEmail" name="email" placeholder="请输入邮箱" data-i18n-placeholder="auth.placeholder.email" required>
+          </div>
+          <div class="form-group mb-3">
+            <label data-i18n="auth.password">密码</label>
+            <input type="password" id="authPassword" name="password" placeholder="请输入密码" data-i18n-placeholder="auth.placeholder.password" required>
+          </div>
+          <div class="form-group mb-3 hidden" id="confirmPasswordGroup">
+            <label data-i18n="auth.confirmPassword">确认密码</label>
+            <input type="password" id="authConfirmPassword" name="confirmPassword" placeholder="请再次输入密码" data-i18n-placeholder="auth.placeholder.confirmPassword">
+          </div>
+          <div id="authError" class="error-message hidden"></div>
+          <button type="submit" id="authSubmit" class="btn btn-primary w-full mt-4" data-i18n="auth.login">登录</button>
+        </form>
       </div>
-      <form id="authForm">
-        <div class="form-group" id="usernameGroup">
-          <label data-i18n="auth.username">用户名</label>
-          <input type="text" id="authUsername" name="username" data-i18n-placeholder="auth.placeholder.username" placeholder="请输入用户名">
-        </div>
-        <div class="form-group">
-          <label data-i18n="auth.email">邮箱</label>
-          <input type="email" id="authEmail" name="email" data-i18n-placeholder="auth.placeholder.email" placeholder="请输入邮箱" required>
-        </div>
-        <div class="form-group">
-          <label data-i18n="auth.password">密码</label>
-          <input type="password" id="authPassword" name="password" data-i18n-placeholder="auth.placeholder.password" placeholder="请输入密码" required>
-        </div>
-        <div class="form-group" id="confirmPasswordGroup">
-          <label data-i18n="auth.confirmPassword">确认密码</label>
-          <input type="password" id="authConfirmPassword" name="confirmPassword" data-i18n-placeholder="auth.placeholder.confirmPassword" placeholder="请再次输入密码">
-        </div>
-        <div id="authError" class="error-message hidden"></div>
-        <button type="submit" id="authSubmit" class="btn btn-primary" data-i18n="auth.login">登录</button>
-      </form>
     </div>
   </div>
 
+  <script src="https://unpkg.com/lucide@latest"></script>
   <script src="js/lib/supabase.min.js"></script>
   <script src="js/supabase-client.js"></script>
   <script src="js/i18n.js"></script>
+  <script src="js/site-chrome.js"></script>
   <script src="js/auth.js"></script>
+  <script>
+    // 初始化 i18n 与图标
+    document.addEventListener('DOMContentLoaded', () => {
+      if (window.i18n) i18n.init();
+      if (window.lucide) lucide.createIcons();
+    });
+  </script>
+  <script>
+    // ===== 滚动进场动画（尊重减少动效偏好） =====
+    document.addEventListener('DOMContentLoaded', () => {
+      const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const els = document.querySelectorAll('[data-reveal]');
+      if (reduce) {
+        els.forEach(el => el.style.opacity = '1');
+        return;
+      }
+      const io = new IntersectionObserver((entries) => {
+        entries.forEach(e => {
+          if (e.isIntersecting) {
+            const anim = e.target.getAttribute('data-anim') || 'animate__fadeInUp';
+            e.target.classList.add('animate__animated', anim);
+            e.target.style.opacity = '1';
+            io.unobserve(e.target);
+          }
+        });
+      }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+      els.forEach(el => io.observe(el));
+    });
+  </script>
 </body>
 </html>

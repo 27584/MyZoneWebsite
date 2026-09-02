@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n="download.pageTitle">MyZone - 下载</title>
+  <!-- 与首页一致的 UI 依赖：Tailwind + DaisyUI + Animate.css -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          borderRadius: { xl2: '2rem' },
+          keyframes: {
+            float: { '0%,100%': { transform: 'translateY(0)' }, '50%': { transform: 'translateY(-10px)' } }
+          },
+          animation: { float: 'float 6s ease-in-out infinite' }
+        }
+      }
+    };
+  </script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daisyui@4.12.24/dist/full.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+  <link rel="stylesheet" href="css/site-chrome.css">
+  <style>
+    /* ===== 与首页一致：auth.js 交互 + 页面自用最小样式 ===== */
+    .hidden { display: none !important; }
+
+    #userBtn { position: relative; }
+
+    #loginModal { display: none; position: fixed; inset: 0; z-index: 2000; align-items: flex-start; justify-content: center; padding: 48px 16px 16px; }
+    #loginModal.active { display: flex; }
+    #loginBackdrop { position: absolute; inset: 0; background: rgba(0,0,0,.5); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+    .close-btn { position: absolute; top: 12px; right: 16px; background: none; border: none; font-size: 24px; line-height: 1; cursor: pointer; color: var(--bc, #000); }
+    .error-message { color: var(--er, #dc2626); font-size: 13px; margin-top: 8px; }
+    .form-group label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 6px; }
+    .form-group input { width: 100%; padding: 10px 12px; border: 1px solid var(--bc, #d1d5db); border-radius: 8px; font-size: 14px; background: var(--b2, #fff); color: var(--bc, #111); }
+    .form-group input:focus { outline: 2px solid var(--p, #4f46e5); outline-offset: -1px; }
+
+    html { scroll-behavior: smooth; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif; }
+
+    /* 淡淡的网点背景 */
+    .dot-grid {
+      background-image: radial-gradient(circle at 1px 1px, var(--bc, #d1d5db) 1px, transparent 0);
+      background-size: 28px 28px;
+      opacity: .22;
+    }
+
+    [data-reveal] { opacity: 0; }
+
+    /* 发布说明保留换行 */
+    #release-body { white-space: pre-wrap; }
+  </style>
+</head>
+<body class="min-h-screen bg-base-100 text-base-content antialiased" data-page="download">
+  <!-- 共享头部（由 js/site-chrome.js 注入） -->
+  <div id="site-header"></div>
+
+  <main>
+    <!-- ===== Hero ===== -->
+    <section class="relative overflow-hidden">
+      <div class="absolute inset-0 dot-grid pointer-events-none"></div>
+      <div class="relative max-w-7xl mx-auto px-6 py-20 lg:py-28 text-center">
+        <span class="inline-flex items-center gap-2 badge badge-primary badge-outline badge-lg pl-3 pr-4 py-2 mb-6" data-reveal data-anim="animate__fadeInDown">
+          <i data-lucide="download" class="w-3.5"></i>
+          <span data-i18n="download.badge">下载 MyZone</span>
+        </span>
+        <h1 class="text-4xl md:text-5xl xl:text-6xl font-extrabold tracking-tight mb-6 max-w-3xl mx-auto" data-i18n="download.title" data-reveal data-anim="animate__fadeInUp">把你的数据，放回自己的空间。</h1>
+        <p class="text-lg md:text-xl text-base-content/70 max-w-xl mx-auto mb-9" data-i18n="download.subtitle" data-reveal data-anim="animate__fadeInUp">本地加密 · 隐私浏览器 · 扩展生态。支持 Windows，安装即可使用。</p>
+
+        <div class="flex flex-wrap gap-3 justify-center mb-10" data-reveal data-anim="animate__fadeInUp">
+          <button id="downloadBtn" class="btn btn-primary btn-lg px-8 shadow-lg shadow-primary/25" onclick="startDownload()">
+            <span id="downloadBtnText">正在检查最新版本...</span>
+            <i id="downloadBtnIcon" data-lucide="arrow-down" class="w-5"></i>
+          </button>
+        </div>
+
+        <!-- 版本信息 -->
+        <div class="inline-flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-base-content/60" data-reveal data-anim="animate__fadeInUp">
+          <span class="flex items-center gap-1.5"><i data-lucide="tag" class="w-4"></i><span data-i18n="download.currentVersion">当前版本</span> <strong id="verTag" class="text-base-content font-semibold">-</strong></span>
+          <span class="flex items-center gap-1.5"><i data-lucide="calendar" class="w-4"></i><span data-i18n="download.released">发布于</span> <span id="verDate" class="text-base-content font-medium">-</span></span>
+          <span class="flex items-center gap-1.5"><i data-lucide="monitor" class="w-4"></i><span data-i18n="download.platform">Windows · x64</span></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 发布说明 ===== -->
+    <section class="px-6 pb-24 max-w-3xl mx-auto">
+      <div id="releaseCard" class="card bg-base-100 border border-base-300 rounded-2xl hidden" data-reveal data-anim="animate__fadeInUp">
+        <div class="card-body gap-3 p-7">
+          <div class="flex items-center justify-between">
+            <h2 class="card-title text-lg"><i data-lucide="list-tree" class="w-5 text-primary"></i><span data-i18n="download.changelog">更新内容</span></h2>
+            <span id="releaseMeta" class="badge badge-neutral badge-outline text-xs"></span>
+          </div>
+          <div id="release-body" class="text-sm opacity-70 leading-relaxed"></div>
+        </div>
+      </div>
+
+      <div id="noReleaseCard" class="card bg-base-100 border border-base-300 rounded-2xl hidden" data-reveal data-anim="animate__fadeInUp">
+        <div class="card-body gap-3 p-7 text-center">
+          <span class="mx-auto w-14 h-14 rounded-2xl bg-base-200 text-base-content/50 flex items-center justify-center"><i data-lucide="archive" class="w-7"></i></span>
+          <h2 class="card-title justify-center text-lg" data-i18n="download.noReleaseTitle">暂无可下载的版本</h2>
+          <p class="text-sm opacity-60 max-md mx-auto" data-i18n="download.noReleaseDesc">当前还没有发布安装包。可以前往 GitHub Releases 查看或稍后再试。</p>
+          <a href="https://github.com/27584/MyZoneWebsite/releases" target="_blank" rel="noopener noreferrer" class="btn btn-outline btn-primary mx-auto mt-2">
+            <span data-i18n="download.goGithub">前往 GitHub Releases</span><i data-lucide="external-link" class="w-4"></i>
+          </a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ===== 页脚（共享，由 js/site-chrome.js 注入） ===== -->
+  <div id="site-footer"></div>
+
+  <!-- ===== 登录弹窗（保留 auth.js 所需 .active/.hidden） ===== -->
+  <div id="loginModal" class="modal-hidden">
+    <div id="loginBackdrop" class="modal-backdrop"></div>
+    <div class="card w-full max-w-md bg-base-100 shadow-2xl relative mt-10">
+      <div class="card-body">
+        <button id="closeModal" class="close-btn">&times;</button>
+        <h2 id="modalTitle" class="card-title text-2xl mb-2" data-i18n="auth.login">登录</h2>
+        <div id="modalTabs" class="modal-tabs flex gap-6 border-b border-base-300 mb-4">
+          <button id="tabLogin" class="tab tab-lg active pb-2" data-i18n="auth.login">登录</button>
+          <button id="tabSignup" class="tab tab-lg pb-2" data-i18n="auth.signup">注册</button>
+        </div>
+        <form id="authForm">
+          <div class="form-group mb-3 hidden" id="usernameGroup">
+            <label data-i18n="auth.username">用户名</label>
+            <input type="text" id="authUsername" name="username" placeholder="请输入用户名" data-i18n-placeholder="auth.placeholder.username">
+          </div>
+          <div class="form-group mb-3">
+            <label data-i18n="auth.email">邮箱</label>
+            <input type="email" id="authEmail" name="email" placeholder="请输入邮箱" data-i18n-placeholder="auth.placeholder.email" required>
+          </div>
+          <div class="form-group mb-3">
+            <label data-i18n="auth.password">密码</label>
+            <input type="password" id="authPassword" name="password" placeholder="请输入密码" data-i18n-placeholder="auth.placeholder.password" required>
+          </div>
+          <div class="form-group mb-3 hidden" id="confirmPasswordGroup">
+            <label data-i18n="auth.confirmPassword">确认密码</label>
+            <input type="password" id="authConfirmPassword" name="confirmPassword" placeholder="请再次输入密码" data-i18n-placeholder="auth.placeholder.confirmPassword">
+          </div>
+          <div id="authError" class="error-message hidden"></div>
+          <button type="submit" id="authSubmit" class="btn btn-primary w-full mt-4" data-i18n="auth.login">登录</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="js/lib/supabase.min.js"></script>
+  <script src="js/supabase-client.js"></script>
+  <script src="js/i18n.js"></script>
+  <script src="js/site-chrome.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    // 初始化 i18n 与图标
+    document.addEventListener('DOMContentLoaded', () => {
+      if (window.i18n) i18n.init();
+      if (window.lucide) lucide.createIcons();
+    });
+  </script>
+  <script>
+    // ===== 从 GitHub Releases 拉取最新版，点击直接下载 Windows 安装包（不跳转 GitHub） =====
+    const REPO = '27584/MyZoneWebsite';
+    const RELEASES_PAGE = 'https://github.com/' + REPO + '/releases';
+
+    // 安装包可执行/归档扩展名；排除校验和/签名/元数据
+    const ASSET_KIND = [
+      { test: /\.exe$/i, weight: 0 },
+      { test: /\.msi$/i, weight: 1 },
+      { test: /\.7z$/i, weight: 2 },
+      { test: /\.zip$/i, weight: 3 }
+    ];
+    const IGNORE = /\.(yml|yaml|blockmap|sha256|shasum|txt|json|sig|asc)$/i;
+
+    let latestAsset = null;          // 最新版中优先下载的那个资产
+    let allAssets = [];              // 备选资产（供用户挑选）
+
+    function pickAssets(assets) {
+      const candidates = (assets || []).filter(a => a && a.browser_download_url && !IGNORE.test(a.name));
+      candidates.sort((a, b) => {
+        const wa = ASSET_KIND.find(k => k.test.test(a.name));
+        const wb = ASSET_KIND.find(k => k.test.test(b.name));
+        return (wa ? wa.weight : 99) - (wb ? wb.weight : 99);
+      });
+      return candidates;
+    }
+
+    function fmtSize(bytes) {
+      if (!bytes && bytes !== 0) return '';
+      const kb = bytes / 1024;
+      if (kb < 1024) return kb.toFixed(1) + ' KB';
+      const mb = kb / 1024;
+      if (mb < 1024) return mb.toFixed(1) + ' MB';
+      return (mb / 1024).toFixed(2) + ' GB';
+    }
+
+    function triggerDownload(url, filename) {
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename || '';
+      a.rel = 'noopener';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }
+
+    function startDownload() {
+      if (!latestAsset) return;
+      triggerDownload(latestAsset.browser_download_url, latestAsset.name);
+      const text = document.getElementById('downloadBtnText');
+      const btn = document.getElementById('downloadBtn');
+      btn.classList.remove('btn-primary');
+      btn.classList.add('btn-success');
+      text.textContent = (i18n.t ? i18n.t('download.startDownload') : '已开始下载') + ' ' + (latestAsset.name || '');
+    }
+
+    (async function init() {
+      const btnText = document.getElementById('downloadBtnText');
+      const verTag = document.getElementById('verTag');
+      const verDate = document.getElementById('verDate');
+      const t = k => (window.i18n && i18n.t ? i18n.t(k) : k);
+      btnText.textContent = t('download.checking');
+      try {
+        const res = await fetch('https://api.github.com/repos/' + REPO + '/releases/latest', {
+          headers: { 'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' }
+        });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const rel = await res.json();
+        allAssets = pickAssets(rel.assets);
+
+        verTag.textContent = (rel.tag_name || '').replace(/^v/, '') || '-';
+        verDate.textContent = rel.published_at ? new Date(rel.published_at).toLocaleDateString() : '-';
+
+        if (allAssets.length > 0) {
+          latestAsset = allAssets[0];
+          btnText.textContent = t('download.downloadLatest') + ' ' + (rel.tag_name || '') +
+            (latestAsset.name ? ' · ' + latestAsset.name : '') +
+            (fmtSize(latestAsset.size) ? ' · ' + fmtSize(latestAsset.size) : '');
+        } else {
+          btnText.textContent = t('download.noAsset');
+          document.getElementById('downloadBtn').disabled = true;
+          showEmpty();
+        }
+
+        if (rel.body && rel.body.trim()) {
+          document.getElementById('release-body').textContent = rel.body.trim();
+          const cleanTag = String(rel.tag_name || '').replace(/^v/, '');
+          document.getElementById('releaseMeta').textContent = rel.name && rel.name !== cleanTag
+            ? cleanTag + ' · ' + rel.name
+            : cleanTag;
+          document.getElementById('releaseCard').classList.remove('hidden');
+        }
+      } catch (err) {
+        console.error('[Download] Failed to fetch latest release:', err);
+        btnText.textContent = t('download.fetchFailed');
+        verTag.textContent = '-';
+        document.getElementById('downloadBtn').disabled = true;
+        showEmpty();
+      } finally {
+        if (window.lucide) lucide.createIcons();
+      }
+    })();
+
+    function showEmpty() {
+      document.getElementById('noReleaseCard').classList.remove('hidden');
+    }
+  </script>
+  <script>
+    // ===== 滚动进场动画（尊重减少动效偏好） =====
+    document.addEventListener('DOMContentLoaded', () => {
+      const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const els = document.querySelectorAll('[data-reveal]');
+      if (reduce) {
+        els.forEach(el => el.style.opacity = '1');
+        return;
+      }
+      const io = new IntersectionObserver((entries) => {
+        entries.forEach(e => {
+          if (e.isIntersecting) {
+            const anim = e.target.getAttribute('data-anim') || 'animate__fadeInUp';
+            e.target.classList.add('animate__animated', anim);
+            e.target.style.opacity = '1';
+            io.unobserve(e.target);
+          }
+        });
+      }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+      els.forEach(el => io.observe(el));
+    });
+  </script>
+</body>
+</html>

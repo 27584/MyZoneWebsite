@@ -36,6 +36,7 @@ const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_your-key-here';
 ### 3. 站点功能说明
 
 - `index.html`：宣传首页，展示 MyZone 隐私空间与浏览器扩展支持
+- `download.html`：下载页面，从 GitHub Releases 在线拉取最新 Windows 安装包，点击直接下载（不跳转 GitHub）
 - `sponsor.html`：赞助页面，展示 PRO 版和支持项目的入口
 - `dashboard.html`：用户仪表盘页面，用于展示登录后用户状态和功能入口
 - `admin.html`：后台管理页面，用于管理员上传和管理扩展内容
@@ -66,3 +67,20 @@ const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_your-key-here';
 - Supabase Auth (Email/Password)
 - Supabase Database (PostgreSQL)
 - GitHub Pages 部署
+
+## 外部库依赖（CDN）
+
+页面通过 CDN 引入以下库，**不参与主应用构建链**：
+
+1. **Tailwind CSS（Play CDN）**：`https://cdn.tailwindcss.com`
+   - 只做**增补**（间距/布局/工具类），不重写 `style.css` 现有规则
+   - 加载顺序必须保持：Tailwind `<script>` 在 `style.css` 之前，避免 Preflight 覆盖自定义主题色/圆角/按钮样式
+   - 部分页面配置 `tailwind.config` 将 `primary/accent` 色映射到现有 CSS 变量
+2. **lucide 图标库**：`https://unpkg.com/lucide@latest`
+   - 用 `<i data-lucide="图标名"></i>` 替换手写 SVG
+   - 渲染后调用 `lucide.createIcons()`（静态页面在 `</body>` 前调用一次；JS 动态 `innerHTML` 渲染后每次追加调用一次）
+   - 主题切换图标使用类名 `.theme-icon-sun` / `.theme-icon-moon`（注意：lucide 替换后会丢失元素 `id`，不要用 `id` 选择器）
+
+## 注意事项
+
+- 若页面离网运行，上述 CDN 依赖将不可用；本地预览需联网加载。

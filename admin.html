@@ -5,75 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title data-i18n="admin.pageTitle">MyZone - 管理后台</title>
   <link rel="stylesheet" href="style.css?v=2">
+  <link rel="stylesheet" href="css/site-chrome.css">
 </head>
-<body class="dashboard-body">
-  <nav class="navbar">
-    <div class="nav-container">
-      <div class="nav-logo">
-        <a href="index.html"><h1>MyZone</h1></a>
-      </div>
-      <div class="nav-settings">
-        <select id="langSelect" class="lang-select">
-          <option value="zh" data-i18n="lang.zh">中文</option>
-          <option value="en" data-i18n="lang.en">English</option>
-        </select>
-        <button id="themeToggle" class="theme-toggle" data-i18n-title="admin.toggleTheme" title="切换主题">
-          <svg id="themeIconSun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="5"></circle>
-            <line x1="12" y1="1" x2="12" y2="3"></line>
-            <line x1="12" y1="21" x2="12" y2="23"></line>
-            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-            <line x1="1" y1="12" x2="3" y2="12"></line>
-            <line x1="21" y1="12" x2="23" y2="12"></line>
-            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-          </svg>
-          <svg id="themeIconMoon" class="hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-          </svg>
-        </button>
-      </div>
-      <div class="nav-auth">
-        <div id="userBtn" class="user-btn">
-          <span id="userBtnAvatar">U</span>
-          <div id="userMenu" class="user-menu hidden">
-            <div class="user-info">
-              <div class="user-info-avatar" id="userAvatar">U</div>
-              <div class="user-info-text">
-                <h4 id="userName" data-i18n="common.user">用户</h4>
-                <p id="userEmail">user@example.com</p>
-              </div>
-            </div>
-            <div class="user-menu-divider"></div>
-            <a href="dashboard.html" class="user-menu-item" data-i18n="nav.dashboard">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-                <polyline points="9 22 9 12 15 12 15 22"></polyline>
-              </svg>
-              <span data-i18n="nav.dashboard">个人中心</span>
-            </a>
-            <a href="admin.html" class="user-menu-item" data-i18n="nav.admin">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-                <circle cx="12" cy="8" r="3"></circle>
-              </svg>
-              <span data-i18n="nav.admin">管理后台</span>
-            </a>
-            <div class="user-menu-divider"></div>
-            <button id="logoutBtn" class="user-menu-item danger" data-i18n="nav.logout">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                <polyline points="16 17 21 12 16 7"></polyline>
-                <line x1="21" y1="12" x2="9" y2="12"></line>
-              </svg>
-              <span data-i18n="nav.logout">退出登录</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </nav>
+<body class="dashboard-body" data-page="admin">
+  <!-- 共享头部（由 js/site-chrome.js 注入） -->
+  <div id="site-header"></div>
 
   <div class="dashboard-container">
     <aside class="sidebar">
@@ -423,7 +359,11 @@
         <!-- ZIP 文件选择：选中后自动解析 manifest 并填入下方表单 -->
         <div class="form-group">
           <label data-i18n="admin.versionFile">扩展文件（ZIP压缩包）</label>
-          <input type="file" id="versionFile" accept=".zip" required>
+          <div class="file-picker">
+            <label for="versionFile" class="btn btn-secondary file-picker-btn" data-i18n="admin.chooseFile">选择文件</label>
+            <span id="versionFileText" class="file-picker-name" data-i18n="admin.noFileChosen">未选择文件</span>
+            <input type="file" id="versionFile" accept=".zip" class="file-picker-input" required>
+          </div>
           <div id="manifestParseStatus" class="manifest-parse-status hidden"></div>
         </div>
 
@@ -479,7 +419,11 @@
       <form id="quickCreateForm">
         <div class="form-group">
           <label data-i18n="admin.versionFile">扩展文件（ZIP压缩包）</label>
-          <input type="file" id="quickCreateFile" accept=".zip" required>
+          <div class="file-picker">
+            <label for="quickCreateFile" class="btn btn-secondary file-picker-btn" data-i18n="admin.chooseFile">选择文件</label>
+            <span id="quickCreateFileText" class="file-picker-name" data-i18n="admin.noFileChosen">未选择文件</span>
+            <input type="file" id="quickCreateFile" accept=".zip" class="file-picker-input" required>
+          </div>
           <div id="quickCreateParseStatus" class="manifest-parse-status hidden"></div>
         </div>
 
@@ -939,7 +883,23 @@
   <script src="js/lib/supabase.min.js"></script>
   <script src="js/supabase-client.js"></script>
   <script src="js/i18n.js"></script>
+  <script src="js/site-chrome.js"></script>
   <script src="js/auth.js"></script>
   <script src="js/admin.js"></script>
+  <script>
+    // 自定义文件选择：更新文件名显示
+    document.addEventListener('DOMContentLoaded', () => {
+      ['versionFile', 'quickCreateFile'].forEach(id => {
+        const input = document.getElementById(id);
+        const text = document.getElementById(id + 'Text');
+        if (!input || !text) return;
+        input.addEventListener('change', () => {
+          text.textContent = input.files && input.files[0]
+            ? input.files[0].name
+            : (window.i18n && i18n.t ? i18n.t('admin.noFileChosen') : '未选择文件');
+        });
+      });
+    });
+  </script>
 </body>
 </html>

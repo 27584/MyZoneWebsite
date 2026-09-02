@@ -1,0 +1,184 @@
+/* =========================================================
+ * site-chrome.css —— 全站公共头部 / 底部 样式
+ * 头部使用一套自有的主题变量(--chrome-*)，不依赖 DaisyUI(--b1/--bc/--p)
+ * 或 style.css(--background-color/--border-color/--primary-color)，
+ * 确保首页(DaisyUI)与内页(style.css)在任何页面渲染出的头部完全一致。
+ * 明暗主题跟随 <html data-theme="light|dark"> 切换。
+ * ========================================================= */
+
+.hidden { display: none !important; }
+
+/* ---------- 头部/底部自有主题色 ---------- */
+:root {
+  --chrome-bg: #ffffff;        /* 头部底 */
+  --chrome-surface: #f9fafb;   /* 页脚底 */
+  --chrome-border: #e5e7eb;    /* 分隔线 */
+  --chrome-text: #111827;      /* 主文字 */
+  --chrome-muted: #6b7280;     /* 次要文字 */
+  --chrome-hover: #f3f4f6;     /* 悬停底 */
+  --chrome-accent: #4f46e5;    /* 强调/主色 */
+  --chrome-danger: #dc2626;    /* 危险 */
+}
+[data-theme="dark"] {
+  --chrome-bg: #0f172a;
+  --chrome-surface: #1e293b;
+  --chrome-border: #334155;
+  --chrome-text: #f1f5f9;
+  --chrome-muted: #94a3b8;
+  --chrome-hover: #243244;
+  --chrome-accent: #6366f1;
+  --chrome-danger: #f87171;
+}
+
+/* ---------- 底部 ---------- */
+#site-footer { display: block; }
+.app-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--chrome-border);
+  background: var(--chrome-surface);
+  color: var(--chrome-muted);
+  font-size: 13px;
+}
+.app-footer__icon { width: 18px; height: 18px; border-radius: 5px; object-fit: contain; }
+.app-footer__name { font-weight: 700; color: var(--chrome-text); }
+.app-footer__copy { margin: 0; }
+
+/* ---------- 头部 ---------- */
+#site-header { display: block; }
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: color-mix(in srgb, var(--chrome-bg) 85%, transparent);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--chrome-border);
+}
+.app-header__inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 16px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.app-header__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: -0.01em;
+  color: var(--chrome-text);
+  text-decoration: none;
+}
+.app-header__icon { width: 28px; height: 28px; border-radius: 8px; object-fit: contain; }
+
+.app-header__nav { display: flex; align-items: center; gap: 4px; margin-left: 12px; }
+.app-header__link {
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--chrome-muted);
+  text-decoration: none;
+  transition: background .15s ease, color .15s ease;
+}
+.app-header__link:hover { background: var(--chrome-hover); color: var(--chrome-text); }
+.app-header__link--active { color: var(--chrome-accent); font-weight: 600; }
+
+.app-header__tools { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
+.app-lang {
+  height: 34px;
+  padding: 0 8px;
+  border: 1px solid var(--chrome-border);
+  border-radius: 8px;
+  background: var(--chrome-bg);
+  color: var(--chrome-text);
+  font-size: 13px;
+  cursor: pointer;
+}
+.app-theme { width: 34px; height: 34px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: none; border-radius: 8px;
+  background: transparent; color: inherit; cursor: pointer;
+}
+.app-theme:hover { background: var(--chrome-hover); }
+.theme-icon-sun, .theme-icon-moon { display: inline-flex; align-items: center; justify-content: center; }
+.theme-icon-sun svg, .theme-icon-moon svg { width: 18px; height: 18px; }
+
+.app-btn {
+  height: 34px; padding: 0 14px;
+  border-radius: 8px; font-size: 14px; font-weight: 500;
+  cursor: pointer; text-decoration: none;
+  transition: background .15s ease, opacity .15s ease;
+}
+.app-btn--ghost { background: transparent; color: inherit; border: 1px solid transparent; }
+.app-btn--ghost:hover { background: var(--chrome-hover); }
+.app-btn--primary {
+  background: var(--chrome-accent);
+  color: #fff; border: 1px solid transparent;
+}
+.app-btn--primary:hover { opacity: .9; }
+
+/* ---------- 用户菜单 ---------- */
+.app-user { position: relative; }
+.app-user__avatar {
+  width: 34px; height: 34px;
+  border: none; border-radius: 9999px;
+  background: var(--chrome-accent);
+  color: #fff; font-weight: 700; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  overflow: hidden; padding: 0;
+}
+.app-user__avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+.app-user__menu {
+  position: absolute; top: calc(100% + 8px); right: 0; z-index: 1001;
+  min-width: 216px;
+  background: var(--chrome-bg);
+  border: 1px solid var(--chrome-border);
+  border-radius: 12px; padding: 6px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.15);
+  opacity: 0; visibility: hidden; transform: translateY(-8px);
+  transition: opacity .2s ease, transform .2s ease, visibility .2s ease;
+}
+.app-user__menu.open { opacity: 1; visibility: visible; transform: translateY(0); animation: appMenuIn .18s ease; }
+@keyframes appMenuIn {
+  from { opacity: 0; transform: translateY(-8px) scale(.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.app-user__head {
+  padding: 8px 12px 10px;
+  border-bottom: 1px solid var(--chrome-border);
+  display: flex; flex-direction: column;
+}
+.app-user__head #userName { font-weight: 600; font-size: 14px; }
+.app-user__email { font-size: 12px; opacity: .6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.app-user__item {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 9px 12px; margin-top: 2px; box-sizing: border-box;
+  border: none; background: none; border-radius: 8px;
+  font-size: 14px; color: inherit; cursor: pointer; text-align: left; text-decoration: none;
+}
+.app-user__item:hover { background: var(--chrome-hover); }
+.app-user__item--danger { color: var(--chrome-danger); }
+.app-user__icon { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.app-user__icon svg { width: 16px; height: 16px; }
+
+/* 内页原固定导航预留的顶部留白调整（头部改为 sticky 在流内，无需额外留白） */
+
+/* 移动端：导航与语言选择适当压缩 */
+@media (max-width: 480px) {
+  .app-header__nav { display: none; }
+  .app-header__inner { padding: 0 12px; gap: 8px; }
+  .app-header__brand { font-size: 16px; }
+  .app-lang { display: none; }
+  .app-btn { padding: 0 10px; }
+}

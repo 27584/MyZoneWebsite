@@ -33,29 +33,25 @@ function showLoading(container) {
   container.innerHTML = `
     <div class="empty-state">
       <div class="empty-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path class="animate-spin" d="M21 12a9 9 0 1 1-6.219-8.56"></path>
-        </svg>
+        <i data-lucide="loader-2" class="animate-spin"></i>
       </div>
       <p>${i18n.t('common.loading')}</p>
     </div>
   `;
+  if (window.lucide) lucide.createIcons();
 }
 
 function showErrorState(container, message) {
   container.innerHTML = `
     <div class="empty-state">
       <div class="empty-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="10"></circle>
-          <line x1="15" y1="9" x2="9" y2="15"></line>
-          <line x1="9" y1="9" x2="15" y2="15"></line>
-        </svg>
+        <i data-lucide="x-circle"></i>
       </div>
       <p>${message}</p>
       <button class="btn btn-secondary" onclick="loadAdminPage()">${i18n.t('common.error')}</button>
     </div>
   `;
+  if (window.lucide) lucide.createIcons();
 }
 
 async function getCurrentUser() {
@@ -103,16 +99,12 @@ async function loadUsers() {
     usersList.innerHTML = `
       <div class="empty-state">
         <div class="empty-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-            <circle cx="9" cy="7" r="4"></circle>
-            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-          </svg>
+          <i data-lucide="users"></i>
         </div>
         <p>${i18n.t('users.empty')}</p>
       </div>
     `;
+    if (window.lucide) lucide.createIcons();
     return;
   }
 
@@ -293,16 +285,12 @@ async function loadCodes() {
       codesList.innerHTML = `
         <div class="empty-state">
           <div class="empty-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-              <line x1="16" y1="2" x2="16" y2="6"></line>
-              <line x1="8" y1="2" x2="8" y2="6"></line>
-              <line x1="3" y1="10" x2="21" y2="10"></line>
-            </svg>
+            <i data-lucide="ticket"></i>
           </div>
           <p>${i18n.t('codes.empty')}</p>
         </div>
       `;
+      if (window.lucide) lucide.createIcons();
       return;
     }
 
@@ -314,6 +302,7 @@ async function loadCodes() {
       groupsMap.get(key).items.push(code);
     }
     codesList.innerHTML = Array.from(groupsMap.values()).map(renderCodeGroup).join('');
+    if (window.lucide) lucide.createIcons();
     updateBatchDeleteBtn();
   } catch (error) {
     console.error('Load codes error:', error);
@@ -422,9 +411,7 @@ function renderCodeGroup(group) {
     <div class="code-group-card">
       <div class="code-group-header" onclick="toggleCodeGroup(this)">
         <div class="code-group-toggle">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path class="code-group-arrow" d="M9 6l6 6-6 6"></path>
-          </svg>
+          <i data-lucide="chevron-right"></i>
         </div>
         <div class="code-group-main">
           <div class="code-group-title">${codeTypeLabel(meta.code_type)} <span class="code-group-count">× ${items.length}</span></div>
@@ -659,16 +646,12 @@ async function loadPlans() {
       plansList.innerHTML = `
         <div class="empty-state">
           <div class="empty-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="8" cy="8" r="5.4"></circle>
-              <path d="M18.09 10.37A6 6 0 1 1 10.34 18"></path>
-              <path d="M7 6.2h1.2v3.6"></path>
-              <path d="m16.6 14 .8.8-2.9 2.9"></path>
-            </svg>
+            <i data-lucide="hourglass"></i>
           </div>
           <p>${i18n.t('admin.planEmpty')}</p>
         </div>
       `;
+      if (window.lucide) lucide.createIcons();
       return;
     }
 
@@ -1008,14 +991,12 @@ async function loadReviews() {
       list.innerHTML = `
         <div class="empty-state">
           <div class="empty-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M9 11l3 3L22 4"></path>
-              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
-            </svg>
+            <i data-lucide="check-circle"></i>
           </div>
           <p>${i18n.t('admin.noReviews')}</p>
         </div>
       `;
+      if (window.lucide) lucide.createIcons();
       return;
     }
 
@@ -1154,16 +1135,13 @@ async function loadAdminPage() {
     document.querySelector('.dashboard-content').innerHTML = `
       <div class="empty-state">
         <div class="empty-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10"></circle>
-            <line x1="15" y1="9" x2="9" y2="15"></line>
-            <line x1="9" y1="9" x2="15" y2="15"></line>
-          </svg>
+          <i data-lucide="shield-alert"></i>
         </div>
         <p>${i18n.t('admin.noPermission')}</p>
         <a href="dashboard.html" class="btn btn-secondary">${i18n.t('admin.backToDashboard')}</a>
       </div>
     `;
+    if (window.lucide) lucide.createIcons();
     return;
   }
 
@@ -1344,16 +1322,12 @@ async function loadExtensions() {
       extensionsList.innerHTML = `
         <div class="empty-state">
           <div class="empty-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M20 7h-9"></path>
-              <path d="M14 17H5"></path>
-              <circle cx="17" cy="17" r="3"></circle>
-              <circle cx="7" cy="7" r="3"></circle>
-            </svg>
+            <i data-lucide="sliders"></i>
           </div>
           <p>${i18n.t('admin.noExtensions') || '暂无扩展'}</p>
         </div>
       `;
+      if (window.lucide) lucide.createIcons();
       return;
     }
 
@@ -2914,15 +2888,12 @@ async function loadCrashReports() {
       list.innerHTML = `
         <div class="empty-state">
           <div class="empty-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-              <line x1="12" y1="9" x2="12" y2="13"></line>
-              <line x1="12" y1="17" x2="12.01" y2="17"></line>
-            </svg>
+            <i data-lucide="alert-octagon"></i>
           </div>
           <p>${i18n.t('admin.noCrashReports') || '暂无崩溃报告'}</p>
         </div>
       `;
+      if (window.lucide) lucide.createIcons();
       return;
     }
 
@@ -3278,10 +3249,11 @@ async function loadAppVersions() {
       listEl.innerHTML = `
         <div class="empty-state">
           <div class="empty-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+            <i data-lucide="info"></i>
           </div>
           <p>${t('appVersionsEmpty', '暂无已发布版本')}</p>
         </div>`;
+      if (window.lucide) lucide.createIcons();
       return;
     }
 
@@ -3714,21 +3686,12 @@ async function loadAIModels() {
       list.innerHTML = billingCard + `
         <div class="empty-state">
           <div class="empty-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="3"></circle>
-              <path d="M12 3v3"></path>
-              <path d="M12 18v3"></path>
-              <path d="M3 12h3"></path>
-              <path d="M18 12h3"></path>
-              <path d="M5.6 5.6l2.1 2.1"></path>
-              <path d="M16.3 16.3l2.1 2.1"></path>
-              <path d="M5.6 18.4l2.1-2.1"></path>
-              <path d="M16.3 7.7l2.1-2.1"></path>
-            </svg>
+            <i data-lucide="cpu"></i>
           </div>
           <p>${i18n.t('admin.aiNoModels')}</p>
         </div>
       `;
+      if (window.lucide) lucide.createIcons();
       return;
     }
 

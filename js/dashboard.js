@@ -38,13 +38,12 @@ async function loadMessages() {
     messagesList.innerHTML = `
       <div class="empty-state">
         <div class="empty-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-          </svg>
+          <i data-lucide="message-square"></i>
         </div>
         <p>${i18n.t('admin.messagesEmpty') || '暂无系统消息'}</p>
       </div>
     `;
+    if (window.lucide) lucide.createIcons();
     return;
   }
   messagesList.innerHTML = rows.map(m => {
@@ -154,29 +153,25 @@ function showLoading(container) {
   container.innerHTML = `
     <div class="empty-state">
       <div class="empty-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path class="animate-spin" d="M21 12a9 9 0 1 1-6.219-8.56"></path>
-        </svg>
+        <i data-lucide="loader-2" class="animate-spin"></i>
       </div>
       <p>${i18n.t('common.loading')}</p>
     </div>
   `;
+  if (window.lucide) lucide.createIcons();
 }
 
 function showErrorState(container, message) {
   container.innerHTML = `
     <div class="empty-state">
       <div class="empty-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="10"></circle>
-          <line x1="15" y1="9" x2="9" y2="15"></line>
-          <line x1="9" y1="9" x2="15" y2="15"></line>
-        </svg>
+        <i data-lucide="x-circle"></i>
       </div>
       <p>${message}</p>
       <button class="btn btn-secondary" onclick="loadDashboard()">${i18n.t('common.error')}</button>
     </div>
   `;
+  if (window.lucide) lucide.createIcons();
 }
 
 async function getCurrentUser() {
@@ -238,19 +233,20 @@ async function saveProfile() {
   saveProfileBtn.textContent = i18n.t('common.saving');
 
   try {
-    const { error } = await appSupabase.client
-      .from('user_profiles')
-      .update({
-        username: profileUsername.value.trim(),
-        avatar_url: profileAvatarUrl.value.trim(),
-        bio: profileBio.value.trim(),
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', user.id);
+    const { data: ok, error } = await appSupabase.client.rpc('update_profile_self', {
+      new_username: profileUsername.value.trim(),
+      new_bio: profileBio.value.trim(),
+      new_avatar_url: profileAvatarUrl.value.trim()
+    });
 
     if (error) {
       console.error('Save profile error:', error);
       alert(i18n.t('common.saveFailed') + error.message);
+      return;
+    }
+
+    if (!ok) {
+      alert(i18n.t('common.saveFailed'));
       return;
     }
 
@@ -294,16 +290,13 @@ async function loadDevices() {
       devicesList.innerHTML = `
         <div class="empty-state">
           <div class="empty-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-              <line x1="8" y1="21" x2="16" y2="21"></line>
-              <line x1="12" y1="17" x2="12" y2="21"></line>
-            </svg>
+            <i data-lucide="laptop"></i>
           </div>
           <p>${i18n.t('devices.empty')}</p>
           <p style="font-size:12px;color:#666;">${i18n.t('devices.emptyHint')}</p>
         </div>
       `;
+      if (window.lucide) lucide.createIcons();
       return;
     }
 
@@ -322,11 +315,7 @@ async function loadDevices() {
       <div class="device-card">
         <div class="device-info">
           <div class="device-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-              <line x1="8" y1="21" x2="16" y2="21"></line>
-              <line x1="12" y1="17" x2="12" y2="21"></line>
-            </svg>
+            <i data-lucide="laptop"></i>
           </div>
           <div class="device-details">
             <h4>${device.device_name}</h4>
@@ -339,6 +328,7 @@ async function loadDevices() {
       </div>
       `;
     }).join('');
+    if (window.lucide) lucide.createIcons();
   } catch (error) {
     console.error('Load devices error:', error);
     showErrorState(devicesList, i18n.t('common.networkError'));
@@ -480,9 +470,7 @@ async function loadCloudSpaces() {
         <div class="cloud-space-item ${isSelected ? 'selected' : ''} ${isLocked ? 'locked' : ''}" 
              onclick="selectCloudSpace('${space.id}', ${isLocked})">
           <div class="cloud-space-icon ${isLocked ? 'locked' : ''}">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              ${isLocked ? '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path>' : '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>'}
-            </svg>
+            <i data-lucide="${isLocked ? 'lock' : 'cloud'}"></i>
           </div>
           <div class="cloud-space-info">
             <h4>${space.name}${isLocked ? ' <span class="locked-badge">' + i18n.t('cloud.locked') + '</span>' : ''}</h4>
@@ -493,6 +481,7 @@ async function loadCloudSpaces() {
         </div>
       `;
     }).join('');
+    if (window.lucide) lucide.createIcons();
 
     if (!currentSelectedSpace && processedSpaces.length > 0) {
       const availableSpace = processedSpaces.find(s => !s.locked) || processedSpaces[0];
