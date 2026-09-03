@@ -5407,3 +5407,27 @@ async function loadAIUsage(days) {
     showErrorState(content, i18n.t('common.networkError'));
   }
 }
+
+// 侧边栏移动端展开/收起功能
+function initSidebarToggle() {
+  const sidebarToggle = document.querySelector('.sidebar-toggle');
+  const sidebarMenu = document.querySelector('.sidebar-menu');
+  
+  if (!sidebarToggle || !sidebarMenu) return;
+  
+  // 从 localStorage 读取展开状态，默认为 false（收起）
+  const isExpanded = localStorage.getItem('sidebar-expanded') === 'true';
+  if (isExpanded) {
+    sidebarMenu.classList.add('expanded');
+  }
+  
+  sidebarToggle.addEventListener('click', function() {
+    sidebarMenu.classList.toggle('expanded');
+    const expanded = sidebarMenu.classList.contains('expanded');
+    localStorage.setItem('sidebar-expanded', expanded);
+  });
+}
+
+// 初始化页面
+init();
+initSidebarToggle();

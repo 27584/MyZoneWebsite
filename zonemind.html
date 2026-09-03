@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ZoneMind 网页版</title>
+  <!-- 与首页一致的 UI 依赖：Tailwind + DaisyUI + Animate.css（子页统一不加载 style.css，避免样式冲突） -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          borderRadius: { xl2: '2rem' },
+          keyframes: {
+            float: { '0%,100%': { transform: 'translateY(0)' }, '50%': { transform: 'translateY(-10px)' } }
+          },
+          animation: { float: 'float 6s ease-in-out infinite' }
+        }
+      }
+    };
+  </script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daisyui@4.12.24/dist/full.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+  <link rel="stylesheet" href="css/site-chrome.css">
+  <style>
+    /* ===== 与首页一致：auth.js 交互 + 页面自用最小样式 ===== */
+    .hidden { display: none !important; }
+
+    #userBtn { position: relative; }
+
+    #loginModal { display: none; position: fixed; inset: 0; z-index: 2000; align-items: flex-start; justify-content: center; padding: 48px 16px 16px; }
+    #loginModal.active { display: flex; }
+    #loginBackdrop { position: absolute; inset: 0; background: rgba(0,0,0,.5); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+    .close-btn { position: absolute; top: 12px; right: 16px; background: none; border: none; font-size: 24px; line-height: 1; cursor: pointer; color: var(--bc, #000); }
+    .error-message { color: var(--er, #dc2626); font-size: 13px; margin-top: 8px; }
+    .form-group label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 6px; }
+    .form-group input { width: 100%; padding: 10px 12px; border: 1px solid var(--bc, #d1d5db); border-radius: 8px; font-size: 14px; background: var(--b2, #fff); color: var(--bc, #111); }
+    .form-group input:focus { outline: 2px solid var(--p, #4f46e5); outline-offset: -1px; }
+
+    html { scroll-behavior: smooth; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif; }
+
+    /* 淡淡的网点背景 */
+    .dot-grid {
+      background-image: radial-gradient(circle at 1px 1px, var(--bc, #d1d5db) 1px, transparent 0);
+      background-size: 28px 28px;
+      opacity: .22;
+    }
+
+    [data-reveal] { opacity: 0; }
+  </style>
+</head>
+<body class="min-h-screen bg-base-100 text-base-content antialiased" data-page="zonemind">
+  <!-- 共享头部（由 js/site-chrome.js 注入；被 iframe 内嵌时自动隐藏） -->
+  <div id="site-header"></div>
+
+  <main class="relative overflow-hidden">
+    <div class="absolute inset-0 dot-grid pointer-events-none"></div>
+    <div class="relative max-w-7xl mx-auto px-6 pt-6 pb-10">
+      <!-- 薄外壳 + 全高 iframe：隔离 ZoneMind 自身 CSS，避免与站点 DaisyUI 冲突 -->
+      <div class="card bg-base-100 border border-base-300 rounded-2xl overflow-hidden shadow-sm" data-reveal data-anim="animate__fadeInUp" style="height:calc(100vh - 140px); min-height:480px;">
+        <iframe
+          id="zonemindFrame"
+          src="zonemind/app.html"
+          title="ZoneMind 网页版"
+          class="w-full h-full"
+          style="border:0;display:block;background:var(--bg,#f7f8fa);"
+        ></iframe>
+      </div>
+    </div>
+  </main>
+
+  <!-- 页脚（共享，由 js/site-chrome.js 注入） -->
+  <div id="site-footer"></div>
+
+  <!-- 登录弹窗（auth.js 所需 #loginModal/#loginBackdrop） -->
+  <div id="loginModal" class="modal-hidden">
+    <div id="loginBackdrop" class="modal-backdrop"></div>
+    <div class="card w-full max-w-md bg-base-100 shadow-2xl relative mt-10">
+      <div class="card-body">
+        <button id="closeModal" class="close-btn">&times;</button>
+        <h2 id="modalTitle" class="card-title text-2xl mb-2" data-i18n="auth.login">登录</h2>
+        <div id="modalTabs" class="modal-tabs flex gap-6 border-b border-base-300 mb-4">
+          <button id="tabLogin" class="tab tab-lg active pb-2" data-i18n="auth.login">登录</button>
+          <button id="tabSignup" class="tab tab-lg pb-2" data-i18n="auth.signup">注册</button>
+        </div>
+        <form id="authForm">
+          <div class="form-group mb-3 hidden" id="usernameGroup">
+            <label data-i18n="auth.username">用户名</label>
+            <input type="text" id="authUsername" name="username" placeholder="请输入用户名" data-i18n-placeholder="auth.placeholder.username">
+          </div>
+          <div class="form-group mb-3">
+            <label data-i18n="auth.email">邮箱</label>
+            <input type="email" id="authEmail" name="email" placeholder="请输入邮箱" data-i18n-placeholder="auth.placeholder.email" required>
+          </div>
+          <div class="form-group mb-3">
+            <label data-i18n="auth.password">密码</label>
+            <input type="password" id="authPassword" name="password" placeholder="请输入密码" data-i18n-placeholder="auth.placeholder.password" required>
+          </div>
+          <div class="form-group mb-3 hidden" id="confirmPasswordGroup">
+            <label data-i18n="auth.confirmPassword">确认密码</label>
+            <input type="password" id="authConfirmPassword" name="confirmPassword" placeholder="请再次输入密码" data-i18n-placeholder="auth.placeholder.confirmPassword">
+          </div>
+          <div id="authError" class="error-message hidden"></div>
+          <button type="submit" id="authSubmit" class="btn btn-primary w-full mt-4" data-i18n="auth.login">登录</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="js/lib/supabase.min.js"></script>
+  <script src="js/supabase-client.js"></script>
+  <script src="js/i18n.js"></script>
+  <script src="js/site-chrome.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    // 初始化 i18n 与图标
+    document.addEventListener('DOMContentLoaded', () => {
+      if (window.i18n) i18n.init();
+      if (window.lucide) lucide.createIcons();
+    });
+  </script>
+  <script>
+    // ===== 滚动进场动画（尊重减少动效偏好，与各子页一致） =====
+    document.addEventListener('DOMContentLoaded', () => {
+      const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const els = document.querySelectorAll('[data-reveal]');
+      if (reduce) {
+        els.forEach(el => el.style.opacity = '1');
+        return;
+      }
+      const io = new IntersectionObserver((entries) => {
+        entries.forEach(e => {
+          if (e.isIntersecting) {
+            const anim = e.target.getAttribute('data-anim') || 'animate__fadeInUp';
+            e.target.classList.add('animate__animated', anim);
+            e.target.style.opacity = '1';
+            io.unobserve(e.target);
+          }
+        });
+      }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+      els.forEach(el => io.observe(el));
+    });
+  </script>
+</body>
+</html>

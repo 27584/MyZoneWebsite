@@ -1437,6 +1437,27 @@ window.downloadVersion = downloadVersion;
 window.openQuickCreateModal = openQuickCreateModal;
 window.closeQuickCreateModal = closeQuickCreateModal;
 
+// 侧边栏移动端展开/收起功能
+function initSidebarToggle() {
+  const sidebarToggle = document.querySelector('.sidebar-toggle');
+  const sidebarMenu = document.querySelector('.sidebar-menu');
+  
+  if (!sidebarToggle || !sidebarMenu) return;
+  
+  // 从 localStorage 读取展开状态，默认为 false（收起）
+  const isExpanded = localStorage.getItem('sidebar-expanded') === 'true';
+  if (isExpanded) {
+    sidebarMenu.classList.add('expanded');
+  }
+  
+  sidebarToggle.addEventListener('click', function() {
+    sidebarMenu.classList.toggle('expanded');
+    const expanded = sidebarMenu.classList.contains('expanded');
+    localStorage.setItem('sidebar-expanded', expanded);
+  });
+}
+
 window.addEventListener('load', () => {
   if (window.loadExtensions) window.loadExtensions();
+  initSidebarToggle();
 });

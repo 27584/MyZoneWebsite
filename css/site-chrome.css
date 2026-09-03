@@ -174,11 +174,127 @@
 
 /* 内页原固定导航预留的顶部留白调整（头部改为 sticky 在流内，无需额外留白） */
 
-/* 移动端：导航与语言选择适当压缩 */
-@media (max-width: 480px) {
+/* ---------- 移动端汉堡按钮（仅窄屏显示） ---------- */
+.app-header__burger {
+  display: none;
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--chrome-text);
+  cursor: pointer;
+  flex-shrink: 0;
+  margin-left: -4px;
+}
+.app-header__burger:hover { background: var(--chrome-hover); }
+.app-header__burger .burger-icon { display: inline-flex; }
+.app-header__burger .burger-icon svg { width: 22px; height: 22px; }
+
+/* ---------- 移动端右侧滑入导航抽屉 ---------- */
+.app-drawer-backdrop {
+  position: fixed;
+  top: 0; right: 0; bottom: 0; left: 0;
+  z-index: 60;
+  background: rgba(0,0,0,.4);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity .25s ease, visibility .25s ease;
+}
+.app-drawer-backdrop.open { opacity: 1; visibility: visible; }
+
+body.drawer-open { overflow: hidden; }
+
+.app-drawer {
+  position: fixed;
+  top: 0; right: 0; bottom: 0;
+  z-index: 70;
+  width: min(86vw, 320px);
+  background: var(--chrome-bg);
+  border-left: 1px solid var(--chrome-border);
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform .25s ease;
+}
+.app-drawer.open { transform: translateX(0); }
+
+.app-drawer__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 16px 12px;
+  border-bottom: 1px solid var(--chrome-border);
+}
+.app-drawer__title {
+  font-weight: 700;
+  font-size: 17px;
+  color: var(--chrome-text);
+}
+.app-drawer__close {
+  width: 34px; height: 34px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: none; border-radius: 8px;
+  background: transparent; color: var(--chrome-text); cursor: pointer;
+}
+.app-drawer__close:hover { background: var(--chrome-hover); }
+.app-drawer__close svg { width: 20px; height: 20px; }
+
+.app-drawer__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 8px;
+  overflow-y: auto;
+  flex: 1;
+}
+.app-drawer__link {
+  display: block;
+  padding: 14px 16px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--chrome-muted);
+  text-decoration: none;
+}
+.app-drawer__link:hover { background: var(--chrome-hover); color: var(--chrome-text); }
+.app-drawer__link--active { color: var(--chrome-accent); font-weight: 600; }
+
+.app-drawer__lang {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-top: 1px solid var(--chrome-border);
+}
+.app-drawer__lang-label { display: inline-flex; color: var(--chrome-muted); }
+.app-drawer__lang-label svg { width: 18px; height: 18px; }
+.app-drawer__lang-btns { display: flex; gap: 6px; }
+.app-drawer__lang-btns button {
+  padding: 6px 12px;
+  border: 1px solid var(--chrome-border);
+  border-radius: 8px;
+  background: var(--chrome-bg);
+  color: var(--chrome-text);
+  font-size: 13px;
+  cursor: pointer;
+}
+.app-drawer__lang-btns button:hover { background: var(--chrome-hover); }
+.app-drawer__lang-btns button.active {
+  background: var(--chrome-accent);
+  border-color: var(--chrome-accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+/* 移动端：隐藏桌面导航与语言，显示汉堡按钮 */
+@media (max-width: 768px) {
   .app-header__nav { display: none; }
+  .app-lang { display: none; }
+  .app-header__burger { display: inline-flex; }
   .app-header__inner { padding: 0 12px; gap: 8px; }
   .app-header__brand { font-size: 16px; }
-  .app-lang { display: none; }
   .app-btn { padding: 0 10px; }
 }

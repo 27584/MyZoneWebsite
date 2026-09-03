@@ -867,6 +867,36 @@ const translations = {
         confirmPassword: '请再次输入新密码'
       }
     },
+    cloudAuth: {
+      aiPlan: 'AI PLAN',
+      planSubtitle: '选择 AI 订阅计划，解锁更多功能与每月 credits',
+      planCurrent: '当前计划',
+      planCreditsBalance: 'credits 余额',
+      planOptions: '可选计划',
+      planGrantHistory: '发放记录',
+      activationCode: '激活码',
+      activationCodePlaceholder: '请输入激活码',
+      redeemCode: '兑换',
+      planPeriodNote: '订阅后，每月将根据您的计划自动发放 credits。',
+      planStatusActive: '活跃',
+      planStatusExpired: '已过期',
+      planStatusNone: '未订阅',
+      planNoPlan: '--',
+      planExpires: '到期',
+      planMonthlyNote: '每月发放 {amount} credits，有效期 {days} 天',
+      planNoPlanNote: '暂无订阅计划',
+      perMonth: '/月',
+      planCreditsPerMonth: '每月 {amount} credits',
+      planCurrentTag: '当前',
+      planGrantUsed: '已用 {used}/{total}',
+      planGrantExpires: '有效期至',
+      planNoGrants: '暂无发放记录',
+      planExpiredGrants: '已过期 ({count})',
+      planLoadFailed: '加载计划数据失败',
+      activationCodeRequired: '请输入激活码',
+      activationSuccess: '激活成功',
+      activationFailed: '激活失败'
+    },
     common: {
       cancel: '取消',
       confirm: '确认',
@@ -906,6 +936,36 @@ const translations = {
       developerExtensions: 'Extensions',
       developerCenter: 'Developer Center',
       logout: 'Logout'
+    },
+    cloudAuth: {
+      aiPlan: 'AI PLAN',
+      planSubtitle: 'Choose an AI subscription plan to unlock more features and monthly credits',
+      planCurrent: 'Current Plan',
+      planCreditsBalance: 'credits balance',
+      planOptions: 'Available Plans',
+      planGrantHistory: 'Grant History',
+      activationCode: 'Activation Code',
+      activationCodePlaceholder: 'Enter activation code',
+      redeemCode: 'Redeem',
+      planPeriodNote: 'After subscribing, credits will be automatically granted each month according to your plan.',
+      planStatusActive: 'Active',
+      planStatusExpired: 'Expired',
+      planStatusNone: 'Not subscribed',
+      planNoPlan: '--',
+      planExpires: 'Expires',
+      planMonthlyNote: '{amount} credits/month, valid for {days} days',
+      planNoPlanNote: 'No active plan',
+      perMonth: '/mo',
+      planCreditsPerMonth: '{amount} credits/month',
+      planCurrentTag: 'Current',
+      planGrantUsed: 'Used {used}/{total}',
+      planGrantExpires: 'Valid until',
+      planNoGrants: 'No grants yet',
+      planExpiredGrants: 'Expired ({count})',
+      planLoadFailed: 'Failed to load plan data',
+      activationCodeRequired: 'Please enter an activation code',
+      activationSuccess: 'Redemption successful',
+      activationFailed: 'Redemption failed'
     },
     hero: {
       title: 'Your Personal Space',
@@ -1803,7 +1863,7 @@ function setLang(lang) {
   }
 }
 
-function t(key) {
+function t(key, options) {
   const keys = key.split('.');
   let result = translations[currentLang];
   for (const k of keys) {
@@ -1811,6 +1871,11 @@ function t(key) {
       result = result[k];
     } else {
       return key;
+    }
+  }
+  if (options && typeof result === 'string') {
+    for (const [k, v] of Object.entries(options)) {
+      result = result.replace(new RegExp(`\\{${k}\\}`, 'g'), v);
     }
   }
   return result;

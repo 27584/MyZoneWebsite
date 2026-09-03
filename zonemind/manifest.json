@@ -1,0 +1,34 @@
+{
+  "manifest_version": 3,
+  "slug": "myzone.ai-assistant",
+  "scope": "global",
+  "name": "__MSG_extName__",
+  "version": "1.3.0",
+  "description": "__MSG_extDescription__",
+  "default_locale": "zh",
+  "languages": ["zh", "en"],
+  "min_app_version": "0.18.5",
+  "min_app_version_code": 37,
+  "author": "MyZone",
+  "icons": {
+    "16": "icon.svg",
+    "48": "icon.svg",
+    "128": "icon.svg"
+  },
+  "action": {
+    "default_icon": {
+      "16": "icon.svg",
+      "48": "icon.svg",
+      "128": "icon.svg"
+    }
+  },
+  "main_page": "index.html",
+  "options_page": "options.html",
+  "popup_width": 900,
+  "popup_height": 700,
+  "resizable": true,
+  "popup_mode": "center",
+  "dismiss_on_overlay_click": false,
+  "use_overlay": false,
+  "permissions": ["storage", "ai", "filesystem", "history", "downloads", "favorites", "clipboard", "tabs", "server", "cookies", "notifications", "archive", "external", "cache", "temp"]
+}

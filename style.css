@@ -1321,6 +1321,62 @@ body.embedded .dashboard-container {
 
 .sidebar-header {
   padding: 0 20px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* 移动端侧边栏收起/展开按钮 */
+.sidebar-toggle {
+  display: none;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 6px;
+  background: var(--surface-hover);
+  color: var(--text-secondary);
+  cursor: pointer;
+  align-self: center;
+}
+.sidebar-toggle:hover { background: var(--border-color); }
+.sidebar-toggle svg { width: 18px; height: 18px; }
+
+/* 移动端默认收起侧边栏内容，点击按钮才展开 */
+@media (max-width: 768px) {
+  .sidebar-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .sidebar-menu {
+    display: none;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 0 20px 16px;
+  }
+  
+  .sidebar-menu.expanded {
+    display: flex;
+  }
+  
+  .sidebar-item {
+    flex: 1;
+    min-width: 120px;
+    justify-content: center;
+  }
+}
+
+/* 移动端侧边栏展开状态按钮图标 */
+@media (max-width: 768px) {
+  .sidebar-toggle svg {
+    transition: transform 0.2s ease;
+  }
+  
+  .sidebar-menu.expanded + .sidebar-header .sidebar-toggle svg {
+    transform: rotate(180deg);
+  }
+}
   border-bottom: 1px solid var(--border-color);
   margin-bottom: 12px;
 }

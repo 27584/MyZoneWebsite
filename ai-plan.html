@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n="cloudAuth.aiPlan">AI PLAN</title>
+  <!-- 与首页一致的 UI 依赖：Tailwind + DaisyUI + Animate.css -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          borderRadius: { xl2: '2rem' },
+          keyframes: {
+            float: { '0%,100%': { transform: 'translateY(0)' }, '50%': { transform: 'translateY(-10px)' } }
+          },
+          animation: { float: 'float 6s ease-in-out infinite' }
+        }
+      }
+    };
+  </script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daisyui@4.12.24/dist/full.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+  <link rel="stylesheet" href="css/site-chrome.css">
+  <style>
+    .hidden { display: none !important; }
+
+    #userBtn { position: relative; }
+
+    #loginModal { display: none; position: fixed; inset: 0; z-index: 2000; align-items: flex-start; justify-content: center; padding: 48px 16px 16px; }
+    #loginModal.active { display: flex; }
+    #loginBackdrop { position: absolute; inset: 0; background: rgba(0,0,0,.5); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+    .close-btn { position: absolute; top: 12px; right: 16px; background: none; border: none; font-size: 24px; line-height: 1; cursor: pointer; color: var(--bc, #000); }
+    .error-message { color: var(--er, #dc2626); font-size: 13px; margin-top: 8px; }
+    .form-group label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 6px; }
+    .form-group input { width: 100%; padding: 10px 12px; border: 1px solid var(--bc, #d1d5db); border-radius: 8px; font-size: 14px; background: var(--b2, #fff); color: var(--bc, #111); }
+    .form-group input:focus { outline: 2px solid var(--p, #4f46e5); outline-offset: -1px; }
+
+    html { scroll-behavior: smooth; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif; }
+
+    /* 淡淡的网点背景 */
+    .dot-grid {
+      background-image: radial-gradient(circle at 1px 1px, var(--bc, #d1d5db) 1px, transparent 0);
+      background-size: 28px 28px;
+      opacity: .22;
+    }
+
+    [data-reveal] { opacity: 0; }
+
+    /* ===== AI PLAN 样式（与桌面版 modals.html / styles.css 一致） ===== */
+    .plan-status-card {
+      background: var(--b1, #fff);
+      border: 1px solid var(--bc, #d1d5db);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .plan-status-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .plan-status-label {
+      font-size: 13px;
+      color: var(--bc, #6b7280);
+    }
+    .plan-status-badge {
+      font-size: 12px;
+      font-weight: 500;
+      padding: 3px 10px;
+      border-radius: 20px;
+      background: var(--bc, #d1d5db);
+      color: var(--b3, #f5f5f5);
+    }
+    .plan-status-badge.active {
+      background: #10b981;
+      color: #fff;
+    }
+    .plan-status-badge.expired {
+      background: #ef4444;
+      color: #fff;
+    }
+    .plan-status-main {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .plan-name {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--bc, #111);
+    }
+    .plan-expires {
+      font-size: 13px;
+      color: var(--bc, #6b7280);
+    }
+    .plan-status-balance {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      padding: 12px 14px;
+      background: var(--bc, #f3f4f6);
+      border-radius: 8px;
+    }
+    .plan-balance {
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--p, #4f46e5);
+    }
+    .plan-balance-label {
+      font-size: 13px;
+      color: var(--bc, #6b7280);
+    }
+    .plan-monthly-note {
+      margin-top: 12px;
+      font-size: 12px;
+      color: var(--bc, #6b7280);
+      line-height: 1.6;
+    }
+    .plan-section-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--bc, #111);
+      margin: 18px 0 10px;
+    }
+    .plan-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 10px;
+    }
+    .plan-item {
+      background: var(--b1, #fff);
+      border: 1px solid var(--bc, #d1d5db);
+      border-radius: 8px;
+      padding: 14px;
+      text-align: center;
+    }
+    .plan-item.current {
+      border-color: var(--p, #4f46e5);
+      background: rgba(79, 70, 229, 0.06);
+    }
+    .plan-item-name {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--bc, #111);
+      margin-bottom: 6px;
+    }
+    .plan-item-price {
+      font-size: 13px;
+      color: var(--bc, #6b7280);
+      margin-bottom: 6px;
+    }
+    .plan-item-credits {
+      font-size: 12px;
+      color: var(--p, #4f46e5);
+    }
+    .plan-item-tag {
+      display: inline-block;
+      margin-top: 6px;
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 12px;
+      background: #10b981;
+      color: #fff;
+    }
+    .plan-grants {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .plan-grant-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--b1, #fff);
+      border: 1px solid var(--bc, #d1d5db);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 13px;
+    }
+    .plan-grant-item.expired {
+      opacity: 0.55;
+    }
+    .plan-grant-item .grant-expired { color: #ef4444; }
+    .plan-grant-item .grant-used { color: var(--bc, #111); }
+    .plan-grant-item .grant-remark { color: var(--bc, #111); }
+    .plan-grant-item .grant-meta {
+      color: var(--bc, #6b7280);
+      font-size: 12px;
+      text-align: right;
+    }
+    .plan-grant-item .grant-amount {
+      color: #10b981;
+      font-weight: 600;
+    }
+    .plan-grants-empty {
+      font-size: 13px;
+      color: var(--bc, #6b7280);
+      padding: 12px 0;
+    }
+    .plan-grants-collapse {
+      border-top: 1px solid var(--bc, #d1d5db);
+      margin-top: 4px;
+      padding-top: 6px;
+    }
+    .plan-grants-collapse-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      width: 100%;
+      padding: 8px 2px;
+      border: none;
+      background: none;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--bc, #6b7280);
+      cursor: pointer;
+    }
+    .plan-grants-collapse-toggle:hover { color: var(--bc, #111); }
+    .plan-grants-collapse-icon {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+      transition: transform 0.15s ease;
+    }
+    .plan-grants-collapse.expanded .plan-grants-collapse-icon {
+      transform: rotate(180deg);
+    }
+    .plan-grants-collapsed {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .plan-grants-collapsed[hidden] { display: none; }
+    .plan-redeem {
+      margin-top: 18px;
+      padding-top: 16px;
+      border-top: 1px solid var(--bc, #d1d5db);
+    }
+    .activation-code-input-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-base-100 text-base-content antialiased" data-page="ai-plan">
+  <!-- 共享头部（由 js/site-chrome.js 注入） -->
+  <div id="site-header"></div>
+
+  <main class="relative overflow-hidden">
+    <div class="absolute inset-0 dot-grid pointer-events-none"></div>
+    <div class="relative max-w-4xl mx-auto px-6 pt-10 pb-12">
+      <!-- Hero 区域 -->
+      <div class="text-center mb-8" data-reveal data-anim="animate__fadeInDown">
+        <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight mb-2" data-i18n="cloudAuth.aiPlan"></h1>
+        <p class="text-base md:text-lg text-base-content/70 max-w-2xl mx-auto" data-i18n="cloudAuth.planSubtitle"></p>
+      </div>
+
+      <!-- 当前计划状态卡片 -->
+      <div class="plan-status-card" data-reveal data-anim="animate__fadeInUp">
+        <div class="plan-status-head">
+          <span class="plan-status-label" data-i18n="cloudAuth.planCurrent"></span>
+          <span id="plan-status-badge" class="plan-status-badge"></span>
+        </div>
+        <div class="plan-status-main">
+          <span id="plan-name" class="plan-name">--</span>
+          <div id="plan-expires" class="plan-expires"></div>
+        </div>
+        <div class="plan-status-balance">
+          <span id="plan-balance" class="plan-balance">0</span>
+          <span class="plan-balance-label" data-i18n="cloudAuth.planCreditsBalance"></span>
+        </div>
+        <div id="plan-monthly-note" class="plan-monthly-note"></div>
+      </div>
+
+      <!-- 可选计划列表 -->
+      <div class="plan-section-title" data-i18n="cloudAuth.planOptions"></div>
+      <div id="plan-list" class="plan-list"></div>
+
+      <!-- 激活码兑换 -->
+      <div class="plan-redeem" data-reveal data-anim="animate__fadeInUp">
+        <label data-i18n="cloudAuth.activationCode"></label>
+        <div class="activation-code-input-row">
+          <input type="text" id="plan-activation-code" data-i18n-placeholder="cloudAuth.activationCodePlaceholder" placeholder="请输入激活码">
+          <button id="plan-redeem-code-btn" class="btn secondary" data-i18n="cloudAuth.redeemCode"></button>
+        </div>
+        <div id="plan-activation-code-error" class="error-message hidden"></div>
+      </div>
+
+      <!-- 历史记录 -->
+      <div class="plan-section-title" data-i18n="cloudAuth.planGrantHistory"></div>
+      <div id="plan-grants" class="plan-grants"></div>
+
+      <div id="plan-error" class="error-message hidden"></div>
+      <div class="plan-period-note" style="font-size:12px;color:var(--bc,#6b7280);margin-top:12px;text-align:center;" data-i18n="cloudAuth.planPeriodNote"></div>
+    </div>
+  </main>
+
+  <!-- 页脚（共享，由 js/site-chrome.js 注入） -->
+  <div id="site-footer"></div>
+
+  <!-- 登录弹窗（auth.js 所需 #loginModal/#loginBackdrop） -->
+  <div id="loginModal" class="modal-hidden">
+    <div id="loginBackdrop" class="modal-backdrop"></div>
+    <div class="card w-full max-w-md bg-base-100 shadow-2xl relative mt-10">
+      <div class="card-body">
+        <button id="closeModal" class="close-btn">&times;</button>
+        <h2 id="modalTitle" class="card-title text-2xl mb-2" data-i18n="auth.login"></h2>
+        <div id="modalTabs" class="modal-tabs flex gap-6 border-b border-base-300 mb-4">
+          <button id="tabLogin" class="tab tab-lg active pb-2" data-i18n="auth.login"></button>
+          <button id="tabSignup" class="tab tab-lg pb-2" data-i18n="auth.signup"></button>
+        </div>
+        <form id="authForm">
+          <div class="form-group mb-3 hidden" id="usernameGroup">
+            <label data-i18n="auth.username"></label>
+            <input type="text" id="authUsername" name="username" placeholder="请输入用户名" data-i18n-placeholder="auth.placeholder.username">
+          </div>
+          <div class="form-group mb-3">
+            <label data-i18n="auth.email"></label>
+            <input type="email" id="authEmail" name="email" placeholder="请输入邮箱" data-i18n-placeholder="auth.placeholder.email" required>
+          </div>
+          <div class="form-group mb-3">
+            <label data-i18n="auth.password"></label>
+            <input type="password" id="authPassword" name="password" placeholder="请输入密码" data-i18n-placeholder="auth.placeholder.password" required>
+          </div>
+          <div class="form-group mb-3 hidden" id="confirmPasswordGroup">
+            <label data-i18n="auth.confirmPassword"></label>
+            <input type="password" id="authConfirmPassword" name="confirmPassword" placeholder="请再次输入密码" data-i18n-placeholder="auth.placeholder.confirmPassword">
+          </div>
+          <div id="authError" class="error-message hidden"></div>
+          <button type="submit" id="authSubmit" class="btn btn-primary w-full mt-4" data-i18n="auth.login"></button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="js/lib/supabase.min.js"></script>
+  <script src="js/supabase-client.js"></script>
+  <script src="js/i18n.js"></script>
+  <script src="js/site-chrome.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      if (window.i18n) i18n.init();
+      if (window.lucide) lucide.createIcons();
+    });
+  </script>
+  <script>
+    // ===== 滚动进场动画 =====
+    document.addEventListener('DOMContentLoaded', () => {
+      const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const els = document.querySelectorAll('[data-reveal]');
+      if (reduce) {
+        els.forEach(el => el.style.opacity = '1');
+        return;
+      }
+      const io = new IntersectionObserver((entries) => {
+        entries.forEach(e => {
+          if (e.isIntersecting) {
+            const anim = e.target.getAttribute('data-anim') || 'animate__fadeInUp';
+            e.target.classList.add('animate__animated', anim);
+            e.target.style.opacity = '1';
+            io.unobserve(e.target);
+          }
+        });
+      }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+      els.forEach(el => io.observe(el));
+    });
+  </script>
+  <script>
+    // AI PLAN 页面逻辑 —— 与桌面版 auth.js loadPlanStatus / renderPlanStatus / handlePlanRedeemCode 完全一致
+    let currentUser = null;
+
+    async function checkAuth() {
+      const initialized = await appSupabase.ensureInitialized();
+      if (!initialized) {
+        showError(t('cloudAuth.planLoadFailed'));
+        return false;
+      }
+      const { data: { user }, error } = await appSupabase.client.auth.getUser();
+      if (error || !user) {
+        openModal('login');
+        return false;
+      }
+      currentUser = user;
+      loadPlanStatus();
+      bindRedeemButton();
+      bindGrantCollapse(); // 事件委托，一次绑定，跟随后续渲染始终生效
+      return true;
+    }
+
+    // 格式化日期时间（与桌面版 fmtDT 一致）
+    function fmtDT(s) {
+      if (!s) return '';
+      const d = new Date(s);
+      const pad = n => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+
+    async function loadPlanStatus() {
+      const errorEl = document.getElementById('plan-error');
+      if (errorEl) errorEl.textContent = '';
+
+      try {
+        // 调用与桌面版相同的 RPC：ai_user_get_plan_status
+        const { data, error } = await appSupabase.client.rpc('ai_user_get_plan_status');
+
+        if (error) {
+          if (errorEl) errorEl.textContent = error.message;
+          return;
+        }
+
+        const planData = data || {};
+
+        // 补充 grants 用量信息（与桌面版 supabase-auth.js getPlanStatus 一致）
+        if (Array.isArray(planData.recent_grants) && planData.recent_grants.length) {
+          try {
+            const { data: grantData, error: grantErr } = await appSupabase.client.rpc('ai_user_get_grants');
+            if (!grantErr && grantData && Array.isArray(grantData.grants)) {
+              const usedMap = new Map();
+              for (const g of grantData.grants) {
+                if (g && g.id != null) usedMap.set(String(g.id), g);
+              }
+              for (const rg of planData.recent_grants) {
+                const full = rg && rg.id != null ? usedMap.get(String(rg.id)) : null;
+                if (full) {
+                  rg.used = Number(full.used) || 0;
+                  rg.remaining = Number(full.remaining) || 0;
+                }
+              }
+            }
+          } catch (e) { /* 用量合并失败不阻断主信息展示 */ }
+        }
+
+        renderPlanStatus(planData);
+      } catch (error) {
+        if (errorEl) errorEl.textContent = error.message || t('cloudAuth.planLoadFailed');
+      }
+    }
+
+    function renderPlanStatus(data) {
+      const badge = document.getElementById('plan-status-badge');
+      const nameEl = document.getElementById('plan-name');
+      const expiresEl = document.getElementById('plan-expires');
+      const balanceEl = document.getElementById('plan-balance');
+      const noteEl = document.getElementById('plan-monthly-note');
+      const listEl = document.getElementById('plan-list');
+      const grantsEl = document.getElementById('plan-grants');
+
+      const isActive = data.is_plan_active === true;
+      const currentPlan = data.current_plan || null;
+
+      // 状态徽章
+      if (badge) {
+        badge.textContent = isActive
+          ? t('cloudAuth.planStatusActive')
+          : (currentPlan ? t('cloudAuth.planStatusExpired') : t('cloudAuth.planStatusNone'));
+        badge.className = 'plan-status-badge' + (isActive ? ' active' : (currentPlan ? ' expired' : ''));
+      }
+
+      // 计划名称
+      if (nameEl) {
+        nameEl.textContent = currentPlan ? currentPlan.name : t('cloudAuth.planNoPlan');
+      }
+
+      // 到期时间
+      if (expiresEl) {
+        expiresEl.textContent = (isActive && data.plan_expires_at)
+          ? t('cloudAuth.planExpires') + ': ' + new Date(data.plan_expires_at).toLocaleDateString()
+          : '';
+      }
+
+      // 余额
+      if (balanceEl) {
+        balanceEl.textContent = data.balance ?? 0;
+      }
+
+      // 月度说明
+      if (noteEl) {
+        if (isActive && currentPlan) {
+          noteEl.textContent = t('cloudAuth.planMonthlyNote', {
+            amount: currentPlan.credits_per_month,
+            days: currentPlan.credits_valid_days
+          });
+        } else {
+          noteEl.textContent = t('cloudAuth.planNoPlanNote');
+        }
+      }
+
+      // 计划列表
+      if (listEl) {
+        const plans = Array.isArray(data.plans) ? data.plans : [];
+        if (plans.length === 0) {
+          listEl.innerHTML = '';
+        } else {
+          listEl.innerHTML = plans.map(plan => {
+            const isCurrent = currentPlan && currentPlan.id === plan.id;
+            return `
+              <div class="plan-item${isCurrent ? ' current' : ''}">
+                <div class="plan-item-name">${plan.name}</div>
+                <div class="plan-item-price">¥${plan.price ?? 0}${t('cloudAuth.perMonth')}</div>
+                <div class="plan-item-credits">${t('cloudAuth.planCreditsPerMonth', { amount: plan.credits_per_month })}</div>
+                ${isCurrent ? `<span class="plan-item-tag">${t('cloudAuth.planCurrentTag')}</span>` : ''}
+              </div>
+            `;
+          }).join('');
+        }
+      }
+
+      // 发放记录
+      if (grantsEl) {
+        const grants = Array.isArray(data.recent_grants) ? data.recent_grants : [];
+        const grantItemHtml = (g) => {
+          const hasUsage = typeof g.used === 'number' && !isNaN(g.used);
+          return `
+            <div class="plan-grant-item${g.expired ? ' expired' : ''}">
+              <span class="grant-remark">${g.remark || ''}</span>
+              <span class="grant-meta">
+                <span class="grant-amount">+${g.amount}</span>
+                <div>${fmtDT(g.created_at)}</div>
+                ${hasUsage ? `<div class="grant-used">${t('cloudAuth.planGrantUsed', { used: g.used, total: g.amount })}</div>` : ''}
+                ${g.expired
+                  ? `<div class="grant-expired">${t('cloudAuth.planStatusExpired')}</div>`
+                  : (g.expires_at ? `<div>${t('cloudAuth.planGrantExpires')}: ${fmtDT(g.expires_at)}</div>` : '')}
+              </span>
+            </div>
+          `;
+        };
+        if (grants.length === 0) {
+          grantsEl.innerHTML = `<div class="plan-grants-empty">${t('cloudAuth.planNoGrants')}</div>`;
+        } else {
+          // 未过期条目在前，已过期的折叠排列在后（与桌面版一致）
+          const active = grants.filter((g) => !g.expired);
+          const expired = grants.filter((g) => !!g.expired);
+          const html = active.map(grantItemHtml);
+          if (expired.length) {
+            html.push(`
+              <div class="plan-grants-collapse">
+                <button type="button" id="plan-grants-collapse-toggle" class="plan-grants-collapse-toggle" aria-expanded="false">
+                  <span>${t('cloudAuth.planExpiredGrants', { count: expired.length })}</span>
+                  <svg class="plan-grants-collapse-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                </button>
+                <div id="plan-grants-collapsed" class="plan-grants-collapsed" hidden>
+                  ${expired.map(grantItemHtml).join('')}
+                </div>
+              </div>
+            `);
+          }
+          grantsEl.innerHTML = html.join('');
+        }
+      }
+    }
+
+    function bindRedeemButton() {
+      const redeemBtn = document.getElementById('plan-redeem-code-btn');
+      if (!redeemBtn) return;
+      redeemBtn.addEventListener('click', handlePlanRedeemCode);
+    }
+
+    // 已过期发放记录的展开/收起：事件委托，不依赖按钮渲染时序
+    function bindGrantCollapse() {
+      const grantsEl = document.getElementById('plan-grants');
+      if (!grantsEl || grantsEl.__collapseBound) return;
+      grantsEl.__collapseBound = true;
+      grantsEl.addEventListener('click', (e) => {
+        const toggle = e.target.closest('.plan-grants-collapse-toggle');
+        if (!toggle) return;
+        const collapsed = document.getElementById('plan-grants-collapsed');
+        const collapseDiv = toggle.closest('.plan-grants-collapse');
+        if (!collapsed || !collapseDiv) return;
+        const isHidden = collapsed.hasAttribute('hidden');
+        collapsed.toggleAttribute('hidden', !isHidden);
+        collapseDiv.classList.toggle('expanded', isHidden);
+        toggle.setAttribute('aria-expanded', String(isHidden));
+      });
+    }
+
+    async function handlePlanRedeemCode() {
+      const codeInput = document.getElementById('plan-activation-code');
+      const errorEl = document.getElementById('plan-activation-code-error');
+      const redeemBtn = document.getElementById('plan-redeem-code-btn');
+
+      if (!codeInput) return;
+
+      const code = codeInput.value.trim();
+
+      if (errorEl) errorEl.className = 'error-message';
+
+      if (!code) {
+        if (errorEl) {
+          errorEl.textContent = t('cloudAuth.activationCodeRequired');
+          errorEl.classList.remove('hidden');
+        }
+        return;
+      }
+
+      if (redeemBtn) {
+        redeemBtn.disabled = true;
+        const origText = redeemBtn.textContent;
+        redeemBtn.textContent = t('common.loading') || '加载中...';
+      }
+
+      try {
+        // 调用与桌面版相同的 RPC：redeem_activation_code
+        const { data, error } = await appSupabase.client.rpc('redeem_activation_code', {
+          activation_code: code.toUpperCase()
+        });
+
+        if (error) {
+          if (errorEl) {
+            errorEl.textContent = error.message || t('cloudAuth.activationFailed');
+            errorEl.classList.remove('hidden');
+          }
+          return;
+        }
+
+        if (data && data.success === false) {
+          if (errorEl) {
+            errorEl.textContent = data.message || t('cloudAuth.activationFailed');
+            errorEl.classList.remove('hidden');
+          }
+          return;
+        }
+
+        // 成功
+        if (errorEl) {
+          errorEl.textContent = data?.message || t('cloudAuth.activationSuccess');
+          errorEl.classList.remove('hidden');
+          errorEl.style.color = '#10b981';
+        }
+        codeInput.value = '';
+        showToast(data?.message || t('cloudAuth.activationSuccess'), 'success');
+        await loadPlanStatus();
+      } catch (error) {
+        if (errorEl) {
+          errorEl.textContent = error.message || t('cloudAuth.activationFailed');
+          errorEl.classList.remove('hidden');
+        }
+      } finally {
+        if (redeemBtn) {
+          redeemBtn.disabled = false;
+          redeemBtn.textContent = t('cloudAuth.redeemCode');
+        }
+      }
+    }
+
+    function showError(message) {
+      const errorDiv = document.getElementById('plan-error');
+      if (errorDiv) {
+        errorDiv.textContent = message;
+        errorDiv.classList.remove('hidden');
+      }
+    }
+
+    function showToast(message, type) {
+      if (window.toast && window.toast._emit) {
+        window.toast._emit(message, type || 'success');
+      }
+    }
+
+    // 打开登录弹窗
+    function openModal(tab) {
+      const modal = document.getElementById('loginModal');
+      if (!modal) return;
+      modal.classList.add('active');
+      if (tab === 'signup') {
+        document.getElementById('tabSignup')?.click();
+      }
+    }
+
+    // 绑定登录弹窗按钮
+    (function bindLoginModal() {
+      const modal = document.getElementById('loginModal');
+      const backdrop = document.getElementById('loginBackdrop');
+      const closeBtn = document.getElementById('closeModal');
+      if (!modal) return;
+      const close = () => modal.classList.remove('active');
+      closeBtn?.addEventListener('click', close);
+      backdrop?.addEventListener('click', close);
+    })();
+
+    // 页面加载时检查登录状态
+    document.addEventListener('DOMContentLoaded', () => {
+      checkAuth();
+    });
+  </script>
+</body>
+</html>
