@@ -1255,6 +1255,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const aiKeyForm = document.getElementById('aiKeyForm');
   if (aiKeyForm) aiKeyForm.addEventListener('submit', saveAIKey);
 
+  const aiProviderForm = document.getElementById('aiProviderForm');
+  if (aiProviderForm) aiProviderForm.addEventListener('submit', saveAIProvider);
+
   const aiRechargeForm = document.getElementById('aiRechargeForm');
   if (aiRechargeForm) aiRechargeForm.addEventListener('submit', saveAIRecharge);
 
@@ -3588,8 +3591,12 @@ async function saveAppVersionNote() {
 let aiModelsCache = [];
 let aiKeysCache = [];
 let aiCreditsCache = [];
-let aiCurrentKeyModelId = null;
-let aiActiveTab = 'models';
+let aiProvidersCache = [];
+let aiModelProvidersCache = [];
+let aiCurrentKeyProviderId = null;
+let aiEditingProviderId = null;
+let aiActiveModelContextName = '';
+let aiActiveTab = 'providers';
 let aiUsageDays = 7;
 
 function aiFormatNumber(n) {
@@ -3634,12 +3641,15 @@ function switchAITab(name) {
   document.querySelectorAll('.ai-tab-panel').forEach(p => p.classList.add('hidden'));
   const panel = document.getElementById('ai' + name.charAt(0).toUpperCase() + name.slice(1) + 'Panel');
   if (panel) panel.classList.remove('hidden');
-  if (name === 'models') {
-    loadAIModels();
+  if (name === 'providers') {
+    loadAIBilling();
+    loadAIProviders();
   } else if (name === 'credits') {
     loadAICredits(document.getElementById('aiCreditsSearch').value.trim());
   } else if (name === 'usage') {
     loadAIUsage(aiUsageDays);
+  } else if (name === 'preview') {
+    loadAIModelsPreview();
   }
 }
 
@@ -3695,15 +3705,27 @@ async function loadAIModels() {
       return;
     }
 
-    list.innerHTML = billingCard + aiModelsCache.map(m => `
+    list.innerHTML = billingCard + `
+      <div class="code-card" style="margin-bottom: 12px;">
+        <div class="code-info"><div class="code-details" style="flex: 1;">
+          <p style="color: var(--text-muted); font-size: 12px;">${i18n.t('admin.aiAddModelHint')}</p>
+        </div></div>
+      </div>
+    ` + aiModelsCache.map(m => {
+      const provs = (m.providers || []).map(p => {
+        const up = p.upstream_model || m.model || '-';
+        return `<span class="ai-probe-tag ${p.enabled && p.provider_enabled ? '' : 'ai-probe-tag-disabled'}" style="cursor: default;">${escapeHtml(p.provider_name || p.base_url || '?')}<span style="opacity:.75;"> · ${escapeHtml(up)}</span>${!(p.enabled && p.provider_enabled) ? ` · ${i18n.t('admin.aiDisabled')}` : ''}</span>`;
+      }).join(' ');
+      return `
       <div class="code-card">
         <div class="code-info">
           <div class="code-details" style="flex: 1;">
             <h4>${escapeHtml(m.name)} <span class="ai-status-badge ${m.enabled ? 'on' : 'off'}">${m.enabled ? i18n.t('admin.aiEnabled') : i18n.t('admin.aiDisabled')}</span></h4>
-            <p>${i18n.t('admin.aiModel')}: ${escapeHtml(m.model || '-')} · ${i18n.t('admin.aiModelType')}: ${m.model_type === 'image' ? i18n.t('admin.aiModelTypeImage') : m.model_type === 'video' ? i18n.t('admin.aiModelTypeVideo') : i18n.t('admin.aiModelTypeChat')} · ${i18n.t('admin.aiBackend')}: ${escapeHtml(m.backend || '-')}</p>
+            <p>${i18n.t('admin.aiModel')}: ${escapeHtml(m.model || '-')} · ${i18n.t('admin.aiModelType')}: ${m.model_type === 'image' ? i18n.t('admin.aiModelTypeImage') : m.model_type === 'video' ? i18n.t('admin.aiModelTypeVideo') : i18n.t('admin.aiModelTypeChat')}</p>
             ${m.model_type === 'image' || m.model_type === 'video'
               ? `<p>${i18n.t('admin.aiFixedRate')}: ${m.fixed_credits_per_call ?? 0} credits/${i18n.t('admin.aiPerCall')}${m.model_type === 'video' && m.video_operation ? ` · ${i18n.t('admin.aiVideoOperation')}: ${escapeHtml(m.video_operation)}${m.video_status_operation ? ` · ${i18n.t('admin.aiVideoStatusOperation')}: ${escapeHtml(m.video_status_operation)}` : ''}` : ''}</p>`
               : `<p>${i18n.t('admin.aiRatePerMillion')}: ${i18n.t('admin.aiRateInput')} ${m.rate_input_tokens ?? 0} / ${i18n.t('admin.aiRateOutput')} ${m.rate_output_tokens ?? 0} / ${i18n.t('admin.aiRateCached')} ${m.rate_cached_tokens ?? 0} credits</p>`}
+            ${provs ? `<p>${i18n.t('admin.aiModelCardProviders')}: ${provs}</p>` : `<p style="color: var(--text-warning, #b45309);">${i18n.t('admin.aiNoBoundProviders')}</p>`}
             <p>${i18n.t('admin.aiKeysCount')}: ${m.key_count ?? 0} · ${i18n.t('admin.aiCost')}: ${m.key_total_cost ?? 0} credits · ${i18n.t('admin.aiMaxConcurrent')}: ${m.max_concurrent ?? 0}${m.context_length ? ` · ${i18n.t('admin.aiContextLength')}: ${Number(m.context_length).toLocaleString()}` : ''}</p>
           </div>
         </div>
@@ -3711,13 +3733,14 @@ async function loadAIModels() {
           <label class="ai-switch-label" title="${i18n.t('admin.aiEnabled')}">
             <input type="checkbox" class="ai-switch" ${m.enabled ? 'checked' : ''} onchange="toggleAIModelEnabled('${m.id}', this.checked)">
           </label>
-          <button class="action-btn primary" onclick="openAIKeysModal('${m.id}')">${i18n.t('admin.aiManageKeys')}</button>
+          <button class="action-btn primary" onclick="openAIModelProvidersModal('${m.id}')">${i18n.t('admin.aiBindProviders')}</button>
           <button class="action-btn edit" onclick="openAIModelModal('${m.id}')">${i18n.t('admin.aiEdit')}</button>
           <button class="action-btn" onclick="copyAIModel('${m.id}')">${i18n.t('admin.aiCopy')}</button>
           <button class="action-btn delete" onclick="deleteAIModel('${m.id}')">${i18n.t('admin.aiDelete')}</button>
         </div>
       </div>
-    `).join('');
+    `;
+    }).join('');
   } catch (error) {
     console.error('Load AI models error:', error);
     showErrorState(list, i18n.t('common.networkError'));
@@ -3732,8 +3755,6 @@ async function toggleAIModelEnabled(modelId, enabled) {
     const { error } = await appSupabase.client.rpc('ai_admin_save_model', {
       p_id: model.id,
       p_name: model.name,
-      p_backend: model.backend || 'openai',
-      p_base_url: model.base_url,
       p_model: model.model,
       p_temperature: model.temperature ?? 0.7,
       p_enabled: enabled,
@@ -3776,9 +3797,13 @@ function openAIModelModal(modelId) {
   const form = document.getElementById('aiModelForm');
   form.reset();
   document.getElementById('aiModelId').value = '';
-  document.getElementById('aiModelBackend').value = 'openai';
   document.getElementById('aiModelTemperature').value = '0.7';
   document.getElementById('aiModelSortOrder').value = '0';
+  document.getElementById('aiModelPriority').value = '0';
+  const modelPick = document.getElementById('aiModelModelPick');
+  if (modelPick) { modelPick.classList.add('hidden'); modelPick.innerHTML = ''; }
+  const modelFetchErr = document.getElementById('aiModelFetchError');
+  if (modelFetchErr) modelFetchErr.textContent = '';
   document.getElementById('aiModelRateInput').value = '0';
   document.getElementById('aiModelRateOutput').value = '0';
   document.getElementById('aiModelRateCached').value = '0';
@@ -3792,25 +3817,23 @@ function openAIModelModal(modelId) {
   onAIModelTypeChange();
   document.getElementById('aiModelEnabled').checked = true;
   document.getElementById('aiModelMultimodal').checked = true;
-  document.getElementById('aiModelPreset').value = '';
-  document.getElementById('aiModelDiscoveryKey').value = '';
-  const modelPick = document.getElementById('aiModelPick');
-  modelPick.classList.add('hidden');
-  modelPick.innerHTML = '';
   document.getElementById('aiModelError').classList.add('hidden');
-  document.getElementById('aiModelModalTitle').textContent = i18n.t('admin.aiModalTitleAddModel');
+  document.getElementById('aiModelModalTitle').textContent =
+    (aiEditingProviderId ? (aiActiveModelContextName ? escapeHtml(aiActiveModelContextName) + ' · ' : '') : '') +
+    i18n.t(aiEditingProviderId ? 'admin.aiModalTitleAddModelUnder' : 'admin.aiModalTitleAddModel');
 
   if (modelId) {
     const model = aiModelsCache.find(m => m.id === modelId);
     if (model) {
-      document.getElementById('aiModelModalTitle').textContent = i18n.t('admin.aiModalTitleEditModel');
+      document.getElementById('aiModelModalTitle').textContent =
+        (aiEditingProviderId ? (aiActiveModelContextName ? escapeHtml(aiActiveModelContextName) + ' · ' : '') : '') +
+        i18n.t(aiEditingProviderId ? 'admin.aiModalTitleEditModelUnder' : 'admin.aiModalTitleEditModel');
       document.getElementById('aiModelId').value = model.id;
       document.getElementById('aiModelName').value = model.name || '';
-      document.getElementById('aiModelBackend').value = model.backend || 'openai';
-      document.getElementById('aiModelBaseUrl').value = model.base_url || '';
       document.getElementById('aiModelModel').value = model.model || '';
       document.getElementById('aiModelTemperature').value = model.temperature ?? 0.7;
       document.getElementById('aiModelSortOrder').value = model.sort_order ?? 0;
+      document.getElementById('aiModelPriority').value = model.priority_rank ?? 0;
       document.getElementById('aiModelRateInput').value = model.rate_input_tokens ?? 0;
       document.getElementById('aiModelRateOutput').value = model.rate_output_tokens ?? 0;
       document.getElementById('aiModelRateCached').value = model.rate_cached_tokens ?? 0;
@@ -3836,31 +3859,6 @@ function closeAIModelModal() {
   const modal = document.getElementById('aiModelModal');
   modal.classList.remove('active');
   setTimeout(() => modal.classList.add('hidden'), 200);
-}
-
-// 常见上游预设：选中后自动填充后端与上游地址
-const AI_MODEL_PRESETS = {
-  openai:      { backend: 'openai', baseUrl: 'https://api.openai.com/v1' },
-  deepseek:    { backend: 'openai', baseUrl: 'https://api.deepseek.com/v1' },
-  dashscope:   { backend: 'openai', baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1' },
-  zhipu:       { backend: 'openai', baseUrl: 'https://open.bigmodel.cn/api/paas/v4' },
-  moonshot:    { backend: 'openai', baseUrl: 'https://api.moonshot.cn/v1' },
-  ark:         { backend: 'openai', baseUrl: 'https://ark.cn-beijing.volces.com/api/v3' },
-  siliconflow: { backend: 'openai', baseUrl: 'https://api.siliconflow.cn/v1' },
-  openrouter:  { backend: 'openai', baseUrl: 'https://openrouter.ai/api/v1' },
-  ollama:      { backend: 'ollama', baseUrl: 'http://localhost:11434/v1' },
-};
-
-function applyAIModelPreset() {
-  const preset = AI_MODEL_PRESETS[document.getElementById('aiModelPreset').value];
-  if (!preset) return;
-  document.getElementById('aiModelBackend').value = preset.backend;
-  document.getElementById('aiModelBaseUrl').value = preset.baseUrl;
-  // 切换预设后清空模型，便于重新获取
-  document.getElementById('aiModelModel').value = '';
-  const pick = document.getElementById('aiModelPick');
-  pick.classList.add('hidden');
-  pick.innerHTML = '';
 }
 
 // 固定参考定价表（每百万 token，USD，input/output[/cached]）。仅作参考，选中模型后自动折算填入，可手动调整。
@@ -4076,50 +4074,93 @@ function fillModelRates(modelId) {
   }
 }
 
-// 通过 ai-gateway 调上游 /models 接口拉取模型列表（优先用弹窗里的临时 Key，否则用该模型已保存的 Key）
-async function fetchAIModelList() {
-  const errorEl = document.getElementById('aiModelError');
-  const btn = document.getElementById('aiModelFetchBtn');
-  errorEl.classList.add('hidden');
+// 获取某提供商的可用上游模型列表（用于绑定弹窗中填写上游模型 ID）
+async function fetchProviderModels(providerId, btnEl) {
+  const provider = aiProvidersCache.find(p => p.id === providerId);
+  if (!provider) return;
 
-  const baseUrl = document.getElementById('aiModelBaseUrl').value.trim();
-  if (!baseUrl) {
-    errorEl.textContent = i18n.t('admin.aiBaseUrlRequired');
-    errorEl.classList.remove('hidden');
-    return;
-  }
-
-  const apiKey = document.getElementById('aiModelDiscoveryKey').value.trim();
-  const modelId = document.getElementById('aiModelId').value || null;
+  const btn = btnEl || document.getElementById('aiModelFetchBtn');
+  const pick = document.getElementById('aiProviderUpstreamPick_' + providerId);
+  const errorEl = document.getElementById('aiProviderFetchError_' + providerId);
+  if (errorEl) errorEl.classList.add('hidden');
 
   btn.disabled = true;
   const originalText = btn.textContent;
   btn.textContent = i18n.t('admin.aiFetchModelsLoading');
   try {
-    const resp = await aiEdgeAdminRequest('POST', '/list-models', { baseUrl, apiKey, modelId });
+    const resp = await aiEdgeAdminRequest('POST', '/list-models', { providerId, baseUrl: provider.base_url });
     if (!resp || !Array.isArray(resp.models)) {
-      errorEl.textContent = (resp && resp.error) || i18n.t('admin.aiFetchModelsFailed');
-      errorEl.classList.remove('hidden');
+      if (errorEl) { errorEl.textContent = (resp && resp.error) || i18n.t('admin.aiFetchModelsFailed'); errorEl.classList.remove('hidden'); }
       return;
     }
-    const pick = document.getElementById('aiModelPick');
-    pick.innerHTML = resp.models.map(id => `<option value="${escapeHtml(id)}">${escapeHtml(id)}</option>`).join('');
-    if (!resp.models.length) {
-      pick.classList.add('hidden');
+    if (pick) {
+      pick.innerHTML = '<option value="">' + i18n.t('admin.aiNoUpstreamModel') + '</option>' +
+        resp.models.map(id => `<option value="${escapeHtml(id)}">${escapeHtml(id)}</option>`).join('');
+      pick.classList.remove('hidden');
+    }
+    if (!resp.models.length && errorEl) {
       errorEl.textContent = i18n.t('admin.aiFetchModelsEmpty');
       errorEl.classList.remove('hidden');
-      return;
     }
-    pick.classList.remove('hidden');
-    document.getElementById('aiModelModel').value = resp.models[0];
-    fillModelRates(resp.models[0]);
   } catch (error) {
-    console.error('Fetch AI models error:', error);
-    errorEl.textContent = error.message || i18n.t('admin.aiFetchModelsFailed');
-    errorEl.classList.remove('hidden');
+    console.error('Fetch provider models error:', error);
+    if (errorEl) { errorEl.textContent = error.message || i18n.t('admin.aiFetchModelsFailed'); errorEl.classList.remove('hidden'); }
   } finally {
     btn.disabled = false;
     btn.textContent = originalText;
+  }
+}
+
+// 模型弹窗内「从API获取模型」：拉取当前提供商可用模型 ID 供选择填充到「模型」输入框
+async function fetchModelsForModelForm(btnEl) {
+  let pid = null, baseUrl = null;
+  if (aiEditingProviderId && aiProvidersCache) {
+    const p = aiProvidersCache.find(x => x.id === aiEditingProviderId);
+    if (p) { pid = p.id; baseUrl = p.base_url; }
+  }
+  if (!pid) {
+    const p = (aiProvidersCache || []).find(x => x.enabled && x.base_url);
+    if (p) { pid = p.id; baseUrl = p.base_url; }
+  }
+  const pick = document.getElementById('aiModelModelPick');
+  const err = document.getElementById('aiModelFetchError');
+  const modelInput = document.getElementById('aiModelModel');
+  if (err) { err.textContent = ''; }
+  if (!pid || !baseUrl) {
+    if (err) { err.textContent = i18n.t('admin.aiNoProviderToFetch'); }
+    return;
+  }
+  const ot = btnEl.textContent;
+  btnEl.disabled = true;
+  btnEl.textContent = i18n.t('admin.aiFetchModelsLoading');
+  try {
+    const resp = await aiEdgeAdminRequest('POST', '/list-models', { providerId: pid, baseUrl });
+    if (!resp || !Array.isArray(resp.models)) {
+      if (err) { err.textContent = (resp && resp.error) || i18n.t('admin.aiFetchModelsFailed'); }
+      return;
+    }
+    pick.innerHTML = '<option value="">' + i18n.t('admin.aiModelPickPlaceholder') + '</option>' +
+      resp.models.map(id => `<option value="${escapeHtml(id)}">${escapeHtml(id)}</option>`).join('');
+    pick.classList.remove('hidden');
+    if (modelInput.value && pick.querySelector(`option[value="${CSS.escape(modelInput.value)}"]`)) {
+      pick.value = modelInput.value;
+    }
+    if (!resp.models.length && err) { err.textContent = i18n.t('admin.aiFetchModelsEmpty'); }
+  } catch (error) {
+    console.error('Fetch models for form error:', error);
+    if (err) { err.textContent = error.message || i18n.t('admin.aiFetchModelsFailed'); }
+  } finally {
+    btnEl.disabled = false;
+    btnEl.textContent = ot;
+  }
+}
+
+function onModelPickChange() {
+  const v = document.getElementById('aiModelModelPick').value;
+  const input = document.getElementById('aiModelModel');
+  if (v) {
+    input.value = v;
+    input.dispatchEvent(new Event('change')); // 触发 fillModelRates 自动填费率模板
   }
 }
 
@@ -4136,13 +4177,10 @@ async function saveAIModel(e) {
   }
 
   try {
-    const isNew = !document.getElementById('aiModelId').value;
     const modelType = document.getElementById('aiModelType').value;
     const { data, error } = await appSupabase.client.rpc('ai_admin_save_model', {
       p_id: document.getElementById('aiModelId').value || null,
       p_name: name,
-      p_backend: document.getElementById('aiModelBackend').value,
-      p_base_url: document.getElementById('aiModelBaseUrl').value.trim(),
       p_model: document.getElementById('aiModelModel').value.trim(),
       p_temperature: parseFloat(document.getElementById('aiModelTemperature').value) || 0.7,
       p_enabled: document.getElementById('aiModelEnabled').checked,
@@ -4151,6 +4189,7 @@ async function saveAIModel(e) {
       p_rate_cached: parseFloat(document.getElementById('aiModelRateCached').value) || 0,
       p_discount: clampDiscount(parseFloat(document.getElementById('aiModelDiscount').value)),
       p_sort_order: parseInt(document.getElementById('aiModelSortOrder').value, 10) || 0,
+      p_priority_rank: Math.max(0, parseInt(document.getElementById('aiModelPriority').value, 10) || 0),
       p_max_concurrent: Math.max(0, parseInt(document.getElementById('aiModelMaxConcurrent').value, 10) || 0),
       p_model_type: ['image', 'video'].includes(modelType) ? modelType : 'chat',
       p_fixed_credits_per_call: Math.max(0, parseFloat(document.getElementById('aiModelFixedRate').value) || 0),
@@ -4174,25 +4213,28 @@ async function saveAIModel(e) {
       return;
     }
 
-    // 首次创建且填写了临时 discovery Key 时，自动注册为该模型的第一个 API Key
-    const modelId = data && data.id;
-    const discoveryKey = document.getElementById('aiModelDiscoveryKey').value.trim();
-    if (isNew && modelId && discoveryKey) {
-      const keyResp = await aiEdgeKeyRequest('POST', '', {
-        modelId,
-        keyName: i18n.t('admin.aiTempKeyName'),
-        enabled: true,
-        plaintextKey: discoveryKey
+    // 提供商上下文：将模型绑定到当前提供商（上游模型 ID 默认取模型名）
+    const modelId = (data && data.id) || document.getElementById('aiModelId').value;
+    const upstream = document.getElementById('aiModelModel').value.trim() || name;
+    if (aiEditingProviderId && modelId) {
+      const bindErr = await appSupabase.client.rpc('ai_admin_set_model_provider', {
+        p_model_id: modelId,
+        p_provider_id: aiEditingProviderId,
+        p_upstream_model: upstream,
+        p_enabled: true,
       });
-      if (!keyResp || keyResp.success !== true) {
-        console.error('Save temp AI key error:', keyResp);
-        alert((keyResp && keyResp.error) || i18n.t('admin.aiKeySaveFailed'));
+      if (bindErr && bindErr.error) {
+        console.error('Bind model provider error:', bindErr.error);
+        errorEl.textContent = bindErr.error.message || i18n.t('admin.aiModelSaveFailed');
+        errorEl.classList.remove('hidden');
         return;
       }
     }
 
+    aiEditingProviderId = null;
+    aiActiveModelContextName = '';
     closeAIModelModal();
-    loadAIModels();
+    loadAIProviders();
     alert(i18n.t('admin.aiModelSaveSuccess'));
   } catch (error) {
     console.error('Save AI model error:', error);
@@ -4259,13 +4301,37 @@ async function saveAIConfig(key) {
 
 // ---------- 每个模型的 Key 管理 ----------
 
-async function loadAIKeys(modelId) {
-  aiCurrentKeyModelId = modelId;
+// Key 健康状态徽标与详情行（数据来自 ai_provider_keys 健康列，网关被动采集 + probe 落库）
+function aiHealthBadge(state) {
+  const s = state || 'unknown';
+  const label = i18n.t('admin.aiHealth_' + s) || s;
+  return `<span class="ai-health-badge ${escapeHtml(s)}"><i class="ai-health-dot"></i>${escapeHtml(label)}</span>`;
+}
+
+function aiHealthDetails(k) {
+  const latency = k.response_avg_ms ? `${k.response_avg_ms}ms` : '—';
+  const checked = k.last_checked_at ? aiDateTime(k.last_checked_at) : i18n.t('admin.aiHealthNeverChecked');
+  const err = k.last_error && k.consecutive_failures > 0
+    ? `<div class="ai-health-error">${i18n.t('admin.aiHealthLastError')}: ${escapeHtml(k.last_error)}</div>`
+    : '';
+  return `
+    <div class="ai-health-details">
+      ${aiHealthBadge(k.health_state)}
+      <span>${i18n.t('admin.aiHealthAvgLatency')}: ${escapeHtml(latency)}</span>
+      <span>${i18n.t('admin.aiHealthConsecutiveFails')}: ${k.consecutive_failures || 0}</span>
+      <span>${i18n.t('admin.aiHealthCheckedAt')}: ${escapeHtml(checked)}</span>
+    </div>
+    ${err}
+  `;
+}
+
+async function loadProviderKeys(providerId) {
+  aiCurrentKeyProviderId = providerId;
   const list = document.getElementById('aiKeysList');
   showLoading(list);
 
   try {
-    const { data, error } = await appSupabase.client.rpc('ai_admin_list_keys', { p_model_id: modelId });
+    const { data, error } = await appSupabase.client.rpc('ai_admin_list_provider_keys', { p_provider_id: providerId });
     if (error) {
       console.error('Load AI keys error:', error);
       showErrorState(list, i18n.t('common.error'));
@@ -4288,8 +4354,8 @@ async function loadAIKeys(modelId) {
           <div class="code-details">
             <h4>${escapeHtml(k.key_name)} <span class="ai-status-badge ${k.enabled ? 'on' : 'off'}">${k.enabled ? i18n.t('admin.aiEnabled') : i18n.t('admin.aiDisabled')}</span></h4>
             <p>${i18n.t('admin.aiKeyAlias')}: ${escapeHtml(k.key_alias || '-')}</p>
-            ${k.base_url ? `<p>${i18n.t('admin.aiKeyBaseUrl')}: ${escapeHtml(k.base_url)}</p>` : ''}
             <p>${i18n.t('admin.aiQuotaCredits')}: ${k.quota_credits == null ? i18n.t('admin.aiUnlimited') : k.quota_credits} · ${i18n.t('admin.aiCost')}: ${k.total_cost_credits ?? 0}</p>
+            ${aiHealthDetails(k)}
             <p>${i18n.t('admin.aiLastUsed')}: ${k.last_used_at ? aiDateTime(k.last_used_at) : i18n.t('admin.aiNeverUsed')}</p>
           </div>
         </div>
@@ -4305,9 +4371,9 @@ async function loadAIKeys(modelId) {
   }
 }
 
-function openAIKeysModal(modelId) {
-  const model = aiModelsCache.find(m => m.id === modelId);
-  document.getElementById('aiKeysModalTitle').textContent = (model ? model.name + ' · ' : '') + i18n.t('admin.aiKeysTitle');
+function openProviderKeysModal(providerId) {
+  const provider = aiProvidersCache.find(p => p.id === providerId);
+  document.getElementById('aiKeysModalTitle').textContent = (provider ? provider.name + ' · ' : '') + i18n.t('admin.aiKeysTitle');
   cancelAIKeyForm();
   const probeResults = document.getElementById('aiProbeResults');
   const probeSummary = document.getElementById('aiProbeSummary');
@@ -4316,7 +4382,7 @@ function openAIKeysModal(modelId) {
   const modal = document.getElementById('aiKeysModal');
   modal.classList.remove('hidden');
   modal.classList.add('active');
-  loadAIKeys(modelId);
+  loadProviderKeys(providerId);
 }
 
 function closeAIKeysModal() {
@@ -4344,7 +4410,6 @@ function openAIKeyModal(keyId) {
   errorEl.classList.add('hidden');
   document.getElementById('aiKeyId').value = '';
   document.getElementById('aiKeyName').value = '';
-  document.getElementById('aiKeyBaseUrl').value = '';
   document.getElementById('aiKeyPlain').value = '';
   document.getElementById('aiKeyQuota').value = '';
   document.getElementById('aiKeyEnabled').checked = true;
@@ -4354,7 +4419,6 @@ function openAIKeyModal(keyId) {
     if (key) {
       document.getElementById('aiKeyId').value = key.id;
       document.getElementById('aiKeyName').value = key.key_name || '';
-      document.getElementById('aiKeyBaseUrl').value = key.base_url || '';
       document.getElementById('aiKeyQuota').value = key.quota_credits == null ? '' : key.quota_credits;
       document.getElementById('aiKeyEnabled').checked = !!key.enabled;
     }
@@ -4373,7 +4437,6 @@ async function saveAIKey(e) {
 
   const keyId = document.getElementById('aiKeyId').value || undefined;
   const keyName = document.getElementById('aiKeyName').value.trim();
-  const baseUrl = document.getElementById('aiKeyBaseUrl').value.trim();
   const plaintextKey = document.getElementById('aiKeyPlain').value.trim();
   const quotaVal = document.getElementById('aiKeyQuota').value.trim();
   const enabled = document.getElementById('aiKeyEnabled').checked;
@@ -4389,11 +4452,10 @@ async function saveAIKey(e) {
     return;
   }
 
-  const payload = { modelId: aiCurrentKeyModelId, keyName, enabled };
+  const payload = { providerId: aiCurrentKeyProviderId, keyName, enabled };
   if (keyId) payload.keyId = keyId;
   if (plaintextKey) payload.plaintextKey = plaintextKey;
   if (quotaVal !== '') payload.quotaCredits = parseFloat(quotaVal);
-  if (baseUrl) payload.baseUrl = baseUrl;
 
   try {
     const resp = await aiEdgeKeyRequest('POST', '', payload);
@@ -4404,7 +4466,7 @@ async function saveAIKey(e) {
       return;
     }
     cancelAIKeyForm();
-    loadAIKeys(aiCurrentKeyModelId);
+    loadProviderKeys(aiCurrentKeyProviderId);
     alert(i18n.t('admin.aiKeySaveSuccess'));
   } catch (error) {
     console.error('Save AI key error:', error);
@@ -4423,7 +4485,7 @@ async function deleteAIKey(keyId) {
       alert((resp && resp.error) || i18n.t('admin.aiKeyDeleteFailed'));
       return;
     }
-    loadAIKeys(aiCurrentKeyModelId);
+    loadProviderKeys(aiCurrentKeyProviderId);
     alert(i18n.t('admin.aiKeyDeleteSuccess'));
   } catch (error) {
     console.error('Delete AI key error:', error);
@@ -4433,12 +4495,12 @@ async function deleteAIKey(keyId) {
 
 // ---------- 探测全部 Key 状态 ----------
 
-// 一键探测模型下所有 Key 的可用状态与额度（每次实时探测，不做缓存）
+// 一键探测提供商下所有 Key 的可用状态与额度（每次实时探测，不做缓存）
 async function probeAIKeys() {
   const btn = document.getElementById('aiProbeKeysBtn');
   const resultsEl = document.getElementById('aiProbeResults');
   const summaryEl = document.getElementById('aiProbeSummary');
-  if (!btn || !resultsEl || btn.disabled || !aiCurrentKeyModelId) return;
+  if (!btn || !resultsEl || btn.disabled || !aiCurrentKeyProviderId) return;
 
   if (!aiKeysCache.length) {
     resultsEl.classList.remove('hidden');
@@ -4454,12 +4516,15 @@ async function probeAIKeys() {
   if (summaryEl) summaryEl.textContent = '';
 
   try {
-    const resp = await aiEdgeAdminRequest('POST', '/probe-keys', { modelId: aiCurrentKeyModelId });
+    const resp = await aiEdgeAdminRequest('POST', '/probe-keys', { providerId: aiCurrentKeyProviderId });
     if (!resp || !resp.success) {
       resultsEl.innerHTML = `<div class="error-message">${escapeHtml((resp && resp.error) || i18n.t('admin.aiProbeFailed'))}</div>`;
       return;
     }
     renderProbeResults(resp.keys || []);
+    // probe 已把健康状态落库（网关在探测时写 ai_gateway_record_key_health），
+    // 刷新 Key 卡片让徽标/详情同步最新持久化数据
+    loadProviderKeys(aiCurrentKeyProviderId);
   } catch (error) {
     console.error('Probe AI keys error:', error);
     resultsEl.innerHTML = `<div class="error-message">${i18n.t('admin.aiProbeFailed')}</div>`;
@@ -4477,6 +4542,50 @@ const AI_PROBE_HEALTH = {
   error:         { cls: 'off', label: 'admin.aiProbeHealthError' },
 };
 
+// 渲染单个 Key 的探测行（单提供商弹窗与「探测全部 Key」共用）
+function buildProbeKeyRow(k) {
+  const h = AI_PROBE_HEALTH[k.health] || AI_PROBE_HEALTH.error;
+  const healthBadge = `<span class="ai-status-badge ${h.cls}">${i18n.t(h.label)}</span>`;
+  const httpTag = k.httpStatus ? `<span class="ai-probe-tag">HTTP ${k.httpStatus}</span>` : '';
+  const enabledTag = !k.enabled ? `<span class="ai-probe-tag ai-probe-tag-disabled">${i18n.t('admin.aiKeyEnabledOff')}</span>` : '';
+
+  let quotaLine = '';
+  if (k.quotaCredits != null) {
+    const remaining = Math.max(0, k.quotaCredits - (k.totalCostCredits || 0));
+    quotaLine = `<div class="ai-probe-sub">${i18n.t('admin.aiProbeQuota')}: ${k.quotaCredits} · ${i18n.t('admin.aiProbeCost')}: ${k.totalCostCredits || 0} · ${i18n.t('admin.aiProbeRemaining')}: ${remaining}</div>`;
+  }
+
+  let balanceLine = '';
+  if (k.health === 'ok' && k.enabled) {
+    if (k.balance != null) {
+      balanceLine = `<div class="ai-probe-sub">${i18n.t('admin.aiProbeBalance')}: <strong>${k.balance}${k.balanceUnit || ''}</strong>${k.balanceProvider ? ` <span class="ai-probe-tag">${escapeHtml(k.balanceProvider)}</span>` : ''}${k.balanceNote ? ` <span class="ai-probe-muted">(${escapeHtml(k.balanceNote)})</span>` : ''}</div>`;
+    } else if (k.balanceProvider) {
+      balanceLine = `<div class="ai-probe-sub">${i18n.t('admin.aiProbeBalance')}: <span class="ai-probe-muted">${i18n.t('admin.aiProbeBalanceFailed')}</span></div>`;
+    } else {
+      balanceLine = `<div class="ai-probe-sub">${i18n.t('admin.aiProbeBalance')}: <span class="ai-probe-muted">${i18n.t('admin.aiProbeBalanceNone')}</span></div>`;
+    }
+  }
+
+  const noteLine = k.error && k.health !== 'ok'
+    ? `<div class="ai-probe-sub ai-probe-error">${escapeHtml(k.error)}</div>`
+    : '';
+
+  return `
+    <div class="ai-probe-row">
+      <div class="ai-probe-head">
+        <strong>${escapeHtml(k.keyName)}</strong>
+        ${enabledTag}
+        ${healthBadge}
+        ${httpTag}
+      </div>
+      ${k.baseUrl ? `<div class="ai-probe-sub ai-probe-muted">${escapeHtml(k.baseUrl)}</div>` : ''}
+      ${quotaLine}
+      ${balanceLine}
+      ${noteLine}
+    </div>
+  `;
+}
+
 function renderProbeResults(keys) {
   const resultsEl = document.getElementById('aiProbeResults');
   const summaryEl = document.getElementById('aiProbeSummary');
@@ -4484,51 +4593,571 @@ function renderProbeResults(keys) {
 
   let okCount = 0;
   const rows = keys.map(k => {
-    const h = AI_PROBE_HEALTH[k.health] || AI_PROBE_HEALTH.error;
     if (k.health === 'ok') okCount++;
-    const healthBadge = `<span class="ai-status-badge ${h.cls}">${i18n.t(h.label)}</span>`;
-    const httpTag = k.httpStatus ? `<span class="ai-probe-tag">HTTP ${k.httpStatus}</span>` : '';
-    const enabledTag = !k.enabled ? `<span class="ai-probe-tag ai-probe-tag-disabled">${i18n.t('admin.aiKeyEnabledOff')}</span>` : '';
-
-    let quotaLine = '';
-    if (k.quotaCredits != null) {
-      const remaining = Math.max(0, k.quotaCredits - (k.totalCostCredits || 0));
-      quotaLine = `<div class="ai-probe-sub">${i18n.t('admin.aiProbeQuota')}: ${k.quotaCredits} · ${i18n.t('admin.aiProbeCost')}: ${k.totalCostCredits || 0} · ${i18n.t('admin.aiProbeRemaining')}: ${remaining}</div>`;
-    }
-
-    let balanceLine = '';
-    if (k.health === 'ok' && k.enabled) {
-      if (k.balance != null) {
-        balanceLine = `<div class="ai-probe-sub">${i18n.t('admin.aiProbeBalance')}: <strong>${k.balance}${k.balanceUnit || ''}</strong>${k.balanceProvider ? ` <span class="ai-probe-tag">${escapeHtml(k.balanceProvider)}</span>` : ''}${k.balanceNote ? ` <span class="ai-probe-muted">(${escapeHtml(k.balanceNote)})</span>` : ''}</div>`;
-      } else if (k.balanceProvider) {
-        balanceLine = `<div class="ai-probe-sub">${i18n.t('admin.aiProbeBalance')}: <span class="ai-probe-muted">${i18n.t('admin.aiProbeBalanceFailed')}</span></div>`;
-      } else {
-        balanceLine = `<div class="ai-probe-sub">${i18n.t('admin.aiProbeBalance')}: <span class="ai-probe-muted">${i18n.t('admin.aiProbeBalanceNone')}</span></div>`;
-      }
-    }
-
-    const noteLine = k.error && k.health !== 'ok'
-      ? `<div class="ai-probe-sub ai-probe-error">${escapeHtml(k.error)}</div>`
-      : '';
-
-    return `
-      <div class="ai-probe-row">
-        <div class="ai-probe-head">
-          <strong>${escapeHtml(k.keyName)}</strong>
-          ${enabledTag}
-          ${healthBadge}
-          ${httpTag}
-        </div>
-        ${k.baseUrl ? `<div class="ai-probe-sub ai-probe-muted">${escapeHtml(k.baseUrl)}</div>` : ''}
-        ${quotaLine}
-        ${balanceLine}
-        ${noteLine}
-      </div>
-    `;
+    return buildProbeKeyRow(k);
   }).join('');
 
   resultsEl.innerHTML = rows || `<div class="empty-state">${i18n.t('admin.aiProbeNoKeys')}</div>`;
   if (summaryEl) summaryEl.textContent = i18n.t('admin.aiProbeSummary').replace('{total}', keys.length).replace('{ok}', okCount);
+}
+
+// 最外层「探测全部 Key 状态」：遍历所有启用且有 Key 的提供商，逐个探测并按提供商分组汇总
+async function probeAllAIKeys() {
+  const btn = document.getElementById('aiProbeAllKeysBtn');
+  const resultsEl = document.getElementById('aiAllProbeResults');
+  const summaryEl = document.getElementById('aiAllProbeSummary');
+  if (!btn || !resultsEl) return;
+
+  const providers = (aiProvidersCache || []).filter(p => p.enabled && Number(p.key_count) > 0);
+  if (!providers.length) {
+    summaryEl.classList.add('hidden');
+    resultsEl.classList.remove('hidden');
+    resultsEl.innerHTML = `<div class="empty-state">${i18n.t('admin.aiProbeAllNone')}</div>`;
+    return;
+  }
+
+  const label = btn.querySelector('span');
+  btn.disabled = true;
+  if (label) label.textContent = i18n.t('admin.aiProbing');
+  summaryEl.classList.add('hidden');
+  resultsEl.classList.remove('hidden');
+  resultsEl.innerHTML = `<div class="loading-state">${i18n.t('admin.aiProbing')}…</div>`;
+
+  const groups = [];
+  const failed = [];
+  const counts = { ok: 0, total: 0 };
+  try {
+    for (const p of providers) {
+      let resp;
+      try {
+        resp = await aiEdgeAdminRequest('POST', '/probe-keys', { providerId: p.id });
+      } catch (e) {
+        failed.push(p.name + ': ' + i18n.t('admin.aiProbeFailed'));
+        continue;
+      }
+      if (!resp || !resp.success) {
+        failed.push(p.name + ': ' + escapeHtml((resp && resp.error) || i18n.t('admin.aiProbeFailed')));
+        continue;
+      }
+      const rows = (resp.keys || []).map(k => {
+        counts.total++;
+        if (k.health === 'ok') counts.ok++;
+        return buildProbeKeyRow(k);
+      }).join('');
+      groups.push({
+        name: p.name,
+        ok: (resp.keys || []).filter(k => k.health === 'ok').length,
+        total: (resp.keys || []).length,
+        html: rows,
+      });
+    }
+  } finally {
+    btn.disabled = false;
+    if (label) label.textContent = i18n.t('admin.aiProbeAllKeys');
+  }
+
+  const failLine = failed.length
+    ? `<div class="ai-all-probe-fail">${i18n.t('admin.aiProbeFailed')}：${failed.join('；')}</div>`
+    : '';
+  summaryEl.innerHTML = `<strong>${i18n.t('admin.aiProbeSummary').replace('{total}', counts.total).replace('{ok}', counts.ok)}</strong>${failLine}`;
+  summaryEl.classList.remove('hidden');
+
+  resultsEl.innerHTML = groups.length
+    ? groups.map(g => `
+        <div class="ai-probe-group">
+          <div class="ai-probe-group-head"><strong>${escapeHtml(g.name)}</strong><span class="ai-probe-muted">${g.ok}/${g.total}</span></div>
+          ${g.html}
+        </div>
+      `).join('')
+    : `<div class="empty-state">${i18n.t('admin.aiProbeAllNone')}</div>`;
+}
+
+// ---------- 提供商管理 ----------
+
+// 基础计费费率（原位于模型管理页，现随「提供商」页签展示）
+async function loadAIBilling() {
+  const box = document.getElementById('aiBillingCard');
+  if (!box) return;
+  let html = '';
+  try {
+    const cfgRes = await appSupabase.client.rpc('ai_admin_get_app_config');
+    const baseRate = (cfgRes && !cfgRes.error && cfgRes.data && cfgRes.data.base_rate) ?? '';
+    html = `
+      <div class="code-card">
+        <div class="code-info">
+          <div class="code-details" style="flex: 1;">
+            <h4>${i18n.t('admin.aiBillingTitle')}</h4>
+            <p style="margin-top: 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <label for="aiBaseRateInput" style="color: var(--text-muted);">${i18n.t('admin.aiBaseRate')}</label>
+              <input id="aiBaseRateInput" type="number" step="any" min="0" value="${escapeHtml(String(baseRate))}" style="width: 130px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text);">
+              <span style="color: var(--text-muted); font-size: 12px;">${i18n.t('admin.aiBaseRateHint')}</span>
+              <button class="action-btn primary" onclick="saveAIConfig('base_rate')">${i18n.t('common.save')}</button>
+            </p>
+          </div>
+        </div>
+      </div>`;
+  } catch (e) { html = ''; }
+  box.innerHTML = html;
+}
+
+async function loadAIProviders() {
+  const list = document.getElementById('aiProvidersList');
+  showLoading(list);
+
+  try {
+    const [{ data: providers, error: pErr }, modelRes] = await Promise.all([
+      appSupabase.client.rpc('ai_admin_list_providers'),
+      appSupabase.client.rpc('ai_admin_list_models'),
+    ]);
+    if (pErr) {
+      console.error('Load AI providers error:', pErr);
+      showErrorState(list, i18n.t('common.error'));
+      return;
+    }
+
+    aiProvidersCache = providers || [];
+    aiModelsCache = modelRes?.data || [];
+    // 按提供商分组其绑定模型（同名逻辑模型可在多个提供商下列出）
+    const byProv = {};
+    (modelRes?.data || []).forEach(m => {
+      (m.providers || []).forEach(b => {
+        if (!byProv[b.provider_id]) byProv[b.provider_id] = [];
+        byProv[b.provider_id].push({ ...m, upstream_model: b.upstream_model, upstream_enabled: b.enabled });
+      });
+    });
+
+    if (!aiProvidersCache.length) {
+      list.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon"><i data-lucide="server"></i></div>
+          <p>${i18n.t('admin.aiNoProviders')}</p>
+        </div>
+      `;
+      if (window.lucide) lucide.createIcons();
+      return;
+    }
+
+    list.innerHTML = aiProvidersCache.map(p => {
+      const models = byProv[p.id] || [];
+      return `
+      <div class="code-card mb-card">
+        <div class="code-info">
+          <div class="code-details" style="flex: 1;">
+            <h4>${escapeHtml(p.name)} <span class="ai-status-badge ${p.enabled ? 'on' : 'off'}">${p.enabled ? i18n.t('admin.aiEnabled') : i18n.t('admin.aiDisabled')}</span></h4>
+            <p>${i18n.t('admin.aiProviderBaseUrl')}: ${escapeHtml(p.base_url || '-')}</p>
+            <p>${i18n.t('admin.aiKeyCounts')}: ${p.key_count ?? 0} · ${i18n.t('admin.aiModelCounts')}: ${models.length}</p>
+          </div>
+        </div>
+        <div class="code-actions" style="flex-wrap: wrap; justify-content: flex-end;">
+          <label class="ai-switch-label" title="${i18n.t('admin.aiEnabled')}">
+            <input type="checkbox" class="ai-switch" ${p.enabled ? 'checked' : ''} onchange="toggleAIProviderEnabled('${p.id}', this.checked)">
+          </label>
+          <button class="action-btn primary" onclick="openModelForProvider('${p.id}','${escapeHtml(p.name)}')">${i18n.t('admin.aiAddModelUnderProvider')}</button>
+          <button class="action-btn edit" onclick="openProviderKeysModal('${p.id}')">${i18n.t('admin.aiManageKeys')}</button>
+          <button class="action-btn edit" onclick="openAIProviderModal('${p.id}')">${i18n.t('admin.aiEdit')}</button>
+          <button class="action-btn delete" onclick="deleteAIProvider('${p.id}')">${i18n.t('admin.aiDelete')}</button>
+        </div>
+
+        <div class="ai-provider-models">
+          <div class="ai-provider-models-head">
+            <button type="button" class="ai-collapse-btn" id="aiCaret_${p.id}" onclick="toggleAIProviderModels('${p.id}')" aria-expanded="false" title="${i18n.t('admin.aiExpand')}">
+              <svg class="ai-caret" viewBox="0 0 24 24" width="14" height="14" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg>
+            </button>
+            <button type="button" class="ai-provider-models-count" id="aiProvCount_${p.id}" data-count="${models.length}" onclick="toggleAIProviderModels('${p.id}')">${i18n.t('admin.aiExpand').replace('{n}', models.length)}</button>
+            <button class="action-btn" onclick="openModelForProvider('${p.id}','${escapeHtml(p.name)}')">${i18n.t('admin.aiAddModelUnderProvider')}</button>
+          </div>
+          <div class="ai-provider-models-body" id="aiProvBody_${p.id}" hidden>
+          ${models.length ? models.map(m => `
+            <div class="ai-pm-row">
+              <div class="ai-pm-info">
+                <div class="ai-pm-name">${escapeHtml(m.name)}
+                  <span class="ai-status-badge ${m.enabled ? 'on' : 'off'}">${m.enabled ? i18n.t('admin.aiEnabled') : i18n.t('admin.aiDisabled')}</span>
+                  <span class="ai-pm-type">${i18n.t('admin.aiModelType' + ({ chat: 'Chat', image: 'Image', video: 'Video' }[m.model_type] || 'Chat'))}</span>
+                  ${m.is_auto ? `<span class="ai-auto-badge">${i18n.t('admin.aiAutoBadge')}</span>` : ''}
+                </div>
+                <label class="ai-pm-upstream">
+                  <span>${i18n.t('admin.aiUpstreamModel')}</span>
+                  <input type="text" value="${escapeHtml(m.upstream_model || '')}" placeholder="${i18n.t('admin.aiNoUpstreamModel')}"
+                    onchange="saveModelProviderUpstream('${m.id}','${p.id}', this.value)">
+                </label>
+              </div>
+              <div class="ai-pm-actions">
+                <button class="action-btn edit" onclick="openModelForProvider('${p.id}','${escapeHtml(p.name)}','${m.id}')">${i18n.t('admin.aiEdit')}</button>
+                <button class="action-btn delete" onclick="removeModelFromProvider('${m.id}','${p.id}','${escapeHtml(m.name)}')">${i18n.t('admin.aiRemoveFromProvider')}</button>
+              </div>
+            </div>
+          `).join('') : `<div class="ai-pm-empty">${i18n.t('admin.aiNoBoundProviders')}</div>`}
+          </div>
+        </div>
+      </div>
+    `;
+    }).join('');
+    if (window.lucide) lucide.createIcons();
+  } catch (error) {
+    console.error('Load AI providers error:', error);
+    showErrorState(list, i18n.t('common.networkError'));
+  }
+}
+
+// 展开/收起提供商卡片下的模型列表（默认折叠）
+function toggleAIProviderModels(providerId) {
+  const body = document.getElementById('aiProvBody_' + providerId);
+  if (!body) return;
+  const expanded = !body.hidden;
+  body.hidden = expanded; // 原来是展开(expanded=true)则收起
+  const caret = document.getElementById('aiCaret_' + providerId);
+  if (caret) caret.querySelector('.ai-caret').classList.toggle('open', !expanded);
+  const count = document.getElementById('aiProvCount_' + providerId);
+  if (count) {
+    const n = count.dataset.count || '0';
+    count.textContent = i18n.t(!expanded ? 'admin.aiCollapse' : 'admin.aiExpand').replace('{n}', n);
+    count.title = i18n.t(!expanded ? 'admin.aiCollapse' : 'admin.aiExpand').replace('{n}', n);
+  }
+}
+
+// 模型预览：以统一表格列出所有逻辑模型（含内置 AUTO），展示优先级、启停及其绑定的提供商
+async function loadAIModelsPreview() {
+  const list = document.getElementById('aiModelsPreview');
+  if (!list) return;
+  showLoading(list);
+  try {
+    const [modelRes, provRes] = await Promise.all([
+      appSupabase.client.rpc('ai_admin_list_models'),
+      appSupabase.client.rpc('ai_admin_list_providers'),
+    ]);
+    const models = modelRes?.data || [];
+    const providers = provRes?.data || [];
+    const provName = {}; providers.forEach(p => { provName[p.id] = p.name; });
+
+    const typeT = (t) => i18n.t('admin.aiModelType' + ({ chat: 'Chat', image: 'Image', video: 'Video' }[t] || 'Chat'));
+    if (!models.length) {
+      list.innerHTML = `<div class="empty-state"><p>${i18n.t('admin.aiPreviewEmpty')}</p></div>`;
+      return;
+    }
+    list.innerHTML = `
+      <div class="code-card mb-card" style="overflow-x:auto;">
+        <table class="ai-preview-table">
+          <thead>
+            <tr>
+              <th>${i18n.t('admin.aiPreviewName')}</th>
+              <th>${i18n.t('admin.aiModelType')}</th>
+              <th>${i18n.t('admin.aiPriority')}</th>
+              <th>${i18n.t('admin.aiEnabled')}</th>
+              <th>${i18n.t('admin.aiPreviewProviders')}</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${models.map(m => {
+              const provs = (m.providers || []).filter(b => provName[b.provider_id]).map(b => provName[b.provider_id]);
+              const isAuto = !!m.is_auto || String(m.name).toUpperCase() === 'AUTO';
+              return `<tr>
+                <td>${escapeHtml(m.name)}${isAuto ? ` <span class="ai-auto-badge">${i18n.t('admin.aiAutoBadge')}</span>` : ''}</td>
+                <td>${typeT(m.model_type)}</td>
+                <td>${m.priority_rank ?? 0}</td>
+                <td><span class="ai-status-badge ${m.enabled ? 'on' : 'off'}">${m.enabled ? i18n.t('admin.aiEnabled') : i18n.t('admin.aiDisabled')}</span></td>
+                <td>${provs.length ? escapeHtml(provs.join('、')) : (isAuto ? `<span class="ai-text-dim">${i18n.t('admin.aiProviderModelScan')}</span>` : i18n.t('admin.aiPreviewNoProviders'))}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  } catch (error) {
+    console.error('Load AI models preview error:', error);
+    showErrorState(list, i18n.t('common.networkError'));
+  }
+}
+
+// 打开模型编辑弹窗（提供商上下文：新增/编辑该提供商下的模型）
+function openModelForProvider(providerId, providerName, modelId) {
+  aiEditingProviderId = providerId || null;
+  aiActiveModelContextName = providerName || '';
+  if (aiActiveTab !== 'providers') switchAITab('providers');
+  return openAIModelModal(modelId);
+}
+
+// 更新提供商启用状态（保留原字段，仅切换 enabled）
+async function toggleAIProviderEnabled(providerId, enabled) {
+  const provider = aiProvidersCache.find(p => p.id === providerId);
+  if (!provider) return;
+
+  try {
+    const { error } = await appSupabase.client.rpc('ai_admin_save_provider', {
+      p_id: provider.id,
+      p_name: provider.name,
+      p_base_url: provider.base_url,
+      p_enabled: enabled,
+      p_sort_order: provider.sort_order ?? 0
+    });
+    if (error) {
+      console.error('Toggle AI provider error:', error);
+      alert(error.message || i18n.t('admin.aiProviderSaveFailed'));
+      return;
+    }
+    provider.enabled = enabled;
+  } catch (error) {
+    console.error('Toggle AI provider error:', error);
+    alert(error.message || i18n.t('admin.aiProviderSaveFailed'));
+  }
+}
+
+// 提供商预设：选中后自动填充名称与 OpenAI 兼容 API 地址（仅填空字段，避免覆盖已填内容）
+const AI_PROVIDER_PRESETS = {
+  deepseek: { name: 'DeepSeek', baseUrl: 'https://api.deepseek.com/v1' },
+  openai: { name: 'OpenAI', baseUrl: 'https://api.openai.com/v1' },
+  glm: { name: '智谱GLM', baseUrl: 'https://open.bigmodel.cn/api/paas/v4' },
+  qwen: { name: '通义Qwen', baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1' },
+  kimi: { name: 'Kimi', baseUrl: 'https://api.moonshot.cn/v1' },
+  ollama: { name: 'Ollama', baseUrl: 'http://localhost:11434/v1' },
+};
+
+function applyAIProviderPreset(value) {
+  const preset = AI_PROVIDER_PRESETS[value];
+  if (!preset) return;
+  const nameEl = document.getElementById('aiProviderName');
+  const urlEl = document.getElementById('aiProviderBaseUrl');
+  if (nameEl && !nameEl.value.trim()) nameEl.value = preset.name;
+  if (urlEl && !urlEl.value.trim()) urlEl.value = preset.baseUrl;
+}
+
+function openAIProviderModal(providerId) {
+  const form = document.getElementById('aiProviderForm');
+  form.reset();
+  document.getElementById('aiProviderId').value = '';
+  document.getElementById('aiProviderName').value = '';
+  document.getElementById('aiProviderBaseUrl').value = '';
+  document.getElementById('aiProviderSortOrder').value = '0';
+  document.getElementById('aiProviderEnabled').checked = true;
+  document.getElementById('aiProviderError').classList.add('hidden');
+  document.getElementById('aiProviderModalTitle').textContent = i18n.t('admin.aiProviderModalTitleAdd');
+
+  if (providerId) {
+    const provider = aiProvidersCache.find(p => p.id === providerId);
+    if (provider) {
+      document.getElementById('aiProviderModalTitle').textContent = i18n.t('admin.aiProviderModalTitleEdit');
+      document.getElementById('aiProviderId').value = provider.id;
+      document.getElementById('aiProviderName').value = provider.name || '';
+      document.getElementById('aiProviderBaseUrl').value = provider.base_url || '';
+      document.getElementById('aiProviderSortOrder').value = provider.sort_order ?? 0;
+      document.getElementById('aiProviderEnabled').checked = !!provider.enabled;
+    }
+  }
+
+  const modal = document.getElementById('aiProviderModal');
+  modal.classList.remove('hidden');
+  modal.classList.add('active');
+}
+
+function closeAIProviderModal() {
+  const modal = document.getElementById('aiProviderModal');
+  modal.classList.remove('active');
+  setTimeout(() => modal.classList.add('hidden'), 200);
+}
+
+async function saveAIProvider(e) {
+  e.preventDefault();
+  const errorEl = document.getElementById('aiProviderError');
+  errorEl.classList.add('hidden');
+
+  const name = document.getElementById('aiProviderName').value.trim();
+  if (!name) {
+    errorEl.textContent = i18n.t('admin.aiProviderNameRequired');
+    errorEl.classList.remove('hidden');
+    return;
+  }
+  const baseUrl = document.getElementById('aiProviderBaseUrl').value.trim();
+  if (!baseUrl) {
+    errorEl.textContent = i18n.t('admin.aiProviderBaseUrlRequired');
+    errorEl.classList.remove('hidden');
+    return;
+  }
+
+  try {
+    const { error } = await appSupabase.client.rpc('ai_admin_save_provider', {
+      p_id: document.getElementById('aiProviderId').value || null,
+      p_name: name,
+      p_base_url: baseUrl,
+      p_enabled: document.getElementById('aiProviderEnabled').checked,
+      p_sort_order: parseInt(document.getElementById('aiProviderSortOrder').value, 10) || 0
+    });
+    if (error) {
+      console.error('Save AI provider error:', error);
+      errorEl.textContent = error.message || i18n.t('admin.aiProviderSaveFailed');
+      errorEl.classList.remove('hidden');
+      return;
+    }
+    closeAIProviderModal();
+    loadAIProviders();
+    alert(i18n.t('admin.aiProviderSaveSuccess'));
+  } catch (error) {
+    console.error('Save AI provider error:', error);
+    errorEl.textContent = error.message || i18n.t('admin.aiProviderSaveFailed');
+    errorEl.classList.remove('hidden');
+  }
+}
+
+async function deleteAIProvider(providerId) {
+  if (!confirm(i18n.t('admin.aiProviderDeleteConfirm'))) return;
+
+  try {
+    const { data, error } = await appSupabase.client.rpc('ai_admin_delete_provider', { p_id: providerId });
+    if (error) {
+      console.error('Delete AI provider error:', error);
+      alert(error.message || i18n.t('admin.aiProviderDeleteFailed'));
+      return;
+    }
+    if (data && data.success !== true && data.message) {
+      alert(data.message);
+      return;
+    }
+    loadAIProviders();
+    alert(i18n.t('admin.aiProviderDeleteSuccess'));
+  } catch (error) {
+    console.error('Delete AI provider error:', error);
+    alert(error.message || i18n.t('admin.aiProviderDeleteFailed'));
+  }
+}
+
+// ---------- 模型 ⇄ 提供商 绑定 ----------
+
+async function loadAIModelProviders(modelId) {
+  aiCurrentModelProvidersId = modelId;
+  const list = document.getElementById('aiModelProvidersList');
+  showLoading(list);
+
+  const model = aiModelsCache.find(m => m.id === modelId);
+  document.getElementById('aiModelProvidersModalTitle').textContent =
+    (model ? model.name + ' · ' : '') + i18n.t('admin.aiModelProvidersTitle');
+
+  try {
+    // 已有绑定
+    const { data: boundRes } = await appSupabase.client.rpc('ai_admin_list_model_providers', { p_model_id: modelId });
+    const bound = boundRes || [];
+    // 全部提供商
+    if (!aiProvidersCache.length) {
+      const { data: provRes } = await appSupabase.client.rpc('ai_admin_list_providers');
+      aiProvidersCache = provRes || [];
+    }
+
+    aiModelProvidersCache = bound;
+    if (!aiProvidersCache.length) {
+      list.innerHTML = `<div class="empty-state"><p>${i18n.t('admin.aiNoProviders')}</p></div>`;
+      return;
+    }
+
+    list.innerHTML = aiProvidersCache.map(p => {
+      const b = bound.find(x => x.provider_id === p.id);
+      const linked = !!b;
+      const upstream = b && b.upstream_model ? b.upstream_model : '';
+      return `
+      <div class="code-card" style="align-items: flex-start;">
+        <div class="code-info">
+          <div class="code-details" style="flex: 1;">
+            <h4>${escapeHtml(p.name)} <span class="ai-status-badge ${p.enabled ? 'on' : 'off'}">${p.enabled ? i18n.t('admin.aiEnabled') : i18n.t('admin.aiDisabled')}</span></h4>
+            <p>${i18n.t('admin.aiProviderBaseUrl')}: ${escapeHtml(p.base_url || '-')}</p>
+            <div style="display:flex; flex-direction: column; gap: 6px; margin-top: 8px;">
+              <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+                <input type="checkbox" class="ai-switch" ${linked ? 'checked' : ''} onchange="toggleModelProviderLink('${modelId}', '${p.id}', this.checked)">
+                <span>${i18n.t('admin.aiBindProviderHint')}</span>
+              </label>
+              <div style="display:${linked ? 'flex' : 'none'}; flex-direction: column; gap: 6px;" id="aiBindDetail_${p.id}">
+                <input id="aiBindUpstream_${p.id}" type="text" class="form-input" placeholder="${i18n.t('admin.aiUpstreamModelPlaceholder')}" value="${escapeHtml(upstream)}" style="max-width: 420px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text);" onchange="saveModelProviderUpstream('${modelId}', '${p.id}', this.value)">
+                <div>
+                  <button type="button" class="action-btn" onclick="fetchProviderModels('${p.id}', this)">${i18n.t('admin.aiFetchModels')}</button>
+                  <select id="aiProviderUpstreamPick_${p.id}" class="form-select hidden" style="margin-top: 6px; max-width: 420px;" onchange="document.getElementById('aiBindUpstream_${p.id}').value = this.value; document.getElementById('aiBindUpstream_${p.id}').dispatchEvent(new Event('change'))"></select>
+                </div>
+                <p id="aiProviderFetchError_${p.id}" class="error-message hidden" style="margin: 0;"></p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    }).join('');
+  } catch (error) {
+    console.error('Load AI model providers error:', error);
+    showErrorState(list, i18n.t('common.networkError'));
+  }
+}
+
+// 切换模型 ⇄ 提供商 是否绑定（未绑定时解除，已绑定时补一条启用绑定）
+async function toggleModelProviderLink(modelId, providerId, link) {
+  if (link) {
+    // 建立绑定：新增一条（默认启用 + 上游模型留空）
+    try {
+      const { error } = await appSupabase.client.rpc('ai_admin_set_model_provider', {
+        p_model_id: modelId,
+        p_provider_id: providerId,
+        p_upstream_model: null,
+        p_enabled: true
+      });
+      if (error) { alert(error.message || i18n.t('common.error')); return; }
+      const detail = document.getElementById('aiBindDetail_' + providerId);
+      if (detail) detail.style.display = 'flex';
+      loadAIModelProviders(modelId);
+    } catch (error) { alert(error.message || i18n.t('common.error')); }
+  } else {
+    // 解绑
+    try {
+      const { error } = await appSupabase.client.rpc('ai_admin_unbind_model', {
+        p_model_id: modelId,
+        p_provider_id: providerId
+      });
+      if (error) { alert(error.message || i18n.t('common.error')); return; }
+      const detail = document.getElementById('aiBindDetail_' + providerId);
+      if (detail) detail.style.display = 'none';
+      loadAIModelProviders(modelId);
+    } catch (error) { alert(error.message || i18n.t('common.error')); }
+  }
+}
+
+// 保存某模型在某提供商下的上游模型 ID（仅当地已绑定）
+async function saveModelProviderUpstream(modelId, providerId, upstreamModel) {
+
+  try {
+    const { error } = await appSupabase.client.rpc('ai_admin_set_model_provider', {
+      p_model_id: modelId,
+      p_provider_id: providerId,
+      p_upstream_model: upstreamModel || null,
+      p_enabled: true
+    });
+    if (error) { alert(error.message || i18n.t('common.error')); }
+  } catch (error) { alert(error.message || i18n.t('common.error')); }
+}
+
+// 将模型从某个提供商下移除；若该逻辑模型不再属于任何提供商，则一并删除
+async function removeModelFromProvider(modelId, providerId, modelName) {
+  if (!confirm(i18n.t('admin.aiRemoveFromProviderConfirm').replace('{name}', modelName || ''))) return;
+
+  try {
+    const { error } = await appSupabase.client.rpc('ai_admin_unbind_model', {
+      p_model_id: modelId,
+      p_provider_id: providerId,
+    });
+    if (error) { alert(error.message || i18n.t('admin.aiRemoveFromProviderFailed')); return; }
+
+    const { data: remains } = await appSupabase.client.rpc('ai_admin_list_model_providers', { p_model_id: modelId });
+    if (!remains || !remains.length) {
+      await appSupabase.client.rpc('ai_admin_delete_model', { p_id: modelId });
+    }
+    loadAIProviders();
+  } catch (error) {
+    alert(error.message || i18n.t('admin.aiRemoveFromProviderFailed'));
+    loadAIProviders();
+  }
+}
+
+function openAIModelProvidersModal(modelId) {
+  const modal = document.getElementById('aiModelProvidersModal');
+  modal.classList.remove('hidden');
+  modal.classList.add('active');
+  loadAIModelProviders(modelId);
+}
+
+function closeAIModelProvidersModal() {
+  const modal = document.getElementById('aiModelProvidersModal');
+  modal.classList.remove('active');
+  setTimeout(() => modal.classList.add('hidden'), 200);
 }
 
 // ---------- 用户额度 ----------

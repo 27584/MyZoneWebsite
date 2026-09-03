@@ -2843,6 +2843,77 @@ body.embedded .dashboard-container {
   color: var(--error-color);
 }
 
+/* 提供商卡片：模型列表（默认折叠）+ 展开/收起 */
+.ai-provider-models {
+  margin-top: 14px;
+  border-top: 1px solid var(--border-color);
+  padding-top: 10px;
+}
+.ai-provider-models-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.ai-collapse-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary, inherit);
+  cursor: pointer;
+  border-radius: 4px;
+}
+.ai-collapse-btn:hover { background: var(--border-color, rgba(128,128,128,.15)); }
+.ai-collapse-btn .ai-caret { transition: transform .15s ease; }
+.ai-collapse-btn .ai-caret.open { transform: rotate(90deg); }
+.ai-provider-models-count {
+  border: none;
+  background: transparent;
+  color: var(--text-secondary, inherit);
+  font-size: 12.5px;
+  padding: 2px 4px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.ai-provider-models-count:hover { background: var(--border-color, rgba(128,128,128,.15)); }
+.ai-provider-models-body { margin-top: 6px; }
+
+/* 模型预览表格 */
+.ai-preview-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.ai-preview-table th,
+.ai-preview-table td {
+  text-align: left;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--border-color);
+  white-space: nowrap;
+}
+.ai-preview-table th { font-weight: 600; color: var(--text-secondary, inherit); }
+.ai-preview-table tr:last-child td { border-bottom: none; }
+
+/* AUTO 自动选择徽标 */
+.ai-auto-badge {
+  display: inline-block;
+  font-size: 10px;
+  line-height: 14px;
+  font-weight: 600;
+  color: var(--primary-color);
+  border: 1px solid var(--primary-color);
+  border-radius: 4px;
+  padding: 0 4px;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+.ai-text-dim { opacity: .6; font-style: italic; }
+
 /* Key 状态探测结果 */
 #aiProbeResults:not(.hidden) {
   border: 1px solid var(--border-color);
@@ -2885,6 +2956,72 @@ body.embedded .dashboard-container {
 }
 .ai-probe-muted { color: var(--text-secondary, inherit); opacity: .8; }
 .ai-probe-error { color: var(--error-color); }
+
+/* —— 全局「探测全部 Key」结果容器 —— */
+.ai-probe-summary {
+  margin: 10px 0 6px;
+  font-size: 13px;
+}
+.ai-all-probe-fail {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--warning-color, #d97706);
+  word-break: break-word;
+}
+.ai-probe-group + .ai-probe-group { margin-top: 14px; }
+.ai-probe-group-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 8px 0 4px;
+  border-bottom: 1px solid var(--border-color);
+}
+.ai-probe-group-head strong { font-size: 13px; }
+.ai-probe-results { margin-top: 4px; }
+
+/* —— API Key 健康状态徽标与详情行 —— */
+.ai-health-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  line-height: 1;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--border-color);
+  color: var(--text-secondary, inherit);
+  white-space: nowrap;
+}
+.ai-health-badge .ai-health-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: .85;
+  flex-shrink: 0;
+}
+.ai-health-badge.ok { background: var(--success-light, rgba(22, 163, 74, 0.12)); color: var(--success-color, #16a34a); }
+.ai-health-badge.degraded { background: var(--warning-light, rgba(245, 158, 11, 0.14)); color: var(--warning-color, #d97706); }
+.ai-health-badge.over_quota { background: var(--error-light, rgba(220, 38, 38, 0.1)); color: var(--error-color); }
+.ai-health-badge.invalid { background: var(--error-light, rgba(220, 38, 38, 0.1)); color: var(--error-color); }
+.ai-health-badge.rate_limited { background: var(--warning-light, rgba(245, 158, 11, 0.14)); color: var(--warning-color, #d97706); }
+.ai-health-badge.error { background: var(--error-light, rgba(220, 38, 38, 0.1)); color: var(--error-color); }
+
+.ai-health-details {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  margin-top: 6px;
+  color: var(--text-secondary, inherit);
+}
+.ai-health-error {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--error-color);
+  word-break: break-word;
+}
 
 .ai-switch-label {
   display: inline-flex;

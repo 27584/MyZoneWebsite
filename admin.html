@@ -172,16 +172,23 @@
           <h2 data-i18n="admin.aiTitle">内置 AI</h2>
         </div>
         <div class="ai-tabs">
-          <button class="tab active" data-ai-tab="models" onclick="switchAITab('models')" data-i18n="admin.aiTabModels">模型管理</button>
+          <button class="tab active" data-ai-tab="providers" onclick="switchAITab('providers')" data-i18n="admin.aiTabProviders">提供商</button>
           <button class="tab" data-ai-tab="credits" onclick="switchAITab('credits')" data-i18n="admin.aiTabCredits">用户额度</button>
           <button class="tab" data-ai-tab="usage" onclick="switchAITab('usage')" data-i18n="admin.aiTabUsage">用量统计</button>
+          <button class="tab" data-ai-tab="preview" onclick="switchAITab('preview')" data-i18n="admin.aiTabPreview">模型预览</button>
         </div>
 
-        <div id="aiModelsPanel" class="ai-tab-panel">
+        <div id="aiProvidersPanel" class="ai-tab-panel">
           <div class="cloud-data-toolbar">
-            <button id="aiAddModelBtn" class="btn btn-primary" data-i18n="admin.aiAddModel">新增模型</button>
+            <button id="aiAddProviderBtn" class="btn btn-primary" onclick="openAIProviderModal()" data-i18n="admin.aiAddProvider">新增提供商</button>
+            <button id="aiProbeAllKeysBtn" class="btn btn-secondary" onclick="probeAllAIKeys()">
+              <span data-i18n="admin.aiProbeAllKeys">探测全部 Key 状态</span>
+            </button>
           </div>
-          <div id="aiModelsList" class="cards-container"></div>
+          <div id="aiBillingCard"></div>
+          <div id="aiAllProbeSummary" class="ai-probe-summary hidden"></div>
+          <div id="aiAllProbeResults" class="ai-probe-results hidden"></div>
+          <div id="aiProvidersList" class="cards-container"></div>
         </div>
 
         <div id="aiCreditsPanel" class="ai-tab-panel hidden">
@@ -199,6 +206,13 @@
             <button class="btn ai-days-btn" data-days="90" onclick="loadAIUsage(90)" data-i18n="admin.aiDays90">近90天</button>
           </div>
           <div id="aiUsageContent"></div>
+        </div>
+
+        <div id="aiPreviewPanel" class="ai-tab-panel hidden">
+          <div class="cloud-data-toolbar">
+            <button class="btn btn-secondary" onclick="loadAIModelsPreview()" data-i18n="admin.aiRefresh">刷新</button>
+          </div>
+          <div id="aiModelsPreview" class="cards-container"></div>
         </div>
       </div>
 
@@ -604,53 +618,28 @@
       <form id="aiModelForm">
         <input type="hidden" id="aiModelId">
         <div class="form-group">
-          <label data-i18n="admin.aiPreset">预设</label>
-          <select id="aiModelPreset" class="form-select" onchange="applyAIModelPreset()">
-            <option value="" data-i18n="admin.aiPresetCustom">自定义</option>
-            <option value="openai" data-i18n="admin.aiPresetOpenAI">OpenAI</option>
-            <option value="deepseek" data-i18n="admin.aiPresetDeepseek">DeepSeek</option>
-            <option value="dashscope" data-i18n="admin.aiPresetDashscope">通义千问（阿里云百炼）</option>
-            <option value="zhipu" data-i18n="admin.aiPresetZhipu">智谱 GLM</option>
-            <option value="moonshot" data-i18n="admin.aiPresetMoonshot">Moonshot Kimi</option>
-            <option value="ark" data-i18n="admin.aiPresetArk">火山方舟（豆包）</option>
-            <option value="siliconflow" data-i18n="admin.aiPresetSiliconflow">硅基流动 SiliconFlow</option>
-            <option value="openrouter" data-i18n="admin.aiPresetOpenrouter">OpenRouter</option>
-            <option value="ollama" data-i18n="admin.aiPresetOllama">Ollama（本地）</option>
-          </select>
-        </div>
-        <div class="form-group">
           <label data-i18n="admin.aiName">名称</label>
           <input type="text" id="aiModelName" required data-i18n-placeholder="admin.aiName">
         </div>
-        <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+        <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
           <div>
-            <label data-i18n="admin.aiBackend">后端</label>
-            <select id="aiModelBackend" class="form-select">
-              <option value="openai" data-i18n="admin.aiBackendOpenAI">OpenAI</option>
-              <option value="ollama" data-i18n="admin.aiBackendOllama">Ollama</option>
-            </select>
+            <label data-i18n="admin.aiModel">模型</label>
+            <div style="display: flex; gap: 6px; align-items: center;">
+              <input type="text" id="aiModelModel" required style="flex: 1; min-width: 0;" onchange="fillModelRates(this.value)">
+              <button type="button" class="btn btn-secondary" style="white-space: nowrap; flex-shrink: 0;" onclick="fetchModelsForModelForm(this)" data-i18n="admin.aiFetchFromApi">从API获取</button>
+            </div>
+            <select id="aiModelModelPick" class="form-select hidden" style="margin-top: 6px; width: 100%;" onchange="onModelPickChange()"></select>
+            <small class="form-hint" id="aiModelFetchError" style="color: var(--error-color);"></small>
           </div>
           <div>
             <label data-i18n="admin.aiSortOrder">排序</label>
-            <input type="number" id="aiModelSortOrder" value="0">
+            <input type="number" id="aiModelSortOrder" value="0" style="width: 100%;">
           </div>
-        </div>
-        <div class="form-group">
-          <label data-i18n="admin.aiBaseUrl">上游地址</label>
-          <input type="text" id="aiModelBaseUrl" placeholder="https://...">
-        </div>
-        <div class="form-group">
-          <label data-i18n="admin.aiModel">模型</label>
-          <div style="display: flex; gap: 8px;">
-            <input type="text" id="aiModelModel" required style="flex: 1;" onchange="fillModelRates(this.value)">
-            <button type="button" id="aiModelFetchBtn" class="btn btn-secondary" onclick="fetchAIModelList()" data-i18n="admin.aiFetchModels">获取模型列表</button>
+          <div>
+            <label data-i18n="admin.aiPriority">优先级</label>
+            <input type="number" id="aiModelPriority" value="0" style="width: 100%;" min="0" step="1">
+            <small class="form-hint" id="aiPriorityHint" data-i18n="admin.aiPriorityHint">数值越大越优先，供 AUTO 自动选择参考</small>
           </div>
-          <select id="aiModelPick" class="form-select hidden" style="margin-top: 8px;" onchange="document.getElementById('aiModelModel').value = this.value; fillModelRates(this.value)"></select>
-        </div>
-        <div class="form-group">
-          <label data-i18n="admin.aiDiscoveryKey">临时 API Key</label>
-          <input type="password" id="aiModelDiscoveryKey" data-i18n-placeholder="admin.aiDiscoveryKeyPlaceholder">
-          <small class="form-hint" data-i18n="admin.aiDiscoveryKeyHint">仅用于获取模型列表，不保存；留空则使用该模型已保存的 Key</small>
         </div>
         <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
           <div>
@@ -731,6 +720,65 @@
     </div>
   </div>
 
+  <div id="aiProviderModal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content ai-model">
+      <button class="close-btn" onclick="closeAIProviderModal()">&times;</button>
+      <h2 id="aiProviderModalTitle" data-i18n="admin.aiProviderModalTitleAdd">新增提供商</h2>
+      <form id="aiProviderForm">
+        <input type="hidden" id="aiProviderId">
+        <div class="form-group">
+          <label data-i18n="admin.aiProviderName">提供商名称</label>
+          <input type="text" id="aiProviderName" required data-i18n-placeholder="admin.aiProviderNamePlaceholder">
+        </div>
+        <div class="form-group">
+          <label data-i18n="admin.aiProviderBaseUrl">API 地址</label>
+          <input type="text" id="aiProviderBaseUrl" required data-i18n-placeholder="admin.aiProviderBaseUrlPlaceholder">
+          <small class="form-hint" data-i18n="admin.aiProviderBaseUrlHint">OpenAI 兼容接口基址，实际调用拼接各模型在该提供商下的上游模型 ID</small>
+        </div>
+        <div class="form-group">
+          <label for="aiProviderPreset" data-i18n="admin.aiProviderPreset">快速填充预设</label>
+          <select id="aiProviderPreset" class="form-select" onchange="applyAIProviderPreset(this.value)">
+            <option value="" data-i18n="admin.aiProviderPresetNone">— 手动填写 / 不使用预设 —</option>
+            <option value="deepseek">DeepSeek · api.deepseek.com</option>
+            <option value="openai">OpenAI · api.openai.com/v1</option>
+            <option value="glm">智谱GLM · open.bigmodel.cn/api/paas/v4</option>
+            <option value="qwen">通义Qwen · dashscope.aliyuncs.com/compatible-mode/v1</option>
+            <option value="kimi">Kimi(月之暗面) · api.moonshot.cn/v1</option>
+            <option value="ollama">Ollama 本地 · http://localhost:11434/v1</option>
+          </select>
+        </div>
+        <div class="form-group" style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; align-items: center;">
+          <div>
+            <label data-i18n="admin.aiSortOrder">排序</label>
+            <input type="number" id="aiProviderSortOrder" value="0" style="width: 100%;">
+          </div>
+          <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer; height: 100%; justify-content: center; margin: 0;">
+            <input type="checkbox" id="aiProviderEnabled" checked>
+            <span data-i18n="admin.aiEnabled">启用</span>
+          </label>
+        </div>
+        <div id="aiProviderError" class="error-message hidden"></div>
+        <div style="display: flex; justify-content: flex-end; gap: 10px;">
+          <button type="button" class="btn btn-secondary" onclick="closeAIProviderModal()" data-i18n="admin.aiCancel">取消</button>
+          <button type="submit" class="btn btn-primary" data-i18n="admin.aiSaveKey">保存</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="aiModelProvidersModal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content large">
+      <button class="close-btn" onclick="closeAIModelProvidersModal()">&times;</button>
+      <h2 id="aiModelProvidersModalTitle" data-i18n="admin.aiModelProvidersTitle">绑定提供商</h2>
+      <div style="padding: 16px 24px 24px;">
+        <p style="font-size: 13px; opacity:.75; margin: 0 0 12px;" data-i18n="admin.aiModelProvidersHint">为逻辑模型绑定一个或多个提供商；实际转发时按绑定关系使用对应提供商的 API 地址与 Key。</p>
+        <div id="aiModelProvidersList" class="cards-container"></div>
+      </div>
+    </div>
+  </div>
+
   <div id="aiKeysModal" class="modal hidden">
     <div class="modal-backdrop"></div>
     <div class="modal-content large">
@@ -752,11 +800,6 @@
           <div class="form-group">
             <label data-i18n="admin.aiKeyName">Key 名称</label>
             <input type="text" id="aiKeyName" required>
-          </div>
-          <div class="form-group">
-            <label data-i18n="admin.aiKeyBaseUrl">上游地址（可选）</label>
-            <input type="text" id="aiKeyBaseUrl" data-i18n-placeholder="admin.aiKeyBaseUrlPlaceholder">
-            <small class="form-hint" data-i18n="admin.aiKeyBaseUrlHint">留空使用模型的上游地址；配置后该 Key 将请求此提供商的接口（同一模型可接入不同提供商）</small>
           </div>
           <div class="form-group">
             <label data-i18n="admin.aiKeyPlain">明文 Key</label>
