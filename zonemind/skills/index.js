@@ -67,17 +67,15 @@ function unregisterCustomSkill(id) {
 // ========== 智能体配置解析 ==========
 // 内置智能体：锁定「固定默认技能集」（不可关闭），用户只能追加技能/MCP 服务器（只增不减）。
 // 自定义智能体：skills/tools/mcpServers 完全自由。
-// ZoneMind 网页版：仅保留网页可用的基础技能（core + network）。桌面专属技能不复制、不注册，故不会出现在工具表/系统提示/设置面板。
+// ZoneMind 网页版：仅保留网页可用的基础技能（core + network）与生成式模型（generative）。
+// 桌面专属技能不复制、不注册，故不会出现在工具表/系统提示/设置面板。
 const BUILTIN_AGENT_BASE = {
   default: {
+    // Chat：锁定基础能力为「最基础（core）+ 联网搜索（network）」，不可关闭；
+    // 另默认启用生成技能（generative，图片/视频生成）但不锁定——工具照常暴露给模型，用户可在设置中关闭。
     skills: ['core', 'network'],
-    defaultEnabled: [],
+    defaultEnabled: ['generative', 'account'],
     mcpServers: [], // 显式启用列表；空 = 未启用任何 MCP 服务器
-  },
-  organizer: {
-    skills: ['core', 'network'],
-    defaultEnabled: [],
-    mcpServers: [], // MCP 服务器不作为锁定基础技能；与自定义智能体一致，可自由开启/关闭
   },
 };
 
@@ -211,14 +209,15 @@ function refreshContextBudget() {
 // 新加技能：建 skills/<name>/skill.md，并把 { id, path } 追加进 SKILL_MD。
 // 新加智能体：建 agents/<name>/agent.md，并把 { id, path } 追加进 AGENT_MD。
 // md 内容：开头 `---` 间是 front-matter（id/name/desc/builtin），其余为 markdown 正文（作为系统提示片段）。
-// ZoneMind 网页版：不复制桌面专属技能的 skill.md（filesystem/search/system/script/browser/cloud/cookies/account/notifications/archive/external/cache/temp/generative）。
+// ZoneMind 网页版：不复制桌面专属技能的 skill.md（filesystem/search/system/script/browser/cloud/cookies/notifications/archive/external/cache/temp）。
 const SKILL_MD = [
   { id: 'core', path: 'skills/core/skill.md' },
   { id: 'network', path: 'skills/network/skill.md' },
+  { id: 'generative', path: 'skills/generative/skill.md' },
+  { id: 'account', path: 'skills/account/skill.md' },
 ];
 const AGENT_MD = [
   { id: 'default', path: 'agents/default/agent.md' },
-  { id: 'organizer', path: 'agents/organizer/agent.md' },
 ];
 
 function fetchPackagedText(relPath) {
@@ -235,7 +234,7 @@ function fetchPackagedText(relPath) {
 function parseMd(raw) {
   const meta = {};
   let body = raw;
-  const m = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/.exec(raw);
+  const m = /^[-*_]+\r?\n([\s\S]*?)\r?\n[-*_]+\r?\n?([\s\S]*)$/.exec(raw);
   if (m) {
     body = m[2];
     for (const line of m[1].split(/\r?\n/)) {

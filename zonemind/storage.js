@@ -324,6 +324,7 @@ async function mergeBuiltinModels() {
       builtinModelId: m.id,               // 真实模型 UUID，传给网关
       name: m.name || m.model || m.id,
       model: m.model,
+      is_auto: m.is_auto === true,        // AUTO 自动选择（后台标记）：内置模型下拉里恒排第一
       model_type: m.model_type,           // chat | image | video，供 generate_* 工具选型
       multimodal: m.multimodal !== false, // 视觉模型可接收图片输入（后台可配置，默认启用）
       context_length: Number(m.context_length) > 0 ? Number(m.context_length) : null, // 上下文窗口上限（tokens），用于圆环/工具提示展示

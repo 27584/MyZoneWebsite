@@ -347,6 +347,81 @@
     try { balance = (await getCreditsBalance()).balance; } catch (e) { balance = null; }
     return { success: true, available: models.length > 0, loggedIn: true, configured: true, models: models, balance: balance, base_rate: baseRate, error: modelError };
   }
+  async function generateImage(opts) {
+    opts = opts || {};
+    try {
+      // 文生图：与桌面端一致走 /relay，网关返回同步 JSON（images/usage/balance/credits_cost）
+      const res = await chat({
+        modelId: opts.modelId,
+        messages: [{ role: 'user', content: String(opts.prompt || '') }],
+        stream: true,
+        size: opts.size,
+        n: opts.n,
+        ratio: opts.ratio,
+      });
+      if (!res || !res.success) return { success: false, error: '图片生成失败' };
+      if (res.interrupted) {
+        return { success: false, error: 'credits 余额不足，生成已中断', interrupted: true, balance: res.balance };
+      }
+      return { success: true, images: res.images || [], model: res.model || '', usage: res.usage || null, credits_cost: res.credits_cost, balance: res.balance };
+    } catch (err) {
+      return { success: false, error: (err && err.message) || '图片生成失败', status: err && err.status };
+    }
+  }
+  async function generateVideo(opts) {
+    opts = opts || {};
+    const token = await getAccessToken();
+    if (!token) return { success: false, error: '未登录，无法使用内置 AI' };
+    const gateway = gatewayBase();
+    if (!gateway) return { success: false, error: '内置 AI 网关未配置' };
+    try {
+      const body = {
+        modelId: opts.modelId,
+        messages: [{ role: 'user', content: String(opts.prompt || '') }],
+        stream: true,
+      };
+      // 网关约定的文生视频字段：mode / size / seconds / aspect_ratio
+      if (opts.mode) body.mode = opts.mode;
+      if (opts.size) body.size = opts.size;
+      if (opts.seconds != null) body.seconds = String(opts.seconds);
+      if (opts.aspectRatio) body.aspect_ratio = String(opts.aspectRatio);
+      const res = await fetch(gateway + '/relay', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify(body),
+      });
+      let info = null;
+      try { info = await res.json(); } catch (e) { info = null; }
+      if (!res.ok) throw buildApiError(info, res.status);
+      if (!info || (info.status !== 'submitted' && !info.task_id)) {
+        return { success: false, error: (info && info.error) || '视频任务提交失败' };
+      }
+      return { success: true, taskId: info.task_id, videoTaskId: info.video_task_id || null, modelId: info.modelId || opts.modelId };
+    } catch (err) {
+      return { success: false, error: (err && err.message) || '视频任务提交失败', status: err && err.status };
+    }
+  }
+  async function pollVideo(taskId) {
+    const token = await getAccessToken();
+    if (!token) return { success: false, error: '未登录，无法使用内置 AI' };
+    const gateway = gatewayBase();
+    if (!gateway) return { success: false, error: '内置 AI 网关未配置' };
+    try {
+      const res = await fetch(gateway + '/video/status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ taskId }),
+      });
+      let info = null;
+      try { info = await res.json(); } catch (e) { info = null; }
+      if (!res.ok) throw buildApiError(info, res.status);
+      if (!info) return { success: false, error: '查询视频任务状态失败' };
+      // info 含 status / video_url / credits_cost / error / note，原样透传给渲染侧
+      return Object.assign({ success: true }, info);
+    } catch (err) {
+      return { success: false, error: (err && err.message) || '查询视频任务状态失败', status: err && err.status };
+    }
+  }
   function notSupported(name) {
     const err = new Error('浏览器版不支持该能力：' + name);
     err.status = 501;
@@ -370,9 +445,69 @@
       getCreditsEntries: getCreditsEntries,
       getCreditsUsage: getCreditsUsage,
       getModelMeta: function () { return Promise.resolve({ success: true, contextLimit: null, quota: null }); },
-      generateImage: function () { return Promise.reject(notSupported('图片生成')); },
-      generateVideo: function () { return Promise.reject(notSupported('视频生成')); },
-      pollVideo: function () { return Promise.reject(notSupported('视频生成')); },
+      generateImage: generateImage,
+      generateVideo: generateVideo,
+      pollVideo: pollVideo,
+    },
+    account: {
+      async _user() {
+        const c = await ensureSb();
+        if (!c) return { session: null, user: null, profile: null };
+        const { data } = await c.auth.getSession();
+        const user = (data && data.session && data.session.user) || null;
+        if (!user) return { session: null, user: null, profile: null, email: null };
+        let profile = null;
+        try {
+          const { data: p, error } = await c
+            .from('user_profiles')
+            .select('username, avatar_url')
+            .eq('id', user.id)
+            .maybeSingle();
+          if (!error && p) profile = p;
+        } catch (e) { profile = null; }
+        return { session: data.session, user, profile, email: user.email || null };
+      },
+      async _pro() {
+        const { session, user } = await M.account._user();
+        if (!session || !user) return { isPro: false, expiresAt: null };
+        try {
+          const { data, error } = await sbClient().rpc('check_pro_status');
+          if (error || !data || !data.success) return { isPro: false, expiresAt: null };
+          return { isPro: !!data.is_pro, expiresAt: data.pro_expires_at || null };
+        } catch (e) { return { isPro: false, expiresAt: null }; }
+      },
+      async getSession() {
+        const { session, user, email } = await M.account._user();
+        if (!session || !user) return { success: true, loggedIn: false, session: null };
+        let username = email;
+        try { const p = await M.account._user(); username = (p.profile && p.profile.username) || email; } catch (e) { /* 忽略 */ }
+        return {
+          success: true, loggedIn: true,
+          session: { userId: user.id, email: email, username, expiresAt: session.expires_at || null },
+        };
+      },
+      async getInfo() {
+        const { session, user, profile, email } = await M.account._user();
+        if (!session || !user) return { success: false, loggedIn: false, error: '未登录' };
+        const pro = await M.account._pro();
+        return {
+          success: true, loggedIn: true,
+          user: { id: user.id, email: email, username: (profile && profile.username) || email },
+          profile: profile || null,
+          isPro: pro.isPro, proExpiresAt: pro.expiresAt,
+        };
+      },
+      async checkPro() {
+        const { session } = await M.account._user();
+        if (!session) return { success: true, loggedIn: false, isPro: false, expiresAt: null };
+        const pro = await M.account._pro();
+        return { success: true, loggedIn: true, isPro: pro.isPro, expiresAt: pro.expiresAt };
+      },
+      // 网页版无多设备授权体系，返回空列表（区别于桌面端）
+      async getDevices() {
+        const { session } = await M.account._user();
+        return { success: true, loggedIn: !!session, devices: [] };
+      },
     },
     i18n: {
       getMessage: getMessage,

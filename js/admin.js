@@ -4235,6 +4235,8 @@ async function saveAIModel(e) {
     aiActiveModelContextName = '';
     closeAIModelModal();
     loadAIProviders();
+    const previewPanel = document.getElementById('aiPreviewPanel');
+    if (previewPanel && !previewPanel.classList.contains('hidden')) loadAIModelsPreview();
     alert(i18n.t('admin.aiModelSaveSuccess'));
   } catch (error) {
     console.error('Save AI model error:', error);
@@ -4826,6 +4828,7 @@ async function loadAIModelsPreview() {
       appSupabase.client.rpc('ai_admin_list_providers'),
     ]);
     const models = modelRes?.data || [];
+    aiModelsCache = models; // 供「编辑」弹窗 openAIModelModal 取模型数据
     const providers = provRes?.data || [];
     const provName = {}; providers.forEach(p => { provName[p.id] = p.name; });
 
@@ -4844,6 +4847,7 @@ async function loadAIModelsPreview() {
               <th>${i18n.t('admin.aiPriority')}</th>
               <th>${i18n.t('admin.aiEnabled')}</th>
               <th>${i18n.t('admin.aiPreviewProviders')}</th>
+              <th>${i18n.t('common.actions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -4856,6 +4860,7 @@ async function loadAIModelsPreview() {
                 <td>${m.priority_rank ?? 0}</td>
                 <td><span class="ai-status-badge ${m.enabled ? 'on' : 'off'}">${m.enabled ? i18n.t('admin.aiEnabled') : i18n.t('admin.aiDisabled')}</span></td>
                 <td>${provs.length ? escapeHtml(provs.join('、')) : (isAuto ? `<span class="ai-text-dim">${i18n.t('admin.aiProviderModelScan')}</span>` : i18n.t('admin.aiPreviewNoProviders'))}</td>
+                <td><button class="action-btn edit" onclick="openAIModelModal('${m.id}')">${i18n.t('admin.aiEdit')}</button></td>
               </tr>`;
             }).join('')}
           </tbody>
