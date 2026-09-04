@@ -72,9 +72,10 @@ function unregisterCustomSkill(id) {
 const BUILTIN_AGENT_BASE = {
   default: {
     // Chat：锁定基础能力为「最基础（core）+ 联网搜索（network）」，不可关闭；
-    // 另默认启用生成技能（generative，图片/视频生成）但不锁定——工具照常暴露给模型，用户可在设置中关闭。
+    // 另默认启用生成技能（generative，图片/视频生成）与沙箱脚本执行（script，仅纯计算）但不锁定，
+    // 工具照常暴露给模型，用户可在设置中关闭。
     skills: ['core', 'network'],
-    defaultEnabled: ['generative', 'account'],
+    defaultEnabled: ['generative', 'account', 'script'],
     mcpServers: [], // 显式启用列表；空 = 未启用任何 MCP 服务器
   },
 };
@@ -209,12 +210,14 @@ function refreshContextBudget() {
 // 新加技能：建 skills/<name>/skill.md，并把 { id, path } 追加进 SKILL_MD。
 // 新加智能体：建 agents/<name>/agent.md，并把 { id, path } 追加进 AGENT_MD。
 // md 内容：开头 `---` 间是 front-matter（id/name/desc/builtin），其余为 markdown 正文（作为系统提示片段）。
-// ZoneMind 网页版：不复制桌面专属技能的 skill.md（filesystem/search/system/script/browser/cloud/cookies/notifications/archive/external/cache/temp）。
+// ZoneMind 网页版：不复制桌面专属技能中「依赖本机能力」的 skill.md（filesystem/search/system/browser/cloud/cookies/notifications/archive/external/cache/temp）。
+// 网页版纳入 script 沙箱技能（Worker 内纯计算，安全性可控），故与桌面版一致注册 scripts/script/skill.md。
 const SKILL_MD = [
   { id: 'core', path: 'skills/core/skill.md' },
   { id: 'network', path: 'skills/network/skill.md' },
   { id: 'generative', path: 'skills/generative/skill.md' },
   { id: 'account', path: 'skills/account/skill.md' },
+  { id: 'script', path: 'skills/script/skill.md' },
 ];
 const AGENT_MD = [
   { id: 'default', path: 'agents/default/agent.md' },
@@ -418,7 +421,7 @@ async function setToolEnabled(name, on, agentId) {
 // MCP 服务器级开关：开启某服务器 = 确保 __mcp__ 技能启用 + 把 serverId 加进启用列表；
 // 关闭某服务器 = 从启用列表移除；若关停最后一台则同时下线 __mcp__ 技能。
 // 启用列表为显式集合（空 = 未启用任何服务器），不做「空 = 全部」的隐式语义。
-// 内置/自定义智能体一致：不再区分锁定，都可自由开启/关闭。
+// 内置和自定义智能体均使用显式服务器列表，可自由开启或关闭 MCP 服务器。
 async function setMcpServerEnabled(serverId, on, agentId) {
   const agent = agentId ? getAgent(agentId) : getActiveAgent();
   if (!agent) return;

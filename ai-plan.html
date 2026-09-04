@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title data-i18n="cloudAuth.aiPlan">AI PLAN</title>
-  <!-- 与首页一致的 UI 依赖：Tailwind + DaisyUI + Animate.css -->
+  <!-- 使用站点统一的 Tailwind、DaisyUI 和 Animate.css 依赖。 -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -48,7 +48,7 @@
 
     [data-reveal] { opacity: 0; }
 
-    /* ===== AI PLAN 样式（与桌面版 modals.html / styles.css 一致） ===== */
+    /* ===== AI PLAN 页面样式 ===== */
     .plan-status-card {
       background: var(--b1, #fff);
       border: 1px solid var(--bc, #d1d5db);
@@ -375,7 +375,7 @@
     });
   </script>
   <script>
-    // AI PLAN 页面逻辑 —— 与桌面版 auth.js loadPlanStatus / renderPlanStatus / handlePlanRedeemCode 完全一致
+    // AI PLAN 页面逻辑：复用桌面版的认证、套餐状态和兑换流程。
     let currentUser = null;
 
     async function checkAuth() {
@@ -409,7 +409,7 @@
       if (errorEl) errorEl.textContent = '';
 
       try {
-        // 调用与桌面版相同的 RPC：ai_user_get_plan_status
+        // 调用套餐状态 RPC。
         const { data, error } = await appSupabase.client.rpc('ai_user_get_plan_status');
 
         if (error) {
@@ -419,7 +419,7 @@
 
         const planData = data || {};
 
-        // 补充 grants 用量信息（与桌面版 supabase-auth.js getPlanStatus 一致）
+        // 补充 grants 用量信息。
         if (Array.isArray(planData.recent_grants) && planData.recent_grants.length) {
           try {
             const { data: grantData, error: grantErr } = await appSupabase.client.rpc('ai_user_get_grants');
@@ -536,7 +536,7 @@
         if (grants.length === 0) {
           grantsEl.innerHTML = `<div class="plan-grants-empty">${t('cloudAuth.planNoGrants')}</div>`;
         } else {
-          // 未过期条目在前，已过期的折叠排列在后（与桌面版一致）
+          // 未过期条目在前，已过期条目折叠排列在后。
           const active = grants.filter((g) => !g.expired);
           const expired = grants.filter((g) => !!g.expired);
           const html = active.map(grantItemHtml);
@@ -608,7 +608,7 @@
       }
 
       try {
-        // 调用与桌面版相同的 RPC：redeem_activation_code
+        // 调用兑换激活码的 RPC。
         const { data, error } = await appSupabase.client.rpc('redeem_activation_code', {
           activation_code: code.toUpperCase()
         });

@@ -21,7 +21,7 @@ registerTool({
   
   labelKey: 'toolFetchUrl',
   write: true, // 未知目标 URL，GET 之外的 method 有副作用，统一按写操作确认
-  description: 'Send an HTTP request via the MyZone main process (no CORS/CSP limits). Returns the status code and the response body text (truncated). Use to fetch pages or call APIs.',
+  description: 'Send an HTTP request through the authenticated MyZone Supabase proxy to avoid browser CORS restrictions. Returns the status code and response body text (truncated).',
   parameters: {
     type: 'object',
     properties: {
@@ -57,6 +57,29 @@ registerTool({
     lines.push({ k: tSync('toolHttpStatus'), v: String(r.status) });
     if (r.truncated) lines.push({ k: tSync('toolResultTruncated'), v: (tSync('searchShown').replace('{{count}}', String(NET_BODY_LIMIT))) });
     lines.push({ k: tSync('toolNewContent'), v: String(r.result || '') });
+    return lines;
+  },
+});
+
+registerTool({
+  name: 'web_search',
+  skillId: 'network',
+  labelKey: 'toolWebSearch',
+  description: 'Search the web using the administrator-configured Tavily search API. Use this for current information and return concise source links.',
+  parameters: {
+    type: 'object',
+    properties: {
+      query: { type: 'string', description: 'Search query.' },
+      search_depth: { type: 'string', enum: ['basic', 'advanced'], description: 'Search depth.' },
+      max_results: { type: 'integer', minimum: 1, maximum: 10, description: 'Maximum number of results.' },
+    },
+    required: ['query'],
+  },
+  async handler(args) { return window.myzone.search(args); },
+  resultLines: (args, result) => {
+    if (!result || !result.success) return [{ k: tSync('toolWebSearch'), v: String((result && result.error) || tSync('toolFailed')) }];
+    const lines = result.answer ? [{ k: tSync('toolWebSearch'), v: result.answer }] : [];
+    for (const item of result.results || []) lines.push({ k: item.title || item.url || '', v: `${item.url || ''}\n${item.content || item.raw_content || ''}` });
     return lines;
   },
 });

@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ZoneMind 网页版</title>
-  <!-- 与首页一致的 UI 依赖：Tailwind + DaisyUI + Animate.css（子页统一不加载 style.css，避免样式冲突） -->
+  <!-- 使用站点统一的 Tailwind、DaisyUI 和 Animate.css；子页不加载 style.css，避免样式冲突。 -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -23,7 +23,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
   <link rel="stylesheet" href="css/site-chrome.css">
   <style>
-    /* ===== 与首页一致：auth.js 交互 + 页面自用最小样式 ===== */
+    /* ===== 认证交互与页面自用样式 ===== */
     .hidden { display: none !important; }
 
     #userBtn { position: relative; }
@@ -48,6 +48,24 @@
     }
 
     [data-reveal] { opacity: 0; }
+
+    body.zonemind-expanded { overflow: hidden; }
+    body.zonemind-expanded main { z-index: 1000; }
+    body.zonemind-expanded main > .relative { max-width: none; height: 100vh; padding: 0; }
+    body.zonemind-expanded #zonemind-shell {
+      position: fixed;
+      z-index: 1001;
+      top: var(--zonemind-top, 0px);
+      right: 0;
+      bottom: 0;
+      left: 0;
+      width: auto;
+      height: auto !important;
+      min-height: 0 !important;
+      border-radius: 0;
+      box-shadow: none;
+    }
+    body.zonemind-expanded #site-footer { display: none; }
   </style>
 </head>
 <body class="min-h-screen bg-base-100 text-base-content antialiased" data-page="zonemind">
@@ -58,7 +76,7 @@
     <div class="absolute inset-0 dot-grid pointer-events-none"></div>
     <div class="relative max-w-7xl mx-auto px-6 pt-6 pb-10">
       <!-- 薄外壳 + 全高 iframe：隔离 ZoneMind 自身 CSS，避免与站点 DaisyUI 冲突 -->
-      <div class="card bg-base-100 border border-base-300 rounded-2xl overflow-hidden shadow-sm" data-reveal data-anim="animate__fadeInUp" style="height:calc(100vh - 140px); min-height:480px;">
+      <div id="zonemind-shell" class="card bg-base-100 border border-base-300 rounded-2xl overflow-hidden shadow-sm" data-reveal data-anim="animate__fadeInUp" style="height:calc(100vh - 140px); min-height:480px;">
         <iframe
           id="zonemindFrame"
           src="zonemind/app.html"
@@ -115,6 +133,21 @@
   <script src="js/site-chrome.js"></script>
   <script src="js/auth.js"></script>
   <script>
+    // iframe 内标题触发站点内最大化，外层共享 Header 始终保留。
+    window.addEventListener('message', (event) => {
+      if (event.origin !== window.location.origin || !event.data || event.data.type !== 'zonemind-toggle-expand') return;
+      const shell = document.getElementById('zonemind-shell');
+      const header = document.getElementById('site-header');
+      if (!shell) return;
+      document.body.classList.toggle('zonemind-expanded');
+      if (document.body.classList.contains('zonemind-expanded')) {
+        const top = header ? Math.max(0, header.getBoundingClientRect().bottom) : 0;
+        shell.style.setProperty('--zonemind-top', `${top}px`);
+      } else {
+        shell.style.removeProperty('--zonemind-top');
+      }
+    });
+
     // 初始化 i18n 与图标
     document.addEventListener('DOMContentLoaded', () => {
       if (window.i18n) i18n.init();

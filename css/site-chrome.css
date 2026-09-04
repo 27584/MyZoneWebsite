@@ -2,7 +2,7 @@
  * site-chrome.css —— 全站公共头部 / 底部 样式
  * 头部使用一套自有的主题变量(--chrome-*)，不依赖 DaisyUI(--b1/--bc/--p)
  * 或 style.css(--background-color/--border-color/--primary-color)，
- * 确保首页(DaisyUI)与内页(style.css)在任何页面渲染出的头部完全一致。
+ * 让首页（DaisyUI）与内页（style.css）复用相同的头部视觉和交互约定。
  * 明暗主题跟随 <html data-theme="light|dark"> 切换。
  * ========================================================= */
 

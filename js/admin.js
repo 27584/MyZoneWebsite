@@ -916,29 +916,40 @@ async function deleteCloudData(rowId) {
 }
 
 // 在扩展详情中渲染该扩展的云数据
-async function loadDetailCloudData(slug) {
+let cloudDataAllRows = []; // 当前扩展云数据全量结果缓存，供搜索/筛选
+
+function renderCloudDataRows() {
   const container = document.getElementById('adminDetailCloudData');
   if (!container) return;
-  container.innerHTML = `<div class="empty-state"><p>${i18n.t('common.loading')}</p></div>`;
-  try {
-    const { data: rows, error } = await appSupabase.client.rpc('admin_list_extension_cloud_data', { p_slug: slug });
-    if (error) {
-      container.innerHTML = `<p style="color:#dc2626">${escapeHtml(error.message || i18n.t('common.error'))}</p>`;
-      return;
-    }
-    if (!rows || rows.length === 0) {
-      container.innerHTML = `<p style="color:#a1a1aa">${i18n.t('admin.cloudDataEmpty')}</p>`;
-      return;
-    }
-    container.innerHTML = rows.map(row => {
-      const scopeBadge = row.scope === 'global'
-        ? `<span class="cloud-data-badge global">${i18n.t('admin.cloudDataScopeGlobal')}</span>`
-        : `<span class="cloud-data-badge user">${i18n.t('admin.cloudDataScopeUser')}</span>`;
-      const ownerText = row.scope === 'global'
-        ? i18n.t('admin.cloudDataAllUsers')
-        : (row.user_email || row.data_user_id || i18n.t('admin.unknown'));
-      const valStr = typeof row.value === 'string' ? row.value : JSON.stringify(row.value);
-      return `
+
+  const keyword = (document.getElementById('cloudDataSearchInput').value || '').trim().toLowerCase();
+  const scopeFilter = document.getElementById('cloudDataScopeFilter').value;
+
+  let rows = cloudDataAllRows;
+  if (scopeFilter !== 'all') rows = rows.filter(r => r.scope === scopeFilter);
+  if (keyword) {
+    rows = rows.filter(r => {
+      const valStr = typeof r.value === 'string' ? r.value : JSON.stringify(r.value);
+      const ownerText = (r.user_email || r.data_user_id || '').toLowerCase();
+      return String(r.key_name).toLowerCase().includes(keyword)
+        || ownerText.includes(keyword)
+        || valStr.toLowerCase().includes(keyword);
+    });
+  }
+
+  if (rows.length === 0) {
+    container.innerHTML = `<p style="color:#a1a1aa">${i18n.t('admin.cloudDataEmpty')}</p>`;
+    return;
+  }
+  container.innerHTML = rows.map(row => {
+    const scopeBadge = row.scope === 'global'
+      ? `<span class="cloud-data-badge global">${i18n.t('admin.cloudDataScopeGlobal')}</span>`
+      : `<span class="cloud-data-badge user">${i18n.t('admin.cloudDataScopeUser')}</span>`;
+    const ownerText = row.scope === 'global'
+      ? i18n.t('admin.cloudDataAllUsers')
+      : (row.user_email || row.data_user_id || i18n.t('admin.unknown'));
+    const valStr = typeof row.value === 'string' ? row.value : JSON.stringify(row.value);
+    return `
         <div class="code-card" style="margin-bottom:8px;">
           <div class="code-info">
             <div class="code-code">${scopeBadge} <span style="font-family:monospace;">${escapeHtml(row.key_name)}</span></div>
@@ -954,11 +965,34 @@ async function loadDetailCloudData(slug) {
           </div>
         </div>
       `;
-    }).join('');
+  }).join('');
+}
+
+async function loadDetailCloudData(slug) {
+  const container = document.getElementById('adminDetailCloudData');
+  if (!container) return;
+  container.innerHTML = `<div class="empty-state"><p>${i18n.t('common.loading')}</p></div>`;
+  try {
+    const { data: rows, error } = await appSupabase.client.rpc('admin_list_extension_cloud_data', { p_slug: slug });
+    if (error) {
+      container.innerHTML = `<p style="color:#dc2626">${escapeHtml(error.message || i18n.t('common.error'))}</p>`;
+      return;
+    }
+    cloudDataAllRows = rows || [];
+    bindCloudDataFilter();
+    renderCloudDataRows();
   } catch (error) {
     console.error('Load detail cloud data error:', error);
     container.innerHTML = `<p style="color:#dc2626">${escapeHtml(error.message || i18n.t('common.error'))}</p>`;
   }
+}
+
+function bindCloudDataFilter() {
+  const searchInput = document.getElementById('cloudDataSearchInput');
+  const scopeFilter = document.getElementById('cloudDataScopeFilter');
+  if (!searchInput || !scopeFilter) return;
+  searchInput.oninput = renderCloudDataRows;
+  scopeFilter.onchange = renderCloudDataRows;
 }
 
 function addCloudDataForDetail() {
@@ -1644,6 +1678,14 @@ async function viewExtensionDetail(extId) {
           <button class="btn btn-secondary" onclick="addCloudDataForDetail()">${i18n.t('dev.devAddCloudData') || '新建云数据'}</button>
         </div>
         <p style="margin-bottom:10px;font-size:13px;color:var(--text-muted,#6b7280);">${i18n.t('dev.devCloudDataHint') || ''}</p>
+        <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap;">
+          <input type="search" id="cloudDataSearchInput" style="flex:1;min-width:180px;padding:8px 12px;border:1px solid var(--border-color,#e5e7eb);border-radius:6px;background:var(--bg-primary,#fff);color:var(--text-primary,#111827);" placeholder="${i18n.t('dev.devCloudDataSearchTip').replace(/"/g, '&quot;')}">
+          <select id="cloudDataScopeFilter" class="form-select" style="padding:8px 10px;">
+            <option value="all">${i18n.t('dev.devCloudDataScopeAll') || '全部数据'}</option>
+            <option value="global">${i18n.t('admin.cloudDataScopeGlobal') || '全局数据'}</option>
+            <option value="user">${i18n.t('admin.cloudDataScopeUser') || '用户数据'}</option>
+          </select>
+        </div>
         <div id="adminDetailCloudData"></div>
       </div>
     `;
@@ -4745,7 +4787,7 @@ async function loadAIProviders() {
       <div class="code-card mb-card">
         <div class="code-info">
           <div class="code-details" style="flex: 1;">
-            <h4>${escapeHtml(p.name)} <span class="ai-status-badge ${p.enabled ? 'on' : 'off'}">${p.enabled ? i18n.t('admin.aiEnabled') : i18n.t('admin.aiDisabled')}</span></h4>
+            <h4>${escapeHtml(p.name)} <span class="ai-status-badge">${p.provider_type === 'search' ? i18n.t('admin.aiProviderTypeSearch') : i18n.t('admin.aiProviderTypeModel')}</span> <span class="ai-status-badge ${p.enabled ? 'on' : 'off'}">${p.enabled ? i18n.t('admin.aiEnabled') : i18n.t('admin.aiDisabled')}</span></h4>
             <p>${i18n.t('admin.aiProviderBaseUrl')}: ${escapeHtml(p.base_url || '-')}</p>
             <p>${i18n.t('admin.aiKeyCounts')}: ${p.key_count ?? 0} · ${i18n.t('admin.aiModelCounts')}: ${models.length}</p>
           </div>
@@ -4930,6 +4972,7 @@ function openAIProviderModal(providerId) {
   form.reset();
   document.getElementById('aiProviderId').value = '';
   document.getElementById('aiProviderName').value = '';
+  document.getElementById('aiProviderType').value = 'model';
   document.getElementById('aiProviderBaseUrl').value = '';
   document.getElementById('aiProviderSortOrder').value = '0';
   document.getElementById('aiProviderEnabled').checked = true;
@@ -4942,6 +4985,7 @@ function openAIProviderModal(providerId) {
       document.getElementById('aiProviderModalTitle').textContent = i18n.t('admin.aiProviderModalTitleEdit');
       document.getElementById('aiProviderId').value = provider.id;
       document.getElementById('aiProviderName').value = provider.name || '';
+      document.getElementById('aiProviderType').value = provider.provider_type || 'model';
       document.getElementById('aiProviderBaseUrl').value = provider.base_url || '';
       document.getElementById('aiProviderSortOrder').value = provider.sort_order ?? 0;
       document.getElementById('aiProviderEnabled').checked = !!provider.enabled;
@@ -4982,6 +5026,7 @@ async function saveAIProvider(e) {
       p_id: document.getElementById('aiProviderId').value || null,
       p_name: name,
       p_base_url: baseUrl,
+      p_provider_type: document.getElementById('aiProviderType').value || 'model',
       p_enabled: document.getElementById('aiProviderEnabled').checked,
       p_sort_order: parseInt(document.getElementById('aiProviderSortOrder').value, 10) || 0
     });

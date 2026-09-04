@@ -3,7 +3,7 @@
  * 所有页面统一使用同一份头部与底部，避免重复维护。
  * 说明：
  *  - 同步注入（不依赖 fetch），auth.js 在 DOMContentLoaded 取元素时导航已就位。
- *  - 图标使用内联 SVG，不依赖 lucide，任何页面都能渲染。
+ *  - 图标使用内联 SVG，不依赖 lucide，避免受页面脚本加载顺序影响。
  *  - 配色读取 DaisyUI 令牌(--b1/--bc/--p...)与 style.css 变量双回退，
  *    使首页(DaisyUI)与内页(style.css)都能跟随明暗主题。
  *  - iframe 嵌入时自动隐藏头部，避免 dev-extensions 被 dashboard 内嵌时头部重复。

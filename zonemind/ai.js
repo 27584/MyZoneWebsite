@@ -1,4 +1,4 @@
-// myzone.ai-assistant / ai.js
+// ZoneMind 网页版：ai.js
 // AI 对话循环与流式渲染。生成绑定到「发起时的会话」，切换会话不会打断生成。
 
 'use strict';

@@ -292,20 +292,28 @@ async function loadModels() {
   renderModelSelector();
 }
 
-// 合并站长开放的内置 AI 模型（经网关中转，无需本地密钥，按 credits 计费）
-async function mergeBuiltinModels() {
-  let builtins = [];
-  let baseRate = null; // 1x 标准单位价（credits/千token，后台可配）
+// ========== 内置模型列表缓存 ==========
+// 内置模型来自 Supabase（ai_user_get_models），每次请求都较慢。为避免每次点模型下拉都卡在网络请求上，
+// 先把列表缓存到内存 + 本地存储：打开下拉先用缓存渲染，再后台请求刷新覆盖。
+const BUILTIN_CACHE_KEY = 'aiBuiltinModelCache'; // { models: [], base_rate, ts }
+let _builtinCache = null;
+
+function _builtinCacheSet(models, baseRate) {
+  _builtinCache = { models: Array.isArray(models) ? models : [], base_rate: baseRate ?? null, ts: Date.now() };
+  window.myzone.storage.set(BUILTIN_CACHE_KEY, _builtinCache).catch(() => {});
+}
+
+async function _builtinCacheSeed() {
+  if (_builtinCache) return;
   try {
-    const res = await window.myzone.ai.listBuiltinModels();
-    if (res && res.success && Array.isArray(res.models)) {
-      builtins = res.models;
-      const br = Number(res.base_rate);
-      baseRate = Number.isFinite(br) && br > 0 ? br : null;
-    }
-  } catch (e) {
-    builtins = [];
-  }
+    const v = await window.myzone.storage.get(BUILTIN_CACHE_KEY);
+    if (v && Array.isArray(v.models)) _builtinCache = v;
+  } catch (e) { _builtinCache = null; }
+}
+
+// 把后台返回的原始模型列表映射成内置模型并合并进 state（纯状态更新，不负责渲染）
+async function applyBuiltinModels(builtins, baseRateLocal) {
+  const baseRate = baseRateLocal; // 1x 标准单位价（credits/千token，后台可配）
   // 综合消耗倍率 = 按输入/输出/缓存加权折算的等效单价 / base_rate（相对 1x 标准价），如 0.44x
   const W_IN = 0.6, W_OUT = 0.3, W_CACHED = 0.1;
   state.builtinModels = builtins.map(m => {
@@ -367,6 +375,22 @@ async function mergeBuiltinModels() {
     // 内置模型已不可用（未登录 / 站长下线）：回落，避免请求携带失效的模型 id
     state.activeModelId = (state.models[0] && state.models[0].id) || null;
   }
+}
+
+// 合并站长开放的内置 AI 模型（经网关中转，无需本地密钥，按 credits 计费）
+async function mergeBuiltinModels() {
+  // 1) 先应用缓存的列表，让模型下拉立即有内容（读本地存储，不触网）
+  await _builtinCacheSeed();
+  if (_builtinCache) await applyBuiltinModels(_builtinCache.models || [], _builtinCache.base_rate ?? null);
+  // 2) 后台请求 Supabase 刷新；成功后覆盖缓存，失败则保留已应用的内存缓存（不覆盖为「无内置模型」）
+  try {
+    const res = await window.myzone.ai.listBuiltinModels();
+    if (!(res && res.success && Array.isArray(res.models))) return; // 响应异常：保留缓存
+    const br = Number(res.base_rate);
+    const baseRate = Number.isFinite(br) && br > 0 ? br : null;
+    await applyBuiltinModels(res.models, baseRate);
+    _builtinCacheSet(res.models, baseRate);
+  } catch (e) { /* 网络失败：保留缓存 */ }
 }
 
 async function selectModel(modelId) {

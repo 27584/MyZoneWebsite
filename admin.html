@@ -737,6 +737,13 @@
           <input type="text" id="aiProviderName" required data-i18n-placeholder="admin.aiProviderNamePlaceholder">
         </div>
         <div class="form-group">
+          <label for="aiProviderType" data-i18n="admin.aiProviderType">服务类型</label>
+          <select id="aiProviderType" class="form-select">
+            <option value="model" data-i18n="admin.aiProviderTypeModel">模型提供商</option>
+            <option value="search" data-i18n="admin.aiProviderTypeSearch">搜索服务（Tavily）</option>
+          </select>
+        </div>
+        <div class="form-group">
           <label data-i18n="admin.aiProviderBaseUrl">API 地址</label>
           <input type="text" id="aiProviderBaseUrl" required data-i18n-placeholder="admin.aiProviderBaseUrlPlaceholder">
           <small class="form-hint" data-i18n="admin.aiProviderBaseUrlHint">OpenAI 兼容接口基址，实际调用拼接各模型在该提供商下的上游模型 ID</small>

@@ -1,4 +1,4 @@
-// myzone.ai-assistant / i18n.js
+// ZoneMind 网页版：i18n.js
 // 国际化：预加载全部文案到缓存，提供 t / tSync 同步读取。
 
 'use strict';
@@ -30,7 +30,7 @@ const I18N_KEYS = [
   'conversationList', 'newConversation', 'toggleSidebar',
   'settings', 'modelLabel', 'selectModel',
   'approvalLabel', 'approvalManual', 'approvalAuto', 'approvalFull', 'selectApproval',
-  'approvalSection', 'approvalSectionHint', 'approvalFullWarning',
+  'approvalSection', 'approvalFullWarning',
   'riskThresholdLabel', 'riskThresholdValue', 'riskLevelLabel',
   'riskLow', 'riskMedium', 'riskHigh', 'riskCritical',
   'skillsSection', 'skillBadge', 'skillFilesystemName', 'skillFilesystemDesc',
@@ -39,7 +39,7 @@ const I18N_KEYS = [
   'agentLabel', 'agentChanged', 'selectAgent',
   'ctxTotalLabel', 'ctxRiskScore',
   'agentDefaultName', 'agentDefaultDesc', 'agentOrganizerName', 'agentOrganizerDesc',
-  'agentsSection', 'agentsSectionHint', 'newAgentBtn', 'agentBuiltin', 'agentCustom',
+  'agentsSection', 'newAgentBtn', 'agentBuiltin', 'agentCustom',
   'agentSelectHint', 'agentName', 'agentDesc', 'agentPrompt',
   'agentNameRequired', 'agentCreated', 'save', 'saved', 'edit', 'customAgentDefaultName',
   'deleteAgent', 'deleteAgentConfirm', 'agentDeleted',
@@ -56,7 +56,7 @@ const I18N_KEYS = [
   'noModels', 'clickToAdd',
   'outsideWorkDir', 'outsideWorkDirWarning', 'readOnlyIndicator',
   'showThinking', 'hideThinking', 'tokenUsage', 'tokenUsageNoCache',
-  'toolEditFile', 'toolSetWindowTitle',
+  'toolEditFile', 'toolSetWindowTitle', 'toolMemory',
   'toolNewContent', 'toolTarget', 'toolItemCount',
   'toolResultLines', 'toolResultLine', 'toolResultTruncated',
   'toolStatName', 'toolStatType', 'toolStatSize', 'toolStatCount', 'toolStatModified',
@@ -82,11 +82,11 @@ const I18N_KEYS = [
   'askNext', 'askPrev', 'askMultiHint', 'askMultiJoin', 'askRepeatNotAllowed',
   'skillCoreName', 'skillCoreDesc', 'skillMcpName', 'skillMcpDesc',
   'toolSuccess', 'toolNoResult', 'searchShown', 'toolHttpStatus', 'toolClipContent', 'toolClipReadFail',
-  'toolScriptResult', 'toolRunJs', 'toolRunJsSandbox',
+  'toolScriptResult', 'toolRunJs', 'toolRunJsSandbox', 'toolThink',
   'toolHistorySearch', 'toolHistoryRemove', 'toolHistoryClear',
   'toolFavSearch', 'toolFavCreate', 'toolFavRemove',
   'toolDlSearch', 'toolDlPause', 'toolDlCancel',
-  'toolFetchUrl', 'toolClipRead', 'toolClipWrite',
+  'toolFetchUrl', 'toolWebSearch', 'toolClipRead', 'toolClipWrite',
   'toolTabsQuery', 'toolTabsCreate', 'toolTabsGet', 'toolTabsUpdate', 'toolTabsRemove',
   'toolTabsReload', 'toolTabsGoBack', 'toolTabsGoForward', 'toolTabsUrl', 'toolTabsContent', 'toolTabsTitle', 'toolTabsContentText',
   'toolServerGet', 'toolServerGetAll', 'toolServerKeys', 'toolServerSet', 'toolServerRemove',

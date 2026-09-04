@@ -1,4 +1,4 @@
-// myzone.ai-assistant / risk.js
+// ZoneMind 网页版：risk.js
 // 操作风险评估：由一组规则对「写操作」打分（0-100），供「自动审批」模式判断是否需人工确认。
 // 用户可在设置中设定阈值 `state.settings.riskThreshold`，风险分 >= 阈值 的操作需确认。
 

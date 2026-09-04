@@ -80,6 +80,45 @@
     return url ? String(url).replace(/\/+$/, '') + '/functions/v1/ai-gateway' : null;
   }
 
+  async function fetchThroughGateway(urlOrOptions, init) {
+    const token = await getAccessToken();
+    const gateway = gatewayBase();
+    if (!token || !gateway) throw new Error('未登录或网页代理未配置');
+    const options = typeof urlOrOptions === 'string'
+      ? Object.assign({}, init || {}, { url: urlOrOptions })
+      : Object.assign({}, urlOrOptions || {});
+    const res = await ZM.fetch(gateway + '/fetch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ url: options.url, method: options.method, headers: options.headers, body: options.body }),
+    });
+    const info = await res.json();
+    if (!res.ok || !info || info.error) throw new Error((info && info.error) || 'Fetch failed');
+    const binary = atob(info.body || '');
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const text = new TextDecoder().decode(bytes);
+    return {
+      status: info.status,
+      statusText: info.statusText,
+      ok: info.status >= 200 && info.status < 300,
+      headers: { get: (name) => info.headers && info.headers[name.toLowerCase()] || null },
+      text: async () => text,
+      json: async () => JSON.parse(text),
+      arrayBuffer: async () => bytes.buffer,
+    };
+  }
+
+  async function searchThroughGateway(options) {
+    const token = await getAccessToken();
+    const gateway = gatewayBase();
+    if (!token || !gateway) throw new Error('未登录或搜索服务未配置');
+    const res = await ZM.fetch(gateway + '/search', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }, body: JSON.stringify(options || {}) });
+    const data = await res.json();
+    if (!res.ok || !data || data.error) throw new Error((data && data.error) || '搜索失败');
+    return data;
+  }
+
   // ---------- ai.chat：复刻 chatBuiltInStream ----------
   const abortCtrls = new Map();
 
@@ -429,6 +468,76 @@
   }
 
   const M = {
+    server: {
+      async get(scope, key) {
+        if (scope !== 'global' && scope !== 'user') return { success: false, error: '非法的数据范围' };
+        const c = await ensureSb();
+        if (!c) return { success: false, error: '云端服务不可用' };
+        const { data: auth } = await c.auth.getUser();
+        if (!auth || !auth.user) return { success: false, error: '未登录' };
+        let query = c.from('extension_cloud_data').select('value').eq('extension_slug', 'myzone.ai-assistant').eq('scope', scope).eq('key_name', String(key));
+        query = scope === 'user' ? query.eq('user_id', auth.user.id) : query.is('user_id', null);
+        const { data, error } = await query.maybeSingle();
+        if (error) return { success: false, error: error.message };
+        return { success: true, data: data ? data.value : null };
+      },
+      async set(scope, key, value) {
+        if (scope !== 'global' && scope !== 'user') return { success: false, error: '非法的数据范围' };
+        const c = await ensureSb();
+        if (!c) return { success: false, error: '云端服务不可用' };
+        const { data: auth } = await c.auth.getUser();
+        if (!auth || !auth.user) return { success: false, error: '未登录' };
+        const rowUserId = scope === 'user' ? auth.user.id : null;
+        let find = c.from('extension_cloud_data').select('id').eq('extension_slug', 'myzone.ai-assistant').eq('scope', scope).eq('key_name', String(key));
+        find = scope === 'user' ? find.eq('user_id', rowUserId) : find.is('user_id', null);
+        const { data: existing, error: findError } = await find.maybeSingle();
+        if (findError) return { success: false, error: findError.message };
+        let result;
+        if (existing) result = await c.from('extension_cloud_data').update({ value, updated_at: new Date().toISOString() }).eq('id', existing.id);
+        else result = await c.from('extension_cloud_data').insert({ extension_slug: 'myzone.ai-assistant', scope, key_name: String(key), value, user_id: rowUserId });
+        return result.error ? { success: false, error: result.error.message } : { success: true, changed: true };
+      },
+      async remove(scope, key) {
+        if (scope !== 'global' && scope !== 'user') return { success: false, error: '非法的数据范围' };
+        const c = await ensureSb();
+        if (!c) return { success: false, error: '云端服务不可用' };
+        const { data: auth } = await c.auth.getUser();
+        if (!auth || !auth.user) return { success: false, error: '未登录' };
+        let query = c.from('extension_cloud_data').delete().eq('extension_slug', 'myzone.ai-assistant').eq('scope', scope).eq('key_name', String(key));
+        query = scope === 'user' ? query.eq('user_id', auth.user.id) : query.is('user_id', null);
+        const { error } = await query;
+        return error ? { success: false, error: error.message } : { success: true, changed: true };
+      },
+      async getAll(scope) {
+        if (scope !== 'global' && scope !== 'user') return { success: false, error: '非法的数据范围' };
+        const c = await ensureSb();
+        if (!c) return { success: false, error: '云端服务不可用' };
+        const { data: auth } = await c.auth.getUser();
+        if (!auth || !auth.user) return { success: false, error: '未登录' };
+        let query = c.from('extension_cloud_data').select('key_name, value').eq('extension_slug', 'myzone.ai-assistant').eq('scope', scope);
+        query = scope === 'user' ? query.eq('user_id', auth.user.id) : query.is('user_id', null);
+        const { data, error } = await query;
+        if (error) return { success: false, error: error.message };
+        const result = {};
+        (data || []).forEach(row => { result[row.key_name] = row.value; });
+        return { success: true, data: result };
+      },
+      async keys(scope) {
+        const result = await this.getAll(scope);
+        return result.success ? { success: true, data: Object.keys(result.data) } : result;
+      },
+      async clear(scope) {
+        if (scope !== 'global' && scope !== 'user') return { success: false, error: '非法的数据范围' };
+        const c = await ensureSb();
+        if (!c) return { success: false, error: '云端服务不可用' };
+        const { data: auth } = await c.auth.getUser();
+        if (!auth || !auth.user) return { success: false, error: '未登录' };
+        let query = c.from('extension_cloud_data').delete().eq('extension_slug', 'myzone.ai-assistant').eq('scope', scope);
+        query = scope === 'user' ? query.eq('user_id', auth.user.id) : query.is('user_id', null);
+        const { error } = await query;
+        return error ? { success: false, error: error.message } : { success: true, changed: true };
+      },
+    },
     ai: {
       chat: chat,
       abort: function (requestId) {
@@ -595,7 +704,8 @@
       register: function () { return Promise.resolve({ success: true }); },
       unregister: function () { return Promise.resolve({ success: true }); },
     },
-    fetch: function () { return ZM.fetch.apply(ZM, arguments); },
+    fetch: fetchThroughGateway,
+    search: searchThroughGateway,
     // 本机选文件（供「从本机选择」附件）：返回与桌面 pickAndRead 一致的结构
     external: {
       async pickAndRead(opts) {

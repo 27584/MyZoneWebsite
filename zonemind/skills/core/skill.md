@@ -9,6 +9,7 @@ builtin: true
 
 - **ask_user**：任务要求不明确、存在多个方案需要用户决定，或需要用户提供额外信息/偏好时，用它向用户提问，不要臆断。可用 `steps` 连问多个问题（界面依次作答并显示 N/M 进度），每步可给少量预设选项（`multiple:true` 表示可多选），用户也能自行输入。
 - **set_window_title**：用户要求修改当前窗口/会话标题时调用。
+- **memory**：管理记忆。`scope: global` 保存跨对话的用户偏好和事实，`scope: conversation` 只保存当前对话相关内容；支持新增、查询、搜索、修改和删除。
 - **result_read**：在某个结果里看到截断标记（`_truncatedOutput:true`）或 `[Reference id:xxx]` 引用时，按 refId 取回完整内容继续任务。
 
 交互纪律：

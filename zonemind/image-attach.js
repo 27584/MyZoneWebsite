@@ -1,4 +1,4 @@
-// myzone.ai-assistant / image-attach.js
+// ZoneMind 网页版：image-attach.js
 // 把用户附件（图片 / 文本·代码文件）混进对话。
 //   - state.attach：当前输入区待发的附件 [{ type:'image', dataUrl, ... }] 或 [{ type:'text', text, ... }]
 //   - 图片来源：粘贴截图 / 「附件」按钮选图，canvas 压缩后入列 → 缩略预览

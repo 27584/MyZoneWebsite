@@ -1,4 +1,4 @@
-// myzone.ai-assistant / mcp.js
+// ZoneMind 网页版：mcp.js
 // 跨扩展 MCP 工具动态接入：把其它扩展（其它扩展可注册 MCP 服务）经 window.myzone.mcp 暴露的工具，
 // 运行时合入本扩展的工具表与系统提示，让 AI 像调用本地工具一样调用它们。
 // 每个 MCP 工具注册为技能 '__mcp__' 下的一个普通工具（registerTool, skillId:'__mcp__'），

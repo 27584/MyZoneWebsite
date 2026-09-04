@@ -82,3 +82,25 @@ registerTool({
   },
   resultLines: (args, r) => (r && r.success && r.title) ? [{ k: tSync('toolTarget'), v: String(r.title) }] : [],
 });
+
+// think：结构化思考。无外部副作用，仅记录推理步骤，帮助模型在调用其它工具前梳理思路。
+// 挂在恒启用的 core 技能下，始终可用；不触发审批。
+registerTool({
+  skillId: 'core',
+  name: 'think',
+  labelKey: 'toolThink',
+  description: 'Record an intermediate reasoning step (chain-of-thought) to structure your thinking before calling other tools. It has no external side effects and does not read anything. Use it to break a complex task into concrete steps, state assumptions, or write down a short plan; then proceed to act with other tools. Keep each thought concise.',
+  parameters: {
+    type: 'object',
+    properties: {
+      thought: { type: 'string', description: 'The reasoning step, assumption, or short plan you want to record.' },
+    },
+    required: ['thought'],
+  },
+  async handler(args) {
+    const thought = String(args && args.thought || '').trim();
+    if (!thought) return { success: false, error: '思考内容不能为空' };
+    return { success: true, note: thought };
+  },
+  resultLines: (args, r) => (r && r.success && r.note) ? [{ k: tSync('toolThink'), v: String(r.note) }] : [],
+});

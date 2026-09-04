@@ -1,4 +1,4 @@
-// myzone.ai-assistant / main.js
+// ZoneMind 网页版：main.js
 // 入口模块：主题、发送消息、事件绑定与初始化。
 
 'use strict';
@@ -109,6 +109,19 @@ function bindEvents() {
 
   // 侧边栏
   $('sidebar-toggle')?.addEventListener('click', toggleSidebar);
+  const zoneMindTitle = $('zonemind-title');
+  const toggleZoneMindFullscreen = () => {
+    if (window.parent !== window) {
+      window.parent.postMessage({ type: 'zonemind-toggle-expand' }, window.location.origin);
+    }
+  };
+  zoneMindTitle?.addEventListener('click', toggleZoneMindFullscreen);
+  zoneMindTitle?.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      toggleZoneMindFullscreen();
+    }
+  });
   $('new-conv-btn')?.addEventListener('click', () => createConversation());
   $('credits-badge')?.addEventListener('click', openCreditsDetail);
 

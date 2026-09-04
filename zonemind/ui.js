@@ -1552,9 +1552,12 @@ document.addEventListener('click', (e) => {
 });
 
 async function showModelDropdown() {
-  await loadModels();
+  // 先用当前已有的模型（含缓存）立即渲染并展开下拉，避免每次打开都阻塞在 Supabase 请求上；
+  // loadModels 在后台刷新成功后会再 renderModelSelector 原地更新列表。
+  renderModelSelector();
   const dropdown = $('model-dropdown');
   if (dropdown) dropdown.classList.add('visible');
+  await loadModels();
 }
 
 function hideModelDropdown() {

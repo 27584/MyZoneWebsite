@@ -109,7 +109,10 @@
       overflow: hidden;
       white-space: nowrap;
       text-overflow: ellipsis;
+      cursor: pointer;
+      user-select: none;
     }
+    .sidebar-title:hover { color: var(--accent); }
     .credits-badge {
       margin-left: auto;
       display: none;
@@ -2351,7 +2354,7 @@
     <!-- ========== Sidebar ========== -->
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-header">
-        <div class="sidebar-title" data-i18n="title"></div>
+        <div class="sidebar-title" id="zonemind-title" data-i18n="title" role="button" tabindex="0" title="点击铺开或还原页面"></div>
         <button class="credits-badge" id="credits-badge" title="__MSG_creditsDetailTitle__" style="display:none">
           <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="8" cy="8" r="5.4"/>
@@ -2591,7 +2594,6 @@
         </div>
         <div class="settings-section">
           <div class="settings-section-title" data-i18n="approvalSection"></div>
-          <div class="settings-model-hint" data-i18n="approvalSectionHint"></div>
           <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 10px;">
             <label class="form-label" data-i18n="riskThresholdLabel"></label>
             <input type="range" id="risk-threshold" min="0" max="100" step="5" style="width: 100%; accent-color: var(--accent);">
@@ -2600,7 +2602,6 @@
         </div>
         <div class="settings-section">
           <div class="settings-section-title" data-i18n="agentsSection"></div>
-          <div class="settings-model-hint" data-i18n="agentsSectionHint"></div>
           <div class="agent-tabs" id="agent-tabs"></div>
           <button class="settings-btn secondary" id="new-agent-btn" data-i18n="newAgentBtn" style="width:100%;margin-top:10px;"></button>
           <div class="agent-editor" id="agent-editor"></div>
@@ -2638,6 +2639,9 @@
   <script src="ui.js"></script>
   <script src="skills/index.js"></script>
   <script src="tools/core.js"></script>
+  <script src="tools/script.js"></script>
+  <script src="tools/cache.js"></script>
+  <script src="tools/memory.js"></script>
   <script src="tools/network.js"></script>
   <script src="tools/generative.js"></script>
   <script src="tools/account.js"></script>
