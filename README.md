@@ -11,7 +11,7 @@
 
 1. **创建数据库表**：
    - 在 Supabase 控制台的 SQL 编辑器中执行 `../supabase/schema.sql`
-   - 然后执行 `../supabase/security-policies.sql`
+   - 完整的服务端部署步骤（含 Edge Functions 与安全策略）见 [../supabase/DEPLOYMENT.md](../supabase/DEPLOYMENT.md)
 
 2. **启用 Email 认证**：
    - 进入 Authentication -> Settings
@@ -45,13 +45,11 @@ const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_your-key-here';
 
 ### 自动部署（推荐）
 
-项目已配置 GitHub Actions 工作流，会自动将 `website/` 目录部署到 GitHub Pages：
+项目支持 GitHub Actions 工作流自动将 `website/` 目录部署到 GitHub Pages。注意：当前仓库中尚未包含工作流文件，需先创建 `.github/workflows/deploy-pages.yml`（示例：`on: push` 到 `main`，`actions/configure-pages` + `actions/upload-pages-artifact` 上传 `website/` 目录，`actions/deploy-pages` 部署）：
 
-1. 将仓库推送到 GitHub
+1. 在仓库创建上述工作流文件并推送到 GitHub
 2. 在仓库 **Settings -> Pages -> Build and deployment -> Source** 选择 **"GitHub Actions"**
 3. 推送 `main` 分支，或手动触发 **Deploy Website to Pages** 工作流即可部署
-
-工作流文件：[`.github/workflows/deploy-pages.yml`](file:///d:/Projects/AI%20Projects/MyZone/.github/workflows/deploy-pages.yml)
 
 ### 手动部署
 

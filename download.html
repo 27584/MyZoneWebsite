@@ -113,40 +113,8 @@
   <!-- ===== 页脚（共享，由 js/site-chrome.js 注入） ===== -->
   <div id="site-footer"></div>
 
-  <!-- ===== 登录弹窗（保留 auth.js 所需 .active/.hidden） ===== -->
-  <div id="loginModal" class="modal-hidden">
-    <div id="loginBackdrop" class="modal-backdrop"></div>
-    <div class="card w-full max-w-md bg-base-100 shadow-2xl relative mt-10">
-      <div class="card-body">
-        <button id="closeModal" class="close-btn">&times;</button>
-        <h2 id="modalTitle" class="card-title text-2xl mb-2" data-i18n="auth.login">登录</h2>
-        <div id="modalTabs" class="modal-tabs flex gap-6 border-b border-base-300 mb-4">
-          <button id="tabLogin" class="tab tab-lg active pb-2" data-i18n="auth.login">登录</button>
-          <button id="tabSignup" class="tab tab-lg pb-2" data-i18n="auth.signup">注册</button>
-        </div>
-        <form id="authForm">
-          <div class="form-group mb-3 hidden" id="usernameGroup">
-            <label data-i18n="auth.username">用户名</label>
-            <input type="text" id="authUsername" name="username" placeholder="请输入用户名" data-i18n-placeholder="auth.placeholder.username">
-          </div>
-          <div class="form-group mb-3">
-            <label data-i18n="auth.email">邮箱</label>
-            <input type="email" id="authEmail" name="email" placeholder="请输入邮箱" data-i18n-placeholder="auth.placeholder.email" required>
-          </div>
-          <div class="form-group mb-3">
-            <label data-i18n="auth.password">密码</label>
-            <input type="password" id="authPassword" name="password" placeholder="请输入密码" data-i18n-placeholder="auth.placeholder.password" required>
-          </div>
-          <div class="form-group mb-3 hidden" id="confirmPasswordGroup">
-            <label data-i18n="auth.confirmPassword">确认密码</label>
-            <input type="password" id="authConfirmPassword" name="confirmPassword" placeholder="请再次输入密码" data-i18n-placeholder="auth.placeholder.confirmPassword">
-          </div>
-          <div id="authError" class="error-message hidden"></div>
-          <button type="submit" id="authSubmit" class="btn btn-primary w-full mt-4" data-i18n="auth.login">登录</button>
-        </form>
-      </div>
-    </div>
-  </div>
+  <!-- ===== 登录弹窗（由 js/site-chrome.js 全站统一注入，含第三方登录） ===== -->
+  <div id="loginModal" class="modal-hidden"></div>
 
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="js/lib/supabase.min.js"></script>

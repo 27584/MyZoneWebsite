@@ -101,6 +101,58 @@
     '</footer>'
   ].join('\n');
 
+  // 登录弹窗（全站共享，含邮箱/密码 + 第三方登录）。各页面只需 <div id="loginModal" class="modal-hidden"></div> 占位
+  var LOGIN_MODAL_HTML = [
+    '<div id="loginBackdrop" class="modal-backdrop"></div>',
+    '<div class="card w-full max-w-md bg-base-100 shadow-2xl relative mt-10">',
+    '  <div class="card-body">',
+    '    <button id="closeModal" class="close-btn">&times;</button>',
+    '    <h2 id="modalTitle" class="card-title text-2xl mb-2" data-i18n="auth.login">登录</h2>',
+    '    <div id="modalTabs" class="modal-tabs flex gap-6 border-b border-base-300 mb-4">',
+    '      <button id="tabLogin" class="tab tab-lg active pb-2" data-i18n="auth.login">登录</button>',
+    '      <button id="tabSignup" class="tab tab-lg pb-2" data-i18n="auth.signup">注册</button>',
+    '    </div>',
+    '    <form id="authForm">',
+    '      <div class="form-group mb-3 hidden" id="usernameGroup">',
+    '        <label data-i18n="auth.username">用户名</label>',
+    '        <input type="text" id="authUsername" name="username" placeholder="请输入用户名" data-i18n-placeholder="auth.placeholder.username">',
+    '      </div>',
+    '      <div class="form-group mb-3">',
+    '        <label data-i18n="auth.email">邮箱</label>',
+    '        <input type="email" id="authEmail" name="email" placeholder="请输入邮箱" data-i18n-placeholder="auth.placeholder.email" required>',
+    '      </div>',
+    '      <div class="form-group mb-3">',
+    '        <label data-i18n="auth.password">密码</label>',
+    '        <input type="password" id="authPassword" name="password" placeholder="请输入密码" data-i18n-placeholder="auth.placeholder.password" required>',
+    '      </div>',
+    '      <div class="form-group mb-3 hidden" id="confirmPasswordGroup">',
+    '        <label data-i18n="auth.confirmPassword">确认密码</label>',
+    '        <input type="password" id="authConfirmPassword" name="confirmPassword" placeholder="请再次输入密码" data-i18n-placeholder="auth.placeholder.confirmPassword">',
+    '      </div>',
+    '      <div id="authError" class="error-message hidden"></div>',
+    '      <button type="submit" id="authSubmit" class="btn btn-primary w-full mt-4" data-i18n="auth.login">登录</button>',
+    '      <div class="divider text-sm text-base-content/50 my-4">',
+    '        <span data-i18n="auth.or">或</span>',
+    '      </div>',
+    '      <div class="flex flex-col gap-3">',
+    '        <button type="button" id="githubLoginBtn" class="btn btn-outline w-full justify-center">',
+    '          <svg class="github-login-logo" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"></path></svg>',
+    '          <span data-i18n="auth.githubLogin">使用 GitHub 登录</span>',
+    '        </button>',
+    '        <button type="button" id="giteeLoginBtn" class="btn btn-outline w-full justify-center">',
+    '          <img src="images/gitee-logo-icon.svg" alt="Gitee" class="gitee-login-logo">',
+    '          <span data-i18n="auth.giteeLogin">使用 Gitee 登录</span>',
+    '        </button>',
+    '        <button type="button" id="wakudemoLoginBtn" class="btn btn-outline w-full justify-center">',
+    '          <img src="images/wakudemo-logo.png" alt="Waku!" class="wakudemo-login-logo">',
+    '          <span data-i18n="auth.wakudemoLogin">使用 Waku 登录</span>',
+    '        </button>',
+    '      </div>',
+    '    </form>',
+    '  </div>',
+    '</div>'
+  ].join('\n');
+
   // 移动端右侧滑入导航抽屉（含导航链接 / 语言切换）
   var DRAWER_HTML = [
     '<div id="appDrawerBackdrop" class="app-drawer-backdrop"></div>',
@@ -208,6 +260,10 @@
     var footerHost = document.getElementById('site-footer');
     if (headerHost) headerHost.innerHTML = HEADER_HTML;
     if (footerHost) footerHost.innerHTML = FOOTER_HTML;
+
+    // 登录弹窗：统一注入体，避免每个页面各写一份
+    var loginHost = document.getElementById('loginModal');
+    if (loginHost && !loginHost.querySelector('#authForm')) loginHost.innerHTML = LOGIN_MODAL_HTML;
 
     // 先插入抽屉到 DOM，再渲染导航链接
     document.body.insertAdjacentHTML('beforeend', DRAWER_HTML);

@@ -376,6 +376,36 @@ async function processTurn() {
       // 压缩/窗口触发以该会话历史峰值用量（realPeak）为口径：压缩是「粘性」的，
       // 一旦触发就持续压缩，避免压缩后一次发送把历史又撑满、圆环来回跳动。
       const result = await runChatLoop(genConv.messages, genConv.realPeak || genConv.contextUsed);
+      // 手动停止：把已渲染的部分内容持久化到会话历史（否则切换会话后内容丢失），
+      // 并补查实际扣费展示到气泡 footer（__gateway_final 收不到，网关在客户端断开后仍结算落库）
+      if (state.stopRequested && state.currentRequestId) {
+        const _ss = state.streamState;
+        let partialUid = null;
+        // 捕获气泡元素：finally 会清空 state.streamState，需先拿到引用供补查时更新 footer
+        let costBubble = null;
+        if (_ss && _ss.contentRaw && _ss.contentRaw.trim()) {
+          const partialText = _ss.contentRaw.trim();
+          partialUid = generateId();
+          genConv.messages.push({
+            role: 'assistant',
+            content: partialText,
+            uid: partialUid,
+            ts: Date.now(),
+            turnId: state.turnId,
+            interrupted: true,
+            usage: _ss.usage ? { ..._ss.usage } : null,
+            creditsCost: 0,
+          });
+          finalizeStreamBubble(partialText, _ss.usage ? { ..._ss.usage } : null, partialUid, 0);
+          if (_ss.content && _ss.content.bubble) costBubble = _ss.content.bubble;
+        }
+        // 不 await：补查轮询（最多 1.5s）不能阻塞 finally 里的 setBusy(false)，
+        // 否则用户点停止后 UI 仍卡在「生成中」好几秒，体验极差
+        const reqId = state.currentRequestId;
+        const uid = partialUid;
+        const bubble = costBubble;
+        showInterruptedCost(reqId, uid, bubble).catch(() => {});
+      }
       if (!state.stopRequested && result && result.text && !result.interrupted) {
         // 整轮正常结束（未被停止、未因余额耗尽中断）：清除中断标记，并打上一次性「输出完成」
         genConv.interrupted = false;
@@ -440,6 +470,59 @@ async function onStop() {
     }
   } catch (e) {
     /* 忽略 abort 失败，标志位已足够阻止后续迭代 */
+  }
+}
+
+// 打断后按 requestId 补查本次实际扣费并展示（credits 消耗）。
+// 网关在客户端断开后仍会结算落库（ai_request_logs.request_id），但 __gateway_final 收不到；
+// 本地模型/未登录/查不到/为 0 时静默。
+// bubbleEl：可选，手动停止时捕获的流式气泡 DOM 引用（finally 会清空 state.streamState，
+// 需由调用方预先传入，否则补查时已拿不到气泡节点）。
+async function showInterruptedCost(requestId, msgUid, bubbleEl) {
+  // 网关结算/落库是 fire-and-forget 异步（客户端断开后才执行），打断后可能尚未写入：
+  // 轮询重试几次再放弃，避免「查到还没落库」而静默。
+  // 次数少、间隔短：补查只是「锦上添花」展示扣费，不能阻塞 UI 恢复（见 processTurn 调用处）。
+  let cost = 0;
+  let costUsage = null; // 网关按估算/实际结算的 token 用量（中断时流尾 usage 事件收不到）
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const res = await window.myzone.ai.getRequestCost(requestId);
+      if (res && res.success && res.found) {
+        cost = Number(res.credits_cost) || 0;
+        if (res.prompt_tokens != null || res.completion_tokens != null) {
+          costUsage = {
+            prompt_tokens: Number(res.prompt_tokens) || 0,
+            completion_tokens: Number(res.completion_tokens) || 0,
+          };
+        }
+        break;
+      }
+    } catch (e) { /* 网络/权限等瞬时失败，下一轮重试 */ }
+    if (attempt < 2) await new Promise((r) => setTimeout(r, 500));
+  }
+  if (!(cost > 0)) return;
+  // 同步到会话历史：切换会话 / 重载后 renderHistory 仍会展示该次消耗
+  let usage = costUsage;
+  if (msgUid) {
+    const msg = (state.history || []).find(m => m.uid === msgUid);
+    if (msg) {
+      msg.creditsCost = cost;
+      if (!msg.usage && costUsage) msg.usage = costUsage;
+      usage = msg.usage || costUsage;
+    }
+  }
+  // 优先用调用方传入的气泡元素（已捕获，不受 finally 清空 streamState 影响）；
+  // 未传入时退回 getStreamState 兜底（极早打断等无气泡场景）。
+  const st = bubbleEl ? null : getStreamState();
+  const el = bubbleEl || (st && st.content && st.content.bubble);
+  if (el && el.isConnected) {
+    const foot = el.querySelector('.token-usage');
+    const text = formatUsageText(usage, cost);
+    if (foot) foot.textContent = text;
+    else el.appendChild(el('div', 'token-usage', text));
+  } else {
+    // 气泡已游离（极早打断/已切走）：toast 提示，避免补查到了却无任何可见反馈
+    window.myzone.toast.success(tSync('interruptedCost').replace('{{cost}}', formatCredits(cost)));
   }
 }
 

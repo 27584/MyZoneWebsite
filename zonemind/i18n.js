@@ -67,7 +67,7 @@ const I18N_KEYS = [
   'toolResultRead', 'resultReadNotFound', 'toolTruncated', 'toolLoopBreak', 'toolTabsLinks',
   'devSection', 'devModeLabel', 'devModeDesc', 'devReqTitle', 'devReqMeta', 'devReqEstUsed', 'devReqEstLimit', 'devReqTools',
   'quotaLabel', 'quotaProbing', 'quotaUnavailable', 'quotaAvailable', 'quotaUsedRemain',
-  'creditsBalance', 'creditsCost', 'creditsInsufficient', 'builtinModels', 'builtinBadge', 'autoBadge',
+  'creditsBalance', 'creditsCost', 'creditsInsufficient', 'builtinModels', 'builtinBadge', 'autoBadge', 'interruptedCost',
   'creditsDetailTitle', 'creditsDetailEmpty', 'creditsDetailModel', 'creditsDetailTokens',
   'creditsDetailCost', 'creditsDetailTime', 'creditsDetailMore', 'creditsDetailCount',
   'creditsDetailFailed', 'creditsDetailInvalid', 'creditsDetailTokenFormat',
@@ -100,7 +100,7 @@ const I18N_KEYS = [
   'toolGenerateImage', 'toolGenerateVideo',
   'generatedImage', 'generatedVideo',
   'genNoImageModel', 'genNoVideoModel', 'genNoResult',
-  'genStopped', 'genPollFailed', 'genVideoFailed', 'genVideoTimeout',
+  'genStopped', 'genPollFailed', 'genVideoFailed', 'genVideoTimeout', 'genImageTimeout',
   // 底部技能栏（豆包式手动技能）
   'skillLabel', 'skillAdd',
   'manualImageGen', 'manualVideoGen', 'skillSelectModel',

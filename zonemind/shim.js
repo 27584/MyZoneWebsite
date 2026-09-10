@@ -140,6 +140,8 @@
     if (ratio) baseBody.ratio = ratio;
 
     const headers = { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token };
+    // 请求标识随头传给网关：写入 ai_request_logs.request_id，打断后可按 requestId 补查实际扣费
+    if (opts.requestId != null) headers['X-Request-Id'] = String(opts.requestId);
 
     const ctl = new AbortController();
     if (opts.requestId != null) abortCtrls.set(opts.requestId, ctl);
@@ -544,6 +546,19 @@
         const ctl = abortCtrls.get(requestId);
         if (ctl) { try { ctl.abort(); } catch (e) { /* 忽略 */ } }
         return Promise.resolve({ success: true });
+      },
+      // 打断/中断后按 requestId 补查实际扣费（网关在客户端断开后仍会结算落库到 ai_request_logs）
+      getRequestCost: async function (requestId) {
+        try {
+          const c = await ensureSb();
+          if (!c) return { success: false, error: '未登录' };
+          const { data, error } = await c.rpc('ai_user_get_request_cost', { p_request_id: String(requestId) });
+          if (error) return { success: false, error: error.message };
+          // 日志行自带 success 字段（该次请求是否成功），放在最后避免覆盖 envelope 的 success:true
+          return { ...(data || { found: false }), success: true };
+        } catch (e) {
+          return { success: false, error: e && e.message ? e.message : '查询失败' };
+        }
       },
       checkBuiltin: checkBuiltin,
       isConfigured: function () { return Promise.resolve({ success: true, configured: false }); },

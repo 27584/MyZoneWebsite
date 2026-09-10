@@ -3,6 +3,7 @@ let tabLogin, tabSignup, modalTitle, authForm, authEmail, authPassword;
 let authConfirmPassword, authUsername, confirmPasswordGroup, usernameGroup;
 let authError, authSubmit, userBtn, userMenu, userAvatar, userBtnAvatar;
 let userName, userEmailEl, logoutBtn, langSelect, themeToggle, themeIconSun, themeIconMoon;
+let githubLoginBtn, wakudemoLoginBtn;
 
 let isLoginMode = true;
 
@@ -129,6 +130,61 @@ async function handleAuthSubmit(e) {
     }
   } catch (error) {
     showError(error.message || i18n.t('common.networkError'));
+  }
+}
+
+// 第三方登录：GitHub（内建）/ Waku（自定义 provider custom:wakudemo）
+// 与桌面端一致，走 Supabase signInWithOAuth；网页端 redirectTo 指回当前页面，
+// 回调令牌由 supabase-client.js 的 detectSessionInUrl 捕获并转为本地会话。
+// 第三方登录：Waku / Gitee 走统一 Edge Function 服务端回调（与桌面端同链路、绕开 GoTrue custom:* bug）
+// GitHub 仍走 Supabase 内建 signInWithOAuth。
+async function handleOAuthLogin(provider, failKey) {
+  const initialized = await appSupabase.ensureInitialized();
+  if (!initialized) {
+    showError(i18n.t('common.networkError'));
+    return;
+  }
+  // GitHub 内建 provider 维持原逻辑
+  if (provider === 'github') {
+    try {
+      const redirectTo = window.location.origin + window.location.pathname;
+      const { data, error } = await appSupabase.client.auth.signInWithOAuth({
+        provider: 'github',
+        options: { redirectTo }
+      });
+      if (error) {
+        showError(error.message || i18n.t(failKey));
+        return;
+      }
+      if (data && data.url) window.location.href = data.url;
+    } catch (error) {
+      showError(error.message || i18n.t(failKey));
+    }
+    return;
+  }
+
+  // Waku / Gitee 经 Edge Function：授权→Edge 服务端回调→重定向回本页携带 token
+  const providerKey = provider === 'gitee' ? 'gitee' : 'wakudemo';
+  const redirectTo = window.location.origin + window.location.pathname;
+  try {
+    const fnUrl = appSupabase.client.supabaseUrl.replace(/\/$/, '') + '/functions/v1/oauth-identity-bridge';
+    const res = await fetch(fnUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: window.SUPABASE_PUBLISHABLE_KEY || '',
+        Authorization: 'Bearer ' + (window.SUPABASE_PUBLISHABLE_KEY || '')
+      },
+      body: JSON.stringify({ provider: providerKey, action: 'authorize', redirect_to: redirectTo })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.authorize_url) {
+      showError((data && data.error) || i18n.t(failKey));
+      return;
+    }
+    window.location.href = data.authorize_url;
+  } catch (error) {
+    showError(error.message || i18n.t(failKey));
   }
 }
 
@@ -300,6 +356,9 @@ function initElements() {
   usernameGroup = document.getElementById('usernameGroup');
   authError = document.getElementById('authError');
   authSubmit = document.getElementById('authSubmit');
+  githubLoginBtn = document.getElementById('githubLoginBtn');
+  wakudemoLoginBtn = document.getElementById('wakudemoLoginBtn');
+  giteeLoginBtn = document.getElementById('giteeLoginBtn');
 
   userBtn = document.getElementById('userBtn');
   userMenu = document.getElementById('userMenu');
@@ -324,6 +383,9 @@ function initEventListeners() {
   if (tabSignup) tabSignup.addEventListener('click', () => toggleAuthMode(false));
   if (authForm) authForm.addEventListener('submit', handleAuthSubmit);
   if (logoutBtn) logoutBtn.addEventListener('click', handleLogout);
+  if (githubLoginBtn) githubLoginBtn.addEventListener('click', () => handleOAuthLogin('github', 'auth.githubLoginFailed'));
+  if (wakudemoLoginBtn) wakudemoLoginBtn.addEventListener('click', () => handleOAuthLogin('wakudemo', 'auth.wakudemoLoginFailed'));
+  if (giteeLoginBtn) giteeLoginBtn.addEventListener('click', () => handleOAuthLogin('gitee', 'auth.giteeLoginFailed'));
 
   if (userBtn) {
     userBtn.addEventListener('click', (e) => {
@@ -382,4 +444,13 @@ document.addEventListener('DOMContentLoaded', () => {
   
   checkAuthSession();
   console.log('[Auth] checkAuthSession triggered');
+
+  // 统一 Edge Function 回调登录回跳后刷新登录态
+  window.addEventListener('myzone-oauth-settled', async () => {
+    await checkAuthSession();
+    closeModalFunc();
+    if (typeof window.loadDashboard === 'function' && window.location.pathname.includes('dashboard')) {
+      window.loadDashboard();
+    }
+  });
 });

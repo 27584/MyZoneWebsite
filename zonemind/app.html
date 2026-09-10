@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>__MSG_extName__</title>
+  <link rel="stylesheet" href="vendor/katex/katex.min.css">
   <style>
     :root {
       --bg: #16181d;
@@ -743,6 +744,9 @@
 
     /* ========== Markdown body ========== */
     .markdown-body { line-height: 1.65; }
+    .markdown-body .katex-display { overflow-x: auto; overflow-y: hidden; padding: 2px 0;
+      max-width: 100%; -webkit-overflow-scrolling: touch; }
+    .markdown-body .katex-display > .katex { font-size: 1.1em; }
     .markdown-body h1, .markdown-body h2, .markdown-body h3,
     .markdown-body h4, .markdown-body h5, .markdown-body h6 {
       margin: 0.8em 0 0.4em;
@@ -2633,6 +2637,7 @@
   <script src="i18n-zh.js"></script>
   <script src="i18n-en.js"></script>
   <script src="shim.js"></script>
+  <script src="vendor/katex/katex.min.js"></script>
   <script src="state.js"></script>
   <script src="context.js"></script>
   <script src="i18n.js"></script>

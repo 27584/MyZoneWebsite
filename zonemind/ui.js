@@ -108,6 +108,25 @@ const SVG_CONV_ICON =
 const cfgExpanded = new Set();
 
 // ========== Markdown 渲染 ==========
+// 数学公式：内置 KaTeX 渲染（throwOnError:false，流式半截公式不抛错、降级为原样文本）。
+// KaTeX 未加载时回退为转义原文，保证公式不会被 HTML 转义或强调规则误伤。
+function renderMath(latex, displayMode) {
+  const raw = String(latex || '').trim();
+  if (!raw) return '';
+  // window.katex 是对象（katex.render / katex.renderToString），判断需落到方法而非对象本身
+  if (window.katex && typeof window.katex.renderToString === 'function') {
+    try {
+      return window.katex.renderToString(raw, {
+        displayMode: !!displayMode,
+        throwOnError: false,
+        output: 'html',
+        strict: false,
+      });
+    } catch (e) { /* 个别公式解析异常时回退为原样文本 */ }
+  }
+  return `<span>${escapeHtml(raw)}</span>`;
+}
+
 function renderMarkdown(text) {
   const raw = String(text || '');
   const lines = raw.split('\n');
@@ -125,6 +144,32 @@ function renderMarkdown(text) {
       }
       i++;
       blocks.push(`<pre><code${lang ? ` class="language-${lang}"` : ''}>${escapeHtml(codeLines.join('\n'))}</code></pre>`);
+      continue;
+    }
+    // 块级公式：$$...$$ 与 \[...\]（单行或多行累积到闭合符），整块以 display 模式渲染
+    if (/^(?:\$\$|\\\[)/.test(line.trim())) {
+      const isBracket = line.trim().startsWith('\\[');
+      let latex = '';
+      if (isBracket) {
+        const one = line.trim().match(/^\\\[([\s\S]+?)\\\]$/);
+        if (one) { latex = one[1]; i++; }
+        else {
+          latex = line.replace(/^\\\[/, '');
+          i++;
+          while (i < lines.length && !lines[i].includes('\\]')) { latex += '\n' + lines[i]; i++; }
+          if (i < lines.length) { latex += '\n' + lines[i].split('\\]').join(''); i++; }
+        }
+      } else {
+        const one = line.trim().match(/^\$\$([\s\S]+?)\$\$$/);
+        if (one) { latex = one[1]; i++; }
+        else {
+          latex = line.replace(/^\$\$/, '');
+          i++;
+          while (i < lines.length && !lines[i].includes('$$')) { latex += '\n' + lines[i]; i++; }
+          if (i < lines.length) { latex += '\n' + lines[i].split('$$').join(''); i++; }
+        }
+      }
+      blocks.push(renderMath(latex, true));
       continue;
     }
     if (line.startsWith('|') && i + 1 < lines.length && lines[i + 1].startsWith('|')) {
@@ -198,7 +243,15 @@ function renderEmphasis(text) {
 }
 
 function renderInline(text) {
-  let html = escapeHtml(text);
+  // 行内数学：在 HTML 转义之前抽取 $$...$$ 与 $...$ 并占位保护，latex 原样传给 KaTeX，
+  // 渲染结果（受信任的生成 HTML）在最后还原；避免反斜杠/下划线被转义或强调规则误改。
+  const MATH = [];
+  const mathToken = () => `\u0001K${MATH.length - 1}\u0001`;
+  let ht = String(text);
+  // $$...$$ 优先（作 display 行内展示），再处理单个 $...$
+  ht = ht.replace(/\$\$([\s\S]+?)\$\$/g, (m, latex) => { MATH.push(renderMath(latex, true)); return mathToken(); });
+  ht = ht.replace(/\$([^$\n]+?)\$/g, (m, latex) => { MATH.push(renderMath(latex, false)); return mathToken(); });
+  let html = escapeHtml(ht);
   // 先保护媒体/链接（以及其中 URL），再应用强调规则。
   // 若先做强调，URL 里的下划线会被 _..._ 误判成强调：如 agnes 直链 task_xxx/output_yyy.png
   // 会被改写成 task<em>xxx/output</em>yyy.png，请求 CDN/S3 时报 NoSuchKey，导致图片/视频显示失败。
@@ -229,8 +282,9 @@ function renderInline(text) {
   html = html.replace(/(https?:\/\/[^\s<>"']+)/g, (m, u) => protect(escapeHtml(u)));
   // 对剩余纯文本应用强调 / 代码
   html = renderEmphasis(html);
-  // 还原受保护的媒体 / 链接
+  // 还原受保护的媒体 / 链接，以及行内公式
   html = html.replace(/\u0001IMG(\d+)\u0001/g, (m, i) => PROTECTED[Number(i)]);
+  html = html.replace(/\u0001K(\d+)\u0001/g, (m, i) => MATH[Number(i)] ?? '');
   return html;
 }
 
@@ -2246,7 +2300,15 @@ async function openCreditsDetail() {
   document.body.appendChild(overlay);
 
   // —— credits 信息：余额总览 + 获得记录（备注/有效期/用量），参考 TRAE WORK 风格 ——
-  const fmtDT = (s) => s ? String(s).replace('T', ' ').slice(0, 16) : '--';
+  const fmtDT = (s) => {
+  if (!s) return '--';
+  const d = new Date(s);
+  // 服务端 created_at/expires_at 为 timestamptz（UTC ISO），必须按本地时区展示；
+  // 非标准时间串回退原截断逻辑，避免崩溃
+  if (isNaN(d.getTime())) return String(s).replace('T', ' ').slice(0, 16);
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+};
   const fmtValidity = (s) => s ? tSync('creditsValidUntil').replace('{{date}}', fmtDT(s)) : tSync('creditsValidForever');
   let creds = null;
   try {
@@ -2378,7 +2440,7 @@ async function openCreditsDetail() {
       const items = res.items;
       for (const it of items) {
         const row = document.createElement('tr');
-        const ts = it.created_at ? String(it.created_at).replace('T', ' ').slice(0, 16) : '--';
+        const ts = fmtDT(it.created_at);
         const cached = Number(it.cached_prompt_tokens) || 0;
         const prompt = Number(it.prompt_tokens) || 0;
         const tokens = tSync('creditsDetailTokenFormat')

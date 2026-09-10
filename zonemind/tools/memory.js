@@ -23,7 +23,7 @@ registerTool({
   async handler(args) {
     const scope = memoryScope(args); const action = String(args.action || 'list'); let memories = await readMemories(scope);
     if (action === 'list') return { success: true, memories };
-    if (action === 'search') { const query = memoryText(args.query).toLowerCase(); return { success: true, memories: query ? memories.filter(m => m.content.toLowerCase().includes(query)) : memories }; }
+    if (action === 'search') { const query = memoryText(args.query).toLowerCase(); return { success: true, memories: query ? memories.filter(m => typeof m.content === 'string' && m.content.toLowerCase().includes(query)) : memories }; }
     if (action === 'add') { const content = memoryText(args.content); if (!content) return { success: false, error: '记忆内容不能为空' }; if (memories.length >= MEMORY_LIMIT) return { success: false, error: '记忆数量已达上限' }; const item = { id: generateId(), content: content.slice(0, 20000), createdAt: Date.now(), updatedAt: Date.now() }; memories = memories.concat(item); return Object.assign(await writeMemories(scope, memories), { memory: item }); }
     const index = memories.findIndex(m => m.id === String(args.id || '')); if (index < 0) return { success: false, error: '未找到指定记忆' };
     if (action === 'update') { const content = memoryText(args.content); if (!content) return { success: false, error: '记忆内容不能为空' }; memories[index] = Object.assign({}, memories[index], { content: content.slice(0, 20000), updatedAt: Date.now() }); } else if (action === 'delete') memories.splice(index, 1); else return { success: false, error: '不支持的操作' };

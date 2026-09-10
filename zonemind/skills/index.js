@@ -639,6 +639,7 @@ function buildSystemPrompt() {
   if (state.workFolderPath && state.workFolderPath !== '/Root') {
     parts.push(`当前工作目录：${state.workFolderPath}。除非用户另有要求，请在该范围内操作文件。`);
   }
+  parts.push('工具使用原则：优先调用最匹配任务的专用工具（文件、网络、搜索、浏览器、记忆、剪贴板等）；只有不存在任何封装好的工具能完成时，才用 run_script 脚本执行作为最后手段，不要为简单操作反复造代码。');
   // 显式告知模型当前可用技能与工具（对应 API 下发的 tools 数组），避免模型误以为只能做文件操作。
   // 只列名称，一行一组，开销极小且前缀稳定（不破坏 L4 KV 缓存纪律）；详细参数由 tools schema 提供。
   const capability = buildToolIndex().skills

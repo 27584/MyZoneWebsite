@@ -2,6 +2,9 @@ window.sb = window.supabase || {};
 
 const SUPABASE_URL = 'https://uzlaayqgxjaroejfrwba.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_y40sMBrFW1pWsNsZGnoadQ_QL7bxAvm';
+// 暴露给页面其他脚本（如 auth.js 调 Edge Function 时附加鉴权头）
+window.SUPABASE_URL = SUPABASE_URL;
+window.SUPABASE_PUBLISHABLE_KEY = SUPABASE_PUBLISHABLE_KEY;
 
 let supabaseClient = null;
 let isConfigured = false;
@@ -98,4 +101,43 @@ window.addEventListener('myzone-settings', async (e) => {
 document.addEventListener('DOMContentLoaded', () => {
   console.log('[Supabase] DOMContentLoaded, initializing...');
   initializeSupabase();
+  handleOauthRedirectBack();
 });
+
+// 处理「统一 Edge Function 服务端回调」登录后的回跳：页面 URL 携带 oauth_token/oauth_email，
+// 用它 verifyOtp 换成标准会话。成功即清理 URL 参数并通知页面刷新登录态。
+async function handleOauthRedirectBack() {
+  try {
+    const qs = new URLSearchParams(window.location.search);
+    const token = qs.get('oauth_token') || '';
+    const email = qs.get('oauth_email') || '';
+    if (!token || !email) return;
+
+    await ensureInitialized();
+    if (!supabaseClient) return;
+
+    const { data, error } = await supabaseClient.auth.verifyOtp({ type: 'email', email, token });
+    if (error) {
+      console.warn('[Supabase] oauth verifyOtp error:', error.message);
+    } else if (data && data.session) {
+      await supabaseClient.auth.setSession({
+        access_token: data.session.access_token,
+        refresh_token: data.session.refresh_token
+      });
+    }
+
+    // 清理 URL 中的 oauth_ 参数，避免刷新重复兑换 / 令牌滞留地址栏
+    qs.delete('oauth_token');
+    qs.delete('oauth_email');
+    qs.delete('oauth_provider');
+    qs.delete('oauth_user_id');
+    const q = qs.toString();
+    const clean = window.location.pathname + (q ? '?' + q : '') + window.location.hash;
+    window.history.replaceState({}, '', clean);
+
+    // 通知页面刷新登录态
+    window.dispatchEvent(new CustomEvent('myzone-oauth-settled'));
+  } catch (err) {
+    console.warn('[Supabase] handleOauthRedirectBack exception:', err);
+  }
+}

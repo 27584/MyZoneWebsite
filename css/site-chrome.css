@@ -298,3 +298,8 @@ body.drawer-open { overflow: hidden; }
   .app-header__brand { font-size: 16px; }
   .app-btn { padding: 0 10px; }
 }
+
+/* ---------- 登录弹窗第三方登录 ---------- */
+.github-login-logo { width: 20px; height: 20px; flex-shrink: 0; }
+.wakudemo-login-logo { width: 72px; height: auto; flex-shrink: 0; object-fit: contain; }
+.gitee-login-logo { height: 20px; width: auto; flex-shrink: 0; object-fit: contain; }

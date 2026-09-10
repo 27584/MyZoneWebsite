@@ -523,7 +523,14 @@ async function runManualSkill(text) {
       let failStreak = 0;
       let done = null;
       while (pollCount < maxPolls) {
-        if (state.mediaStopConvs.has(genConv.id)) return true; // 用户点「停止」：静默终止轮询，不追加结果
+        if (state.mediaStopConvs.has(genConv.id)) {
+          // 用户点「停止」：静默终止轮询，不追加结果；并清掉「生成中」占位气泡，
+          // 否则它会一直卡在界面，切走再切回还经 renderHistory 重建重现。
+          const _pel = state.manualPendingEls.get(genConv.id);
+          if (_pel && _pel.el && _pel.el.isConnected) _pel.el.remove();
+          state.manualPendingEls.delete(genConv.id);
+          return true;
+        }
         await new Promise(r => setTimeout(r, 5000));
         pollCount += 1;
         setPendingText(null, `${tSync('genParamSeconds')} ${p.seconds || '5'}s · ${tSync('genParamAspectRatio')} ${p.aspectRatio || '16:9'} · 生成中（第 ${pollCount} 次轮询）`);
@@ -756,13 +763,14 @@ async function runMediaScheduler() {
   const pending = [...state.mediaTasks];
   for (const task of pending) {
     if (state.mediaStopConvs.has(task.convId)) { failMediaTask(task, tSync('genStopped')); continue; }
-    // 图片任务由 Promise 完成回调驱动，不需轮询
-    if (task.mode === 'image') continue;
-    // 视频生成超时收敛：持续 processing 超过 12 分钟仍无结果则放弃等待（不无限轮询）
+    // 超时收敛对所有模式生效（含图片）：图片依赖 Promise 决议，若上游请求悬挂导致 Promise
+    // 永不 settle，这里也能收敛，避免占位气泡与调度器永不收尾。判断放 image continue 之前。
     if (Date.now() - (task.startedAt || 0) > 12 * 60 * 1000) {
-      failMediaTask(task, tSync('genVideoTimeout'));
+      failMediaTask(task, task.mode === 'image' ? tSync('genImageTimeout') : tSync('genVideoTimeout'));
       continue;
     }
+    // 图片任务由 Promise 完成回调驱动，不需轮询
+    if (task.mode === 'image') continue;
     const poll = await window.myzone.ai.pollVideo(task.taskId).catch(() => null);
     if (!poll || !poll.success) {
       // 上游查询持续失败则放弃等待（收敛：不无限轮询）

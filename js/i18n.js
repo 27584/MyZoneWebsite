@@ -135,7 +135,14 @@ const translations = {
         email: '请输入邮箱',
         password: '请输入密码',
         confirmPassword: '请再次输入密码'
-      }
+      },
+      or: '或',
+      githubLogin: '使用 GitHub 登录',
+      giteeLogin: '使用 Gitee 登录',
+      wakudemoLogin: '使用 Waku 登录',
+      githubLoginFailed: 'GitHub 登录失败',
+      giteeLoginFailed: 'Gitee 登录失败',
+      wakudemoLoginFailed: 'Waku 登录失败'
     },
     profile: {
       title: '个人资料',
@@ -592,6 +599,9 @@ const translations = {
       aiBaseRate: '标准单位价（1x）',
       aiBaseRateHint: 'credits / 百万 token，内置模型的综合消耗速率以此折算为倍率（如 0.44x）',
       aiBillingSaved: '已保存计费配置',
+      aiDiscountSwitch: '折扣总开关',
+      aiDiscountSwitchHint: '关闭后所有模型折扣不生效，按原价计费与展示',
+      aiDiscountSaved: '已保存折扣设置',
       aiMaxConcurrent: '最大并发数',
       aiMaxConcurrentHint: '同一模型同时处理的请求数，超过后自动排队',
       aiContextLength: '最大上下文',
@@ -1088,7 +1098,14 @@ const translations = {
         email: 'Enter email',
         password: 'Enter password',
         confirmPassword: 'Enter password again'
-      }
+      },
+      or: 'or',
+      githubLogin: 'Sign in with GitHub',
+      giteeLogin: 'Sign in with Gitee',
+      wakudemoLogin: 'Sign in with Waku',
+      githubLoginFailed: 'GitHub login failed',
+      giteeLoginFailed: 'Gitee login failed',
+      wakudemoLoginFailed: 'Waku login failed'
     },
     profile: {
       title: 'Profile',
@@ -1545,6 +1562,9 @@ const translations = {
       aiBaseRate: 'Base unit price (1x)',
       aiBaseRateHint: 'credits / million tokens. Built-in model effective spend rate is derived from it (e.g. 0.44x)',
       aiBillingSaved: 'Billing config saved',
+      aiDiscountSwitch: 'Discount master switch',
+      aiDiscountSwitchHint: 'When off, all model discounts are disabled; prices are charged and displayed at full rate',
+      aiDiscountSaved: 'Discount settings saved',
       aiMaxConcurrent: 'Max Concurrent',
       aiMaxConcurrentHint: 'Requests handled at once per model; excess are queued',
       aiContextLength: 'Max context',

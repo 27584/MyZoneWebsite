@@ -3709,6 +3709,8 @@ async function loadAIModels() {
   try {
     const cfgRes = await appSupabase.client.rpc('ai_admin_get_app_config');
     const baseRate = (cfgRes && !cfgRes.error && cfgRes.data && cfgRes.data.base_rate) ?? '';
+    const discountEnabledVal = (cfgRes && !cfgRes.error && cfgRes.data && cfgRes.data.discount_enabled) ?? 'true';
+    const discountOn = !['false', '0', 'off', 'no'].includes(String(discountEnabledVal).trim().toLowerCase());
     billingCard = `
       <div class="code-card">
         <div class="code-info">
@@ -3719,6 +3721,14 @@ async function loadAIModels() {
               <input id="aiBaseRateInput" type="number" step="any" min="0" value="${escapeHtml(String(baseRate))}" style="width: 130px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text);">
               <span style="color: var(--text-muted); font-size: 12px;">${i18n.t('admin.aiBaseRateHint')}</span>
               <button class="action-btn primary" onclick="saveAIConfig('base_rate')">${i18n.t('common.save')}</button>
+            </p>
+            <p style="margin-top: 10px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <label for="aiDiscountEnabledInput" style="color: var(--text-muted); display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                <input id="aiDiscountEnabledInput" type="checkbox" ${discountOn ? 'checked' : ''} style="width: 16px; height: 16px; accent-color: var(--accent, #4f6ef7);">
+                ${i18n.t('admin.aiDiscountSwitch')}
+              </label>
+              <span style="color: var(--text-muted); font-size: 12px;">${i18n.t('admin.aiDiscountSwitchHint')}</span>
+              <button class="action-btn primary" onclick="saveAIDiscountSwitch()">${i18n.t('common.save')}</button>
             </p>
           </div>
         </div>
@@ -4343,6 +4353,24 @@ async function saveAIConfig(key) {
   }
 }
 
+// 保存折扣总开关
+async function saveAIDiscountSwitch() {
+  try {
+    const el = document.getElementById('aiDiscountEnabledInput');
+    const value = el && el.checked ? 'true' : 'false';
+    const { error } = await appSupabase.client.rpc('ai_admin_set_app_config', { p_key: 'discount_enabled', p_value: value });
+    if (error) {
+      console.error('Save discount switch error:', error);
+      alert(error.message || i18n.t('common.error'));
+      return;
+    }
+    alert(i18n.t('admin.aiDiscountSaved'));
+  } catch (error) {
+    console.error('Save discount switch error:', error);
+    alert(i18n.t('common.networkError') + (error && error.message ? ': ' + error.message : ''));
+  }
+}
+
 // ---------- 每个模型的 Key 管理 ----------
 
 // Key 健康状态徽标与详情行（数据来自 ai_provider_keys 健康列，网关被动采集 + probe 落库）
@@ -4726,6 +4754,8 @@ async function loadAIBilling() {
   try {
     const cfgRes = await appSupabase.client.rpc('ai_admin_get_app_config');
     const baseRate = (cfgRes && !cfgRes.error && cfgRes.data && cfgRes.data.base_rate) ?? '';
+    const discountEnabledVal = (cfgRes && !cfgRes.error && cfgRes.data && cfgRes.data.discount_enabled) ?? 'true';
+    const discountOn = !['false', '0', 'off', 'no'].includes(String(discountEnabledVal).trim().toLowerCase());
     html = `
       <div class="code-card">
         <div class="code-info">
@@ -4736,6 +4766,14 @@ async function loadAIBilling() {
               <input id="aiBaseRateInput" type="number" step="any" min="0" value="${escapeHtml(String(baseRate))}" style="width: 130px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text);">
               <span style="color: var(--text-muted); font-size: 12px;">${i18n.t('admin.aiBaseRateHint')}</span>
               <button class="action-btn primary" onclick="saveAIConfig('base_rate')">${i18n.t('common.save')}</button>
+            </p>
+            <p style="margin-top: 10px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <label for="aiDiscountEnabledInput" style="color: var(--text-muted); display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                <input id="aiDiscountEnabledInput" type="checkbox" ${discountOn ? 'checked' : ''} style="width: 16px; height: 16px; accent-color: var(--accent, #4f6ef7);">
+                ${i18n.t('admin.aiDiscountSwitch')}
+              </label>
+              <span style="color: var(--text-muted); font-size: 12px;">${i18n.t('admin.aiDiscountSwitchHint')}</span>
+              <button class="action-btn primary" onclick="saveAIDiscountSwitch()">${i18n.t('common.save')}</button>
             </p>
           </div>
         </div>

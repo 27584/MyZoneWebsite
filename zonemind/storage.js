@@ -352,13 +352,15 @@ async function applyBuiltinModels(builtins, baseRateLocal) {
   const locals = (state.models || []).filter(m => !m.builtin);
   const seenIds = new Set();
   const dedup = locals.filter(m => seenIds.has(m.id) ? false : (seenIds.add(m.id), true));
-  const localCount = dedup.length;
   state.models = dedup.concat(state.builtinModels);
-  // 恢复内置聊天模型选择：优先还原扩展存储里记住的内置模型（若仍可用），
-  // 否则仅在从未选中模型且本地无模型时才兜底为内置，绝不覆盖用户已选的本地模型。
+  // 恢复内置聊天模型选择：优先还原扩展存储里记住的内置模型（若仍可用）；
+  // 从未选中任何模型时默认 AUTO（自动选择），无 AUTO 则回退首个内置聊天模型；
+  // 用户已明确选择的本地模型（activeModelId 非空）不被覆盖。
   if (state.builtinModels.length) {
     // 默认聊天模型只可能是「文本对话」类型；图片/视频模型不出现在聊天下拉，绝不可作为聊天模型
     const chatBuiltin = state.builtinModels.find(m => (m.model_type || 'chat') === 'chat');
+    // AUTO 为默认：存在 AUTO 聊天模型时优先作为兜底默认，其次才是首个内置聊天模型
+    const chatAuto = state.builtinModels.find(m => m.is_auto && (m.model_type || 'chat') === 'chat') || chatBuiltin;
     // 优先恢复用户上次明确选择的内置聊天模型：只要它仍可用就恢复为当前选中，
     // 不再依赖「当前是否已是内置」作为前提（否则 loadModels 先用本地接口的
     // activeModelId 覆盖成自定义模型，导致此处判断为 false 而丢掉内置记忆）。
@@ -368,8 +370,8 @@ async function applyBuiltinModels(builtins, baseRateLocal) {
     if (savedModel) {
       state.activeModelId = savedModel.id;
     } else if (!state.activeModelId) {
-      // 无内置记忆且从未选中模型：本地没有模型时才退回内置聊天模型，避免覆盖本地默认选择
-      state.activeModelId = (localCount === 0 && chatBuiltin) ? chatBuiltin.id : (state.models[0] && state.models[0].id) || null;
+      // 从未选中任何模型：默认 AUTO（自动选择）；无 AUTO 时回退首个内置聊天模型，再回退列表首个
+      state.activeModelId = chatAuto ? chatAuto.id : ((state.models[0] && state.models[0].id) || null);
     }
   } else if (state.activeModelId && state.activeModelId.startsWith('builtin::')) {
     // 内置模型已不可用（未登录 / 站长下线）：回落，避免请求携带失效的模型 id
